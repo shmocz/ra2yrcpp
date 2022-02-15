@@ -1,18 +1,12 @@
 #pragma once
 
 #include "types.h"
+#include <xbyak/xbyak.h>
 #include <mutex>
 #include <vector>
-#include <xbyak/xbyak.h>
+#include <functional>
 
 namespace hook {
-
-typedef void(__cdecl* p_cb_hook)(void* hook_object, void *user_data, X86Regs state);
-
-struct UserCallback {
-  p_cb_hook func;
-  void* args;
-};
 
 /// Represents control flow redirection at particular location.
 struct Detour {
@@ -30,31 +24,29 @@ using CodeBuf = u8[8192];
 ///
 /// On WIN32, detour is installed by suspending all threads, allocating
 /// executable memory region, writing the detour "trampoline" to it and patching
-/// the code region at target address. If a thread's instruction pointer resides
-/// in the target region, execution is redirected to matching instruction
-/// within the detour. Uninstallation is done by first removing all callbacks,
+/// the code region at target address. If thread's instruction pointer is in
+/// target region, suspend/resume is called repeatedly until it has exited
+/// the region. Uninstallation is done by first removing all callbacks,
 /// suspending all threads, restoring original code and freeing the detour
-/// memory block. First, it's necessary to wait until none of the threads are
-/// in jump region. Once this is satisfied, original code can be patched back,
-/// ensuring no thread can longer enter the detour region. If no thread is
-/// executing the hook, cleanup can be done directly. Otherwise an exit handler
-/// is enabled for the hook so that the last thread exiting from hook performs
-/// the cleanup.
+/// memory block. Detour trampoline is removed in same way as it was originally
+/// installed. Once all threads have exited from the detour region, code region
+/// is freed and Hook object destroyed.
 ///
-/// Overall, the code regions are:
-/// - jump region: instructions that jump to detour trampoline
-/// - detour trampoline: executes the original instruction, pushes return value
-/// to stack and jumps to common detour handler
-/// - common detour region and call to hook handler
 class Hook {
  public:
+  typedef void (*hook_cb_t)(Hook* h, void* user_data, X86Regs* state);
+  struct HookCallback {
+    std::function<void(Hook*, void*, X86Regs*)> func;
+    void* user_data;
+  };
+
   struct DetourTrampoline : Xbyak::CodeGenerator {
     DetourTrampoline(const u8* target, const size_t code_length) {
       push(reinterpret_cast<u32>(target));
       ret();
       const size_t pad_length = code_length - getSize();
       if (pad_length > 0) {
-        nop(pad_length);
+        nop(pad_length, false);
       }
     }
   };
@@ -78,12 +70,17 @@ class Hook {
 
   struct DetourMain : Xbyak::CodeGenerator {
     DetourMain(const addr_t target, const addr_t hook, const size_t code_length,
-               const addr_t call_hook) {
-      nop(code_length);  // placeholder for original instruction(s)
+               const addr_t call_hook, unsigned int* count_enter,
+               unsigned int* count_exit) {
+      nop(code_length, false);  // placeholder for original instruction(s)
       save_regs(*this);
       push(hook);
       mov(eax, call_hook);
+      lock();
+      inc(dword[count_enter]);
       call(eax);
+      lock();
+      inc(dword[count_exit]);
       add(esp, 0x4);
       restore_regs(*this);
       push(target + code_length);
@@ -92,35 +89,44 @@ class Hook {
     DetourMain(Hook* h)
         : DetourMain(h->detour().src_address, reinterpret_cast<addr_t>(h),
                      h->detour().code_length,
-                     reinterpret_cast<addr_t>(&h->call)) {}
+                     reinterpret_cast<addr_t>(&h->call), h->count_enter(),
+                     h->count_exit()) {}
   };
 
   ///
   /// @param src_address Address that will be hooked
   /// @param code_length Number of bytes to copy to detour's location
   ///
-  Hook(const addr_t src_address, const size_t code_length);
+  Hook(addr_t src_address, const size_t code_length);
   ~Hook();
-  ///
-  void add_callback(UserCallback c);
+  void add_callback(HookCallback c);
   /// Invoke all registered hook functions. This function is thread safe.
   static void __cdecl call(Hook* H, X86Regs state);
-  std::vector<UserCallback >& callbacks();
+  std::vector<HookCallback>& callbacks();
 
   void lock();
   void unlock();
   Detour& detour();
   u8* codebuf();
   constexpr size_t codebuf_length() { return sizeof(codebuf_); }
-  void install_jump(const addr_t target, const u8* detour,
-                    const size_t code_length);
+  void patch_code(u8* target_address, const u8* code, const size_t code_length);
+
+  /// Wait until no thread is in target region, then patch code.
+  void patch_code_safe(u8* target_address, const u8* code,
+                       const size_t code_length);
+  /// Pointer to counter for enters to Hook::call.
+  unsigned int* count_enter();
+  /// Pointer to counter for exits from Hook::call.
+  unsigned int* count_exit();
 
  private:
   Detour d_;
-  std::vector<UserCallback> callbacks_;
-  static std::mutex mu_;
+  std::vector<HookCallback> callbacks_;
+  std::mutex mu_;
   CodeBuf codebuf_;
   DetourMain dm_;
+  unsigned int count_enter_;
+  unsigned int count_exit_;
 };
 
 }  // namespace hook

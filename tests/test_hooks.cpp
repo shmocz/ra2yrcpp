@@ -1,14 +1,51 @@
 #include "gtest/gtest.h"
+#include "debug_helpers.h"
+#include "process.hpp"
 #include "hook.hpp"
 #include <xbyak/xbyak.h>
-#include <algorithm>
-#include <cstdio>
 #include <vector>
-#include <iostream>
 #include <thread>
 
+using namespace process;
 using namespace hook;
 using namespace std;
+
+/// Multiplies two unsigned integers, and returns result in EAX
+struct ExampleProgram : Xbyak::CodeGenerator {
+  ExampleProgram() {
+    mov(eax, ptr[esp + 0x4]);
+    mul(ptr[esp + 0x8]);
+    ret();
+  }
+  static int expected(const unsigned a, const unsigned b) { return a * b; }
+};
+
+///
+/// Program that stays in infinite loop, until ECX equals specific value. This
+/// is used to simulate patch scenario where thread is at original (jump)
+/// location.
+size_t start_region(Xbyak::CodeGenerator& c, const unsigned int key) {
+  using namespace Xbyak::util;
+  c.push(key);
+  c.mov(ecx, ptr[esp]);
+  c.add(esp, 0x4);
+  return c.getSize();
+}
+struct InfiniteLoop : Xbyak::CodeGenerator {
+  size_t start_region_size;
+  InfiniteLoop(const unsigned int key) {
+    L("L1");
+    start_region_size = start_region(*this, key);
+    // Dummy instructions to decrease our chances of looping forever
+    for (int i = 0; i < 20; i++) {
+      mov(eax, ecx);
+      cmp(eax, key);
+    }
+    je("L1");
+    ret();
+  }
+  auto get_code() { return getCode<int __cdecl (*)()>(); }
+};
 
 int __cdecl add_ints(const int a, const int b) { return a + b; }
 
@@ -43,19 +80,16 @@ TEST(HookTest, XbyakCodegenTest) {
   }
 }
 
-void __cdecl my_callback(void* hook_object, void* user_data, X86Regs state) {
-  (void)hook_object;
-  (void)user_data;
-  int* p = reinterpret_cast<int*>(user_data);
-  *p = 0xdeadbeef;
-}
-
 TEST(HookTest, BasicHookingWorks) {
   int a = 3;
   int b = 5;
   int res = add_ints(a, b);
   int cookie = 0u;
-  UserCallback cb{&my_callback, &cookie};
+  auto my_cb = [](Hook* h, void* data, X86Regs* state) {
+    int* p = reinterpret_cast<int*>(data);
+    *p = 0xdeadbeef;
+  };
+  Hook::HookCallback cb{my_cb, &cookie};
   Xbyak::CodeGenerator C;
   size_t patch_size = gen_add(C);
   auto f = C.getCode<int __cdecl (*)(const int, const int)>();
@@ -64,3 +98,64 @@ TEST(HookTest, BasicHookingWorks) {
   ASSERT_EQ(res, f(a, b));
   ASSERT_EQ(cookie, 0xdeadbeef);
 }
+
+TEST(HookTest, TestCodeGeneration) {
+  ExampleProgram C;
+  int a = 10;
+  int b = 13;
+  auto f = C.getCode<int __cdecl (*)(const unsigned, const unsigned)>();
+  ASSERT_EQ(f(a, b), C.expected(a, b));
+}
+
+TEST(HookTest, TestJumpLocationExampleCode) {
+  auto P = process::get_current_process();
+  const int key = 0xdeadbeef;
+  InfiniteLoop C(key);
+  auto f = C.getCode<int __cdecl (*)()>();
+  auto t = std::thread(f);
+  const int main_tid = get_current_tid();
+  P.suspend_threads(main_tid);
+  // Set key to different value
+  P.for_each_thread([&main_tid](Thread* T, void* ctx) {
+    (void)ctx;
+    if (T->id() != main_tid) {
+      T->set_gpr(x86Reg::ecx, 0);
+    }
+  });
+  // Resume threads
+  P.resume_threads(main_tid);
+  t.join();
+}
+
+TEST(HookTest, CorrectBehaviorWhenThreadsInJumpLocation) {
+  const int key = 0xdeadbeef;
+  const size_t num_threads = 3;
+  // Create test function
+  InfiniteLoop C(key);
+  // TODO: use this pattern everywhere
+  auto f = C.get_code();
+
+  // Callback which allows the thread to exit the infinite loop
+  auto cb_f = [&key](Hook* h, void* data, X86Regs* state) { state->ecx = 0; };
+  Hook::HookCallback cb{cb_f, nullptr};
+
+  // spawn threads
+  vector<thread> threads;
+  for (auto i = 0u; i < num_threads; i++) {
+    threads.emplace_back(thread(f));
+  }
+  // create the hook with detour trampoline
+  Hook H(reinterpret_cast<addr_t>(f), C.start_region_size);
+  // add callbacks
+  H.add_callback(cb);
+
+  // join threads & do sanity check
+  for (auto& t : threads) {
+    t.join();
+  }
+  DPRINTF("All threads joined\n");
+}
+
+TEST(HookTest, CorrectBehaviorWhenThreadsInHook) {}
+
+TEST(HookTest, CorrectBehaviorInAllScenarios) {}

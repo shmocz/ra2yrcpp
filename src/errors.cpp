@@ -51,3 +51,7 @@ system_error::system_error(const std::string message)
     : system_error(message, get_last_error()) {}
 
 const char* system_error::what() const throw() { return message_.c_str(); }
+
+timeout::timeout(const std::string message) : message_(message) {}
+
+const char* timeout::what() const throw() { return message_.c_str(); }

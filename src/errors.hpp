@@ -24,4 +24,13 @@ class system_error : public std::exception {
   std::string message_;
 };
 
+class timeout : public std::exception {
+ public:
+  timeout(const std::string message = "");
+  const char* what() const throw();
+
+ private:
+  std::string message_;
+};
+
 }  // namespace yrclient

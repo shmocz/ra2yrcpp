@@ -22,6 +22,8 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+find_library(LIB_WSOCK ws2_32)
+
 include_directories(src)
 include_directories(3rdparty/xbyak)
 add_subdirectory(src)

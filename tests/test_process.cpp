@@ -1,4 +1,4 @@
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 #include "debug_helpers.h"
 #include "process.hpp"
 #include "utility.h"

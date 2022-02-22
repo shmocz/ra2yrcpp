@@ -1,4 +1,5 @@
 #pragma once
+#include <vector>
 #include <stdint.h>
 
 #define X(s) typedef uint ## s ## _t u ## s 
@@ -16,3 +17,5 @@ union X86Regs {
     u32 eax, ebx, ecx, edx, esi, edi, ebp, esp;
   };
 };
+
+using vecu8 = std::vector<unsigned char>;

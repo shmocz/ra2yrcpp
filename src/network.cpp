@@ -1,13 +1,19 @@
 #include "debug_helpers.h"
 #include "errors.hpp"
 #include "network.hpp"
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
 
 using namespace network;
 
 constexpr int SOCK_ERR = SOCKET_ERROR;
 
+
 Init::Init() {
 #ifdef _WIN32
+  static WSADATA data;
   WSAStartup(MAKEWORD(2, 2), &data);
 #endif
 }
@@ -33,14 +39,16 @@ socket_error network::accept_connection(socket_t s, socket_t* dest,
   return network::ERR_OK;
 }
 
-socket_error network::bind(socket_t s, const sockaddr* addr, int namelen) {
+socket_error network::bind(socket_t s, const network::sockaddr* addr,
+                           int namelen) {
   if (::bind(s, addr, namelen) == SOCK_ERR) {
     return network::ERR_UNKNOWN;
   }
   return network::ERR_OK;
 }
 
-socket_error network::connect(socket_t s, const sockaddr* name, int namelen) {
+socket_error network::connect(socket_t s, const network::sockaddr* name,
+                              int namelen) {
   if (!::connect(s, name, namelen)) {
     return ERR_OK;
   }
@@ -68,10 +76,12 @@ void network::getaddrinfo(const std::string host, std::string port,
                           addrinfo* hints, addrinfo** result) {
   int res;
   const char* p = (host.size() > 0) ? host.c_str() : NULL;
-  if ((res = ::getaddrinfo(p, port.c_str(), hints, result)) != 0) {
+  if ((res = ::getaddrinfo(p, port.c_str(), reinterpret_cast<::addrinfo*>(hints), reinterpret_cast<::addrinfo**>(result))) != 0) {
     throw yrclient::system_error("getaddrinfo()");
   }
 }
+
+void network::freeaddrinfo(addrinfo* info) { ::freeaddrinfo(reinterpret_cast<::addrinfo*>(info)); }
 
 void network::closesocket(socket_t s) {
   DPRINTF("closing %d\n", s);

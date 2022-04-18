@@ -13,7 +13,8 @@ Server::Server(unsigned int num_clients, unsigned int port, Callbacks callbacks)
     : max_clients_(num_clients),
       port_(std::to_string(port)),
       callbacks_(callbacks),
-      listen_connection_(port_) {
+      listen_connection_(port_),
+      is_closing_(false) {
   listen_thread_ = std::thread([this]() { this->listener_thread(); });
 }
 

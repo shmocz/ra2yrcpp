@@ -4,7 +4,9 @@
 #include "network.hpp"
 #include <atomic>
 #include <functional>
+#include <string>
 #include <thread>
+#include <vector>
 
 namespace server {
 using network::socket_t;

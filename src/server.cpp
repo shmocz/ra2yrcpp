@@ -79,13 +79,14 @@ void Server::listener_thread() {
 vecu8 Server::on_receive_bytes(connection::Connection* C, vecu8* bytes) {
   return callbacks_.receive_bytes(C, bytes);
 }
+
 void Server::on_send_bytes(connection::Connection* C, vecu8* bytes) {
   callbacks_.send_bytes(C, bytes);
   C->send_bytes(*bytes);
 }
 
-std::string Server::address() const { return address_; };
-std::string Server::port() const { return port_; };
+std::string Server::address() const { return address_; }
+std::string Server::port() const { return port_; }
 bool Server::is_closing() const { return is_closing_; }
 Server::Callbacks& Server::callbacks() { return callbacks_; }
 void Server::signal_close() { is_closing_ = true; }

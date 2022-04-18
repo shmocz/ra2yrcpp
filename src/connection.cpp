@@ -87,6 +87,7 @@ size_t connection::write_bytes(vecu8& bytes, ChunkReaderWriter& writer,
   return c_sent;
 }
 
+// TODO: retries
 Connection::Connection(std::string host, std::string port)
     : host_(host), port_(port) {
   // FIXME: set default hints in all overloads
@@ -95,9 +96,9 @@ Connection::Connection(std::string host, std::string port)
   hints_.ai_socktype = SOCK_STREAM;
   hints_.ai_protocol = IPPROTO_TCP;
   {
-    addrinfo* result;
+    network::addrinfo* result;
     network::getaddrinfo(host.c_str(), port.c_str(), &hints_, &result);
-    utility::scope_guard guard = [&result]() { ::freeaddrinfo(result); };
+    utility::scope_guard guard = [&result]() { network::freeaddrinfo(result); };
     int res;
     // Connect until success/fail
     for (auto* ptr = result; ptr != nullptr; ptr = ptr->ai_next) {
@@ -119,7 +120,7 @@ Connection::Connection(std::string port) : port_(port) {
   hints_.ai_socktype = SOCK_STREAM;
   hints_.ai_protocol = IPPROTO_TCP;
   hints_.ai_flags = AI_PASSIVE;
-  addrinfo* result;
+  network::addrinfo* result;
   network::getaddrinfo("", port_.c_str(), &hints_, &result);
   socket_ = network::socket(result);
   if (network::bind(socket_, result->ai_addr, result->ai_addrlen)) {
@@ -132,7 +133,7 @@ Connection::Connection(std::string port) : port_(port) {
 
 Connection::Connection(network::socket_t s) : socket_(s) {}
 Connection::~Connection() { network::closesocket(socket_); }
-// FIXME: pass by pointer
+// TODO: pass by pointer
 int Connection::send_bytes(vecu8& bytes) {
   connection::SocketIO S(socket_);
   return write_bytes(bytes, S);

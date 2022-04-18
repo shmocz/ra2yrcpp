@@ -8,7 +8,7 @@
 using namespace hook;
 using namespace std::chrono_literals;
 
-unsigned int num_threads_at_tgt(process::Process& P, const u8* target,
+unsigned int num_threads_at_tgt(const process::Process& P, const u8* target,
                                 const size_t length) {
   auto main_tid = process::get_current_tid();
   std::vector<unsigned int> ips;

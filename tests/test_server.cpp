@@ -3,15 +3,13 @@
 #include "config.hpp"
 #include "debug_helpers.h"
 #include "connection.hpp"
+#include "util_string.hpp"
 #include "server.hpp"
 #include <unistd.h>
 #include <vector>
 #include <thread>
 
-vecu8 to_bytes(std::string msg) { return vecu8(msg.begin(), msg.end()); }
-std::string to_string(vecu8& bytes) {
-  return std::string(bytes.begin(), bytes.end());
-}
+using namespace yrclient;
 
 TEST(ServerTest, ServerConnectionAndMessagingWorks) {
   network::Init();

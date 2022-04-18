@@ -1,7 +1,6 @@
 #pragma once
 #include "config.hpp"
 #ifdef _WIN32
-//#include <ws2tcpip.h>
 #include <psdk_inc/_ip_types.h>
 #include <_bsd_types.h>
 #endif
@@ -81,7 +80,8 @@ struct Init {
 socket_error accept_connection(socket_t s, socket_t* dest, long int timeout);
 socket_error bind(socket_t s, const sockaddr* addr, int namelen);
 socket_error connect(socket_t s, const network::sockaddr* name, int namelen);
-void getaddrinfo(const std::string host, std::string port, addrinfo* hints, addrinfo** result);
+void getaddrinfo(const std::string host, std::string port, addrinfo* hints,
+                 addrinfo** result);
 void freeaddrinfo(addrinfo* info);
 void closesocket(socket_t s);
 socket_error listen(socket_t s, int backlog);

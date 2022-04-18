@@ -10,7 +10,6 @@ using namespace network;
 
 constexpr int SOCK_ERR = SOCKET_ERROR;
 
-
 Init::Init() {
 #ifdef _WIN32
   static WSADATA data;
@@ -63,8 +62,9 @@ socket_t network::socket(addrinfo* ptr, const unsigned long timeout) {
   }
   if (timeout > 0) {
 #ifdef _WIN32
-    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof(timeout));
-    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout));
+    auto* pt = reinterpret_cast<const char*>(&timeout);
+    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, pt, sizeof(timeout));
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, pt, sizeof(timeout));
 #else
 #error Not implemented
 #endif
@@ -76,12 +76,16 @@ void network::getaddrinfo(const std::string host, std::string port,
                           addrinfo* hints, addrinfo** result) {
   int res;
   const char* p = (host.size() > 0) ? host.c_str() : NULL;
-  if ((res = ::getaddrinfo(p, port.c_str(), reinterpret_cast<::addrinfo*>(hints), reinterpret_cast<::addrinfo**>(result))) != 0) {
+  if ((res =
+           ::getaddrinfo(p, port.c_str(), reinterpret_cast<::addrinfo*>(hints),
+                         reinterpret_cast<::addrinfo**>(result))) != 0) {
     throw yrclient::system_error("getaddrinfo()");
   }
 }
 
-void network::freeaddrinfo(addrinfo* info) { ::freeaddrinfo(reinterpret_cast<::addrinfo*>(info)); }
+void network::freeaddrinfo(addrinfo* info) {
+  ::freeaddrinfo(reinterpret_cast<::addrinfo*>(info));
+}
 
 void network::closesocket(socket_t s) {
   DPRINTF("closing %d\n", s);

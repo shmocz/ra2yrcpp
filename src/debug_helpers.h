@@ -8,6 +8,7 @@
             std::hash<std::thread::id>{}(std::this_thread::get_id()), \
             __FILE__, __LINE__, __func__, ##args);                    \
   } while (0)
+
 #else
 #define DPRINTF(...)
 #endif

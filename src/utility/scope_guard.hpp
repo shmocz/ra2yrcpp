@@ -1,7 +1,9 @@
 #pragma once
 #include <functional>
+#include <utility>
 
-// Adapted from https://stackoverflow.com/questions/10270328/the-simplest-and-neatest-c11-scopeguard
+// Adapted from
+// https://stackoverflow.com/questions/10270328/the-simplest-and-neatest-c11-scopeguard
 namespace utility {
 class scope_guard {
  private:

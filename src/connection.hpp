@@ -83,7 +83,7 @@ class Connection {
  private:
   std::string host_;
   std::string port_;
-  addrinfo hints_;
+  network::addrinfo hints_;
   network::socket_t socket_{0};
 };
 }  // namespace connection

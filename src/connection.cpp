@@ -6,18 +6,19 @@
 #include <algorithm>
 #include <string>
 #include <stdexcept>
+#include <cstring>
 
 using namespace connection;
 
 u8* ChunkReaderWriter::buf() { return buf_; }
 unsigned int ChunkReaderWriter::buflen() const { return sizeof(buf_); }
 
-SocketIO::SocketIO(network::socket_t& socket) : socket_(socket) {}
+SocketIO::SocketIO(network::socket_t* socket) : socket_(socket) {}
 vecu8 SocketIO::read_chunk(const size_t bytes) {
   size_t to_read = std::min(buflen(), bytes);
   ssize_t res;
-  DPRINTF("recv sock=%d,bytes=%d\n", socket_, bytes);
-  if ((res = network::recv(socket_, buf_, bytes, 0)) < 0) {
+  DPRINTF("recv sock=%d,bytes=%d\n", *socket_, bytes);
+  if ((res = network::recv(*socket_, buf_, bytes, 0)) < 0) {
     throw yrclient::system_error("recv()");
   }
   if (res == 0) {
@@ -26,11 +27,11 @@ vecu8 SocketIO::read_chunk(const size_t bytes) {
   return vecu8(buf(), buf() + to_read);
 }
 
-size_t SocketIO::write_chunk(vecu8& message) {
+size_t SocketIO::write_chunk(const vecu8& message) {
   size_t to_send = std::min(buflen(), message.size());
   ssize_t res;
-  DPRINTF("writing, sock=%d,bytes=%d\n", socket_, message.size());
-  if ((res = network::send(socket_, &message[0], to_send, 0)) < 0) {
+  DPRINTF("writing, sock=%d,bytes=%d\n", *socket_, message.size());
+  if ((res = network::send(*socket_, &message[0], to_send, 0)) < 0) {
     throw yrclient::system_error("send()");
   }
   if (res == 0) {
@@ -39,9 +40,9 @@ size_t SocketIO::write_chunk(vecu8& message) {
   return to_send;
 }
 
-vecu8 connection::read_bytes(ChunkReaderWriter& rw, const size_t chunk_size) {
+vecu8 connection::read_bytes(ChunkReaderWriter* rw, const size_t chunk_size) {
   // FIXME: dedicated method
-  auto f = [&rw](const size_t l) { return rw.read_chunk(l); };
+  auto f = [&rw](const size_t l) { return rw->read_chunk(l); };
   u32 length = read_obj<u32>(f);
   // Read message body
   DPRINTF("Reading a message of size %d\n", length);
@@ -53,7 +54,7 @@ vecu8 connection::read_bytes(ChunkReaderWriter& rw, const size_t chunk_size) {
   auto it = res.begin();
   while (bytes > 0) {
     size_t bytes_chunk = std::min(bytes, chunk_size);
-    vecu8 chunk = rw.read_chunk(bytes_chunk);
+    vecu8 chunk = rw->read_chunk(bytes_chunk);
     if (bytes_chunk != chunk.size()) {
       throw std::runtime_error("Chunk size mismatch");
     }
@@ -67,18 +68,19 @@ vecu8 connection::read_bytes(ChunkReaderWriter& rw, const size_t chunk_size) {
   return res;
 }
 
-size_t connection::write_bytes(vecu8& bytes, ChunkReaderWriter& writer,
+size_t connection::write_bytes(const vecu8& bytes, ChunkReaderWriter* writer,
                                const size_t chunk_size) {
   size_t c_sent = 0u;
   size_t sz = bytes.size();
   // Write length
   vecu8 ssz(sizeof(u32), 0);
-  std::copy((char*)&sz, ((char*)&sz) + sizeof(sz), ssz.begin());
-  writer.write_chunk(ssz);
+  std::copy(reinterpret_cast<char*>(&sz),
+            (reinterpret_cast<char*>(&sz)) + sizeof(sz), ssz.begin());
+  writer->write_chunk(ssz);
   // Write rest of the data
   for (auto it = bytes.begin(); it < bytes.end(); it += chunk_size) {
     vecu8 msg(it, std::min(bytes.end(), it + chunk_size));
-    size_t count = writer.write_chunk(msg);
+    size_t count = writer->write_chunk(msg);
     c_sent += count;
   }
   if (c_sent != bytes.size()) {
@@ -95,6 +97,7 @@ Connection::Connection(std::string host, std::string port)
   hints_.ai_family = AF_UNSPEC;
   hints_.ai_socktype = SOCK_STREAM;
   hints_.ai_protocol = IPPROTO_TCP;
+  socket_ = network::BAD_SOCKET;
   {
     network::addrinfo* result;
     network::getaddrinfo(host.c_str(), port.c_str(), &hints_, &result);
@@ -103,7 +106,8 @@ Connection::Connection(std::string host, std::string port)
     // Connect until success/fail
     for (auto* ptr = result; ptr != nullptr; ptr = ptr->ai_next) {
       socket_ = network::socket(ptr);
-      res = network::connect(socket_, ptr->ai_addr, (int)ptr->ai_addrlen);
+      res = network::connect(socket_, ptr->ai_addr,
+                             static_cast<int>(ptr->ai_addrlen));
       if (res == -1) {
         network::closesocket(socket_);
         socket_ = network::BAD_SOCKET;
@@ -134,12 +138,12 @@ Connection::Connection(std::string port) : port_(port) {
 Connection::Connection(network::socket_t s) : socket_(s) {}
 Connection::~Connection() { network::closesocket(socket_); }
 // TODO: pass by pointer
-int Connection::send_bytes(vecu8& bytes) {
-  connection::SocketIO S(socket_);
-  return write_bytes(bytes, S);
+int Connection::send_bytes(const vecu8& bytes) {
+  connection::SocketIO S(&socket_);
+  return write_bytes(bytes, &S);
 }
 vecu8 Connection::read_bytes() {
-  connection::SocketIO S(socket_);
-  return ::read_bytes(S);
+  connection::SocketIO S(&socket_);
+  return ::read_bytes(&S);
 }
 network::socket_t Connection::socket() { return socket_; }

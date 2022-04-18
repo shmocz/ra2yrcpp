@@ -7,6 +7,7 @@
 #include <vector>
 #include <functional>
 #include <stdexcept>
+#include <string>
 
 namespace connection {
 
@@ -16,7 +17,7 @@ using WriterFn = std::function<size_t(vecu8*)>;
 // Deserialize object from byte buffer.
 template <typename T>
 T deserialize_obj(T* dst, const u8* src, bool little_endian = false) {
-  u8* p = (u8*)dst;
+  u8* p = reinterpret_cast<u8*>(dst);
   auto b = src;
   auto e = src + sizeof(T);
   if (little_endian) {
@@ -46,25 +47,25 @@ class ChunkReaderWriter {
   u8* buf();
   unsigned int buflen() const;
   virtual vecu8 read_chunk(const size_t bytes) = 0;
-  virtual size_t write_chunk(vecu8& message) = 0;
+  virtual size_t write_chunk(const vecu8& message) = 0;
 
  protected:
   u8 buf_[cfg::DEFAULT_BUFLEN];
 };
 
-size_t write_bytes(vecu8& bytes, ChunkReaderWriter& writer,
+size_t write_bytes(const vecu8& bytes, ChunkReaderWriter* writer,
                    const size_t chunk_size = cfg::DEFAULT_BUFLEN);
-vecu8 read_bytes(ChunkReaderWriter& rw,
+vecu8 read_bytes(ChunkReaderWriter* rw,
                  const size_t chunk_size = cfg::DEFAULT_BUFLEN);
 
 class SocketIO : public ChunkReaderWriter {
  public:
-  SocketIO(network::socket_t& socket);
-  virtual vecu8 read_chunk(const size_t bytes) override;
-  virtual size_t write_chunk(vecu8& message) override;
+  explicit SocketIO(network::socket_t* socket);
+  vecu8 read_chunk(const size_t bytes) override;
+  size_t write_chunk(const vecu8& message) override;
 
  private:
-  network::socket_t& socket_;
+  network::socket_t* socket_;
 };
 
 class Connection {
@@ -73,10 +74,10 @@ class Connection {
   /// Client connection
   Connection(std::string host, std::string port);
   /// Server (listening) connection
-  Connection(std::string port);
-  Connection(network::socket_t s);
+  explicit Connection(std::string port);
+  explicit Connection(network::socket_t s);
   ~Connection();
-  int send_bytes(vecu8& bytes);
+  int send_bytes(const vecu8& bytes);
   vecu8 read_bytes();
   network::socket_t socket();
 

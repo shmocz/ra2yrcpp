@@ -31,6 +31,9 @@ Server::~Server() {
 }
 
 void Server::connection_thread(connection::Connection* C) {
+  if (callbacks().accept) {
+    callbacks().accept(C);
+  }
   do {
     try {
       auto msg = C->read_bytes();
@@ -48,6 +51,9 @@ void Server::connection_thread(connection::Connection* C) {
       break;
     }
   } while (!is_closing());
+  if (callbacks().close) {
+    callbacks().close(C);
+  }
 }
 
 ConnectionCTX::ConnectionCTX(

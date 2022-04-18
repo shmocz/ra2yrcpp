@@ -27,6 +27,8 @@ class Server {
   struct Callbacks {
     std::function<vecu8(connection::Connection* C, vecu8* bytes)> receive_bytes;
     std::function<void(connection::Connection* C, vecu8* bytes)> send_bytes;
+    std::function<void(connection::Connection* C)> accept;
+    std::function<void(connection::Connection* C)> close;
   };
 
  public:

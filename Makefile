@@ -2,8 +2,7 @@ doc:
 	doxygen Doxyfile
 
 lint:
-	cpplint --recursive --filter=-build/c++11,-build/namespaces src/
-
+	cpplint --recursive --exclude=src/utility/scope_guard.hpp --filter=-build/include_order,-build/include_subdir,-build/c++11,-legal/copyright,-build/namespaces,-readability/todo,-runtime/int src/
 
 clean:
 	mkdir build; cd build

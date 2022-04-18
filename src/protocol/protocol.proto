@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package yrclient;
+
+import "google/protobuf/any.proto";
+
+message Response {
+  enum ResponseCode {
+    OK = 0;
+    ERROR = 1;
+  }
+  optional ResponseCode code = 1;
+  google.protobuf.Any body = 2;
+}
+
+enum CommandType {
+  CLOSE = 0;
+  RELOAD = 1;
+  SHUTDOWN = 2;
+  CLIENT_COMMAND = 3;
+  POLL = 4;
+}
+
+message ErrorResponse {
+  optional string error_message = 1;
+}
+
+message RunCommandAck {
+  optional int64 id = 1;
+}
+
+message CommandResult {
+
+}
+
+message Command {
+  message ClientCommand {
+    optional string name = 1;
+    optional string args = 2;
+  }
+  optional CommandType command_type = 1;
+  optional ClientCommand client_command = 2;
+}

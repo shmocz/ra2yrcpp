@@ -166,7 +166,7 @@ void Process::for_each_thread(std::function<void(Thread*, void*)> callback,
   }
   THREADENTRY32 te;
   te.dwSize = sizeof(te);
-  utility::scope_guard guard = [&]() { CloseHandle(hSnapshot); };
+  utility::scope_guard guard = [&hSnapshot]() { CloseHandle(hSnapshot); };
   const DWORD pid = get_pid();
 
   if (Thread32First(hSnapshot, &te)) {

@@ -24,6 +24,13 @@ FetchContent_MakeAvailable(googletest)
 
 find_library(LIB_WSOCK ws2_32)
 
+# Find protobuf and generate sources
+set(Protobuf_USE_STATIC_LIBS ON)
+find_package(Protobuf REQUIRED)
+set(Protobuf_PROTOC_EXECUTABLE ${PROTOBUF_PATH})
+include_directories(${Protobuf_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+add_compile_definitions(protobuf_MSVC_STATIC_RUNTIME=ON)
 include_directories(src)
 include_directories(3rdparty/xbyak)
 add_subdirectory(src)

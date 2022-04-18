@@ -1,6 +1,6 @@
-#set_target_properties(test_command_manager test_instrumentation_service PROPERTIES LINK_SEARCH_START_STATIC ON LINK_SEARCH_END_STATIC ON)
+# FIXME: find better way to include protocol stuff
+include_directories(${CMAKE_BINARY_DIR}/src)
 
-# Now simply link against gtest or gtest_main as needed. Eg
 include_directories(../src)
 function(make_test test_name)
     add_executable(${test_name} ${ARGV})
@@ -9,5 +9,7 @@ function(make_test test_name)
 endfunction()
 make_test(test_hooks test_hooks.cpp ../src/hook.cpp ../src/process.cpp ../src/errors.cpp)
 make_test(test_process test_process.cpp ../src/process.cpp ../src/errors.cpp ../src/utility/scope_guard.hpp)
-make_test(test_server test_server.cpp ../src/server.cpp ../src/connection.cpp ../src/network.cpp ../src/errors.cpp)
-target_link_libraries(test_server ${LIB_WSOCK})
+make_test(test_server test_server.cpp)
+target_link_libraries(test_server instrumentation_service)
+make_test(test_instrumentation_service test_instrumentation_service.cpp)
+target_link_libraries(test_instrumentation_service instrumentation_service)

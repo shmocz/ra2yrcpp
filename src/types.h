@@ -1,12 +1,18 @@
 #pragma once
 #include <vector>
-#include <stdint.h>
+#include <cstdint>
 
-#define X(s) typedef uint ## s ## _t u ## s 
-X(8); X(16); X(32); X(64);
+#define X(s) typedef uint##s##_t u##s
+X(8);
+X(16);
+X(32);
+X(64);
 #undef X
-#define X(s) typedef int ## s ## _t i ## s 
-X(8); X(16); X(32); X(64);
+#define X(s) typedef int##s##_t i##s
+X(8);
+X(16);
+X(32);
+X(64);
 #undef X
 
 typedef u32 addr_t;

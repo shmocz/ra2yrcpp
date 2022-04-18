@@ -44,7 +44,7 @@ Hook::Hook(addr_t src_address, const size_t code_length)
   patch_code_safe(reinterpret_cast<u8*>(src_address), f, D.getSize());
 }
 
-void threads_resume_wait_pause(process::Process& P,
+void threads_resume_wait_pause(const process::Process& P,
                                std::chrono::milliseconds m = 10ms) {
   auto main_tid = process::get_current_tid();
   P.resume_threads(main_tid);

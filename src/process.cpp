@@ -123,7 +123,7 @@ int* Thread::get_pgpr(const x86Reg reg) {
   switch (reg) {
 #define I(a, b)   \
   case x86Reg::a: \
-    return (int*)&ctx->b
+    return reinterpret_cast<int*>(&ctx->b)
     I(eax, Eax);
     I(ebx, Ebx);
     I(ecx, Ecx);
@@ -151,13 +151,13 @@ Process::~Process() {}
 Process process::get_current_process() {
   return Process(process::get_current_process_handle());
 }
-unsigned long Process::get_pid() { return GetProcessId(handle()); }
-void* Process::handle() { return handle_; }
+unsigned long Process::get_pid() const { return GetProcessId(handle()); }
+void* Process::handle() const { return handle_; }
 void Process::write_memory(void* dest, const void* src, const size_t size) {
   throw yrclient::not_implemented();
 }
 void Process::for_each_thread(std::function<void(Thread*, void*)> callback,
-                              void* cb_ctx) {
+                              void* cb_ctx) const {
 #ifdef _WIN32
   HANDLE hSnapshot =
       CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS | TH32CS_SNAPTHREAD, 0);
@@ -183,7 +183,7 @@ void Process::for_each_thread(std::function<void(Thread*, void*)> callback,
 #error Not implemented
 #endif
 }
-void Process::suspend_threads(const int main_tid) {
+void Process::suspend_threads(const int main_tid) const {
 #ifdef _WIN32
   for_each_thread([main_tid](Thread* T, void* ctx) {
     (void)ctx;
@@ -194,7 +194,7 @@ void Process::suspend_threads(const int main_tid) {
 #else
 #endif
 }
-void Process::resume_threads(const int main_tid) {
+void Process::resume_threads(const int main_tid) const {
 #ifdef _WIN32
   for_each_thread([main_tid](Thread* T, void* ctx) {
     (void)ctx;

@@ -37,7 +37,7 @@ struct ThreadData {
 class Thread {
  public:
   // Open handle to given thread id
-  Thread(int thread_id = -1);
+  explicit Thread(int thread_id = -1);
   ~Thread();
   void suspend();
   void resume();
@@ -60,25 +60,22 @@ class Thread {
 class Process {
  public:
   // Construct from existing process handle
-  Process(void* handle);
+  explicit Process(void* handle);
   // Open process handle to specified pid
-  Process(const int pid);
-  // Copy constructor
-  Process(Process& o) = default;
-  // Copy assignment
+  explicit Process(const int pid);
   ~Process();
-  unsigned long get_pid();
-  void* handle();
+  unsigned long get_pid() const;
+  void* handle() const;
   // Write size bytes from src to dest
   void write_memory(void* dest, const void* src, const size_t size);
   // Allocate memory to process
   // LPVOID allocate_memory(const size_t size, DWORD alloc_type,
   //                       DWORD alloc_protect);
   void for_each_thread(std::function<void(Thread*, void*)> callback,
-                       void* cb_ctx = nullptr);
+                       void* cb_ctx = nullptr) const;
   // Suspend all threads. If main_tid > -1, suspend if thread's id != main_tid
-  void suspend_threads(const int main_tid = -1);
-  void resume_threads(const int main_tid = -1);
+  void suspend_threads(const int main_tid = -1) const;
+  void resume_threads(const int main_tid = -1) const;
   // void inject_code(DWORD thread_id, vecu8 shellcode, u32 sc_entry);
 
  private:

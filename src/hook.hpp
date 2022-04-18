@@ -51,20 +51,20 @@ class Hook {
     }
   };
 
-  static std::vector<Xbyak::Reg32> get_regs(Xbyak::CodeGenerator& c) {
+  static std::vector<Xbyak::Reg32> get_regs(const Xbyak::CodeGenerator& c) {
     return {c.eax, c.ebx, c.ecx, c.edx, c.esi, c.edi, c.ebp, c.esp};
   }
 
-  static void restore_regs(Xbyak::CodeGenerator& c) {
-    for (auto r : get_regs(c)) {
-      c.pop(r);
+  static void restore_regs(Xbyak::CodeGenerator* c) {
+    for (auto r : get_regs(*c)) {
+      c->pop(r);
     }
   }
 
-  static void save_regs(Xbyak::CodeGenerator& c) {
-    auto regs = get_regs(c);
+  static void save_regs(Xbyak::CodeGenerator* c) {
+    auto regs = get_regs(*c);
     for (auto r = regs.rbegin(); r != regs.rend(); r++) {
-      c.push(*r);
+      c->push(*r);
     }
   }
 
@@ -73,7 +73,7 @@ class Hook {
                const addr_t call_hook, unsigned int* count_enter,
                unsigned int* count_exit) {
       nop(code_length, false);  // placeholder for original instruction(s)
-      save_regs(*this);
+      save_regs(this);
       push(hook);
       mov(eax, call_hook);
       lock();
@@ -82,11 +82,11 @@ class Hook {
       lock();
       inc(dword[count_exit]);
       add(esp, 0x4);
-      restore_regs(*this);
+      restore_regs(this);
       push(target + code_length);
       ret();
     }
-    DetourMain(Hook* h)
+    explicit DetourMain(Hook* h)
         : DetourMain(h->detour().src_address, reinterpret_cast<addr_t>(h),
                      h->detour().code_length,
                      reinterpret_cast<addr_t>(&h->call), h->count_enter(),

@@ -24,6 +24,8 @@ typedef unsigned int socket_t;
 #define IPPROTO_TCP 6
 #define AF_INET 2
 #define SOMAXCONN 0x7fffffff
+constexpr int SOL_SOCKET = 0xffff;
+constexpr int SO_REUSEADDR = 0x0004;
 
 // ws2tcpip.h
 #define AI_PASSIVE 0x00000001

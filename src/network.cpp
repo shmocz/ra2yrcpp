@@ -25,7 +25,6 @@ socket_error network::accept_connection(socket_t s, socket_t* dest,
   auto tsec = timeout / 1000;
   timeval tv{.tv_sec = tsec, .tv_usec = (timeout - tsec * 1000) * 1000};
   int res = select(1, &rfds, NULL, NULL, &tv);
-  DPRINTF("src=%d,res=%d\n", s, res);
   if (res == SOCKET_ERROR) {
     return network::ERR_UNKNOWN;
   }

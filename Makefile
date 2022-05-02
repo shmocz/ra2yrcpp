@@ -1,3 +1,6 @@
+BUILDDIR := build
+TESTS := $(shell find $(BUILDDIR)/tests -name '*.exe')
+
 doc:
 	doxygen Doxyfile
 
@@ -13,4 +16,8 @@ build:
 	cmake .
 	make -j 8
 
-.PHONY: build doc lint
+test:
+	for f in $(TESTS); do \
+		wine $$f; done
+
+.PHONY: build doc lint test

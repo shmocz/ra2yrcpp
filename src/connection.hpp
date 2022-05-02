@@ -77,6 +77,7 @@ class Connection {
   explicit Connection(std::string port);
   explicit Connection(network::socket_t s);
   ~Connection();
+  /// Send bytes and return number of bytes sent. TODO: use size_t
   int send_bytes(const vecu8& bytes);
   vecu8 read_bytes();
   network::socket_t socket();

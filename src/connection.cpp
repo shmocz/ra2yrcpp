@@ -127,9 +127,13 @@ Connection::Connection(std::string port) : port_(port) {
   network::addrinfo* result;
   network::getaddrinfo("", port_.c_str(), &hints_, &result);
   socket_ = network::socket(result);
+  int s = 1;
+  network::setsockopt(socket_, network::SOL_SOCKET, network::SO_REUSEADDR,
+                      reinterpret_cast<const char*>(&s), sizeof(int));
   if (network::bind(socket_, result->ai_addr, result->ai_addrlen)) {
     throw yrclient::system_error("bind()");
   }
+
   if (network::listen(socket_, SOMAXCONN)) {
     throw yrclient::system_error("listen()");
   }

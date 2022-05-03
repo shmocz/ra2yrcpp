@@ -8,8 +8,8 @@
 namespace yrclient {
 
 // see issue #1
-constexpr auto RESPONSE_OK = yrclient::Response::OK;
-constexpr auto RESPONSE_ERROR = yrclient::Response::ERROR;
+constexpr auto RESPONSE_OK = yrclient::ResponseCode::OK;
+constexpr auto RESPONSE_ERROR = yrclient::ResponseCode::ERROR;
 
 template <typename T>
 inline vecu8 to_vecu8(const T& msg) {

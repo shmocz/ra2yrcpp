@@ -1,10 +1,12 @@
 #pragma once
 
+#include <chrono>
 #include <functional>
 
 namespace process {
 
 using std::size_t;
+using namespace std::chrono_literals;
 
 enum class x86Reg : int {
   eax = 0,
@@ -21,6 +23,8 @@ enum class x86Reg : int {
 /// Suspend thread indicated by given handle. Returns 0 on success, nonzero on
 /// error.
 unsigned long suspend_thread(void* handle);
+void* open_thread(unsigned long access, bool inherit_handle,
+                  unsigned long thread_id);
 /// Return current thread id
 int get_current_tid();
 void* get_current_process_handle();
@@ -74,7 +78,8 @@ class Process {
   void for_each_thread(std::function<void(Thread*, void*)> callback,
                        void* cb_ctx = nullptr) const;
   // Suspend all threads. If main_tid > -1, suspend if thread's id != main_tid
-  void suspend_threads(const int main_tid = -1) const;
+  void suspend_threads(const int main_tid = -1,
+                       const std::chrono::milliseconds delay = 2000ms) const;
   void resume_threads(const int main_tid = -1) const;
   // void inject_code(DWORD thread_id, vecu8 shellcode, u32 sc_entry);
 

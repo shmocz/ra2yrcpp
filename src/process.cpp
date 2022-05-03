@@ -5,6 +5,7 @@
 #ifdef _WIN32
 #include "utility.h"
 #include "utility/scope_guard.hpp"
+#include "utility/time.hpp"
 #include "errors.hpp"
 #include <cstdlib>
 #include <processthreadsapi.h>
@@ -55,8 +56,9 @@ ThreadData::~ThreadData() { _mm_free(data); }
 
 Thread::Thread(int thread_id) : id_(thread_id) {
 #ifdef _WIN32
-  handle_ =
-      OpenThread(THREAD_ALL_ACCESS | THREAD_GET_CONTEXT, FALSE, thread_id);
+  handle_ = process::open_thread(
+      THREAD_ALL_ACCESS | THREAD_GET_CONTEXT | THREAD_SUSPEND_RESUME, FALSE,
+      thread_id);
 #else
 #error Not implemented
 #endif
@@ -77,6 +79,15 @@ unsigned long process::suspend_thread(void* handle) {
 #endif
 }
 
+void* process::open_thread(unsigned long access, bool inherit_handle,
+                           unsigned long thread_id) {
+  void* h = OpenThread(access, inherit_handle, thread_id);
+  if (h == nullptr) {
+    throw yrclient::system_error("open_thread");
+  }
+  return h;
+}
+
 void* process::get_current_process_handle() {
 #ifdef _WIN32
   return GetCurrentProcess();
@@ -94,7 +105,7 @@ int process::get_current_tid() {
 }
 
 void Thread::suspend() {
-  DPRINTF("tid,handle=%d,%p\n", id(), handle());
+  DPRINTF("tid,handle=%x,%p\n", id(), handle());
   if (suspend_thread(handle()) == (DWORD)-1) {
     throw yrclient::system_error("suspend_thread");
   }
@@ -102,7 +113,7 @@ void Thread::suspend() {
 
 void Thread::resume() {
 #ifdef _WIN32
-  DPRINTF("tid,handle=%d,%p\n", id(), handle());
+  DPRINTF("tid,handle=%x,%p\n", id(), handle());
   ResumeThread(handle());
 #else
 #error Not implemented
@@ -183,8 +194,10 @@ void Process::for_each_thread(std::function<void(Thread*, void*)> callback,
 #error Not implemented
 #endif
 }
-void Process::suspend_threads(const int main_tid) const {
+void Process::suspend_threads(const int main_tid,
+                              const std::chrono::milliseconds delay) const {
 #ifdef _WIN32
+  util::sleep_ms(delay);
   for_each_thread([main_tid](Thread* T, void* ctx) {
     (void)ctx;
     if (T->id() != main_tid) {

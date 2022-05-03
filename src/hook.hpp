@@ -3,8 +3,9 @@
 #include "types.h"
 #include <xbyak/xbyak.h>
 #include <mutex>
-#include <vector>
 #include <functional>
+#include <string>
+#include <vector>
 
 namespace hook {
 
@@ -96,8 +97,11 @@ class Hook {
   ///
   /// @param src_address Address that will be hooked
   /// @param code_length Number of bytes to copy to detour's location
+  /// @param name (Optional) Name of the hook
+  /// TODO: move constructor
   ///
-  Hook(addr_t src_address, const size_t code_length);
+  Hook(addr_t src_address, const size_t code_length,
+       const std::string name = "");
   ~Hook();
   void add_callback(HookCallback c);
   /// Invoke all registered hook functions. This function is thread safe.
@@ -107,6 +111,7 @@ class Hook {
   void lock();
   void unlock();
   Detour& detour();
+  const std::string& name() const;
   u8* codebuf();
   constexpr size_t codebuf_length() { return sizeof(codebuf_); }
   void patch_code(u8* target_address, const u8* code, const size_t code_length);
@@ -121,6 +126,7 @@ class Hook {
 
  private:
   Detour d_;
+  const std::string name_;
   std::vector<HookCallback> callbacks_;
   std::mutex mu_;
   CodeBuf codebuf_;

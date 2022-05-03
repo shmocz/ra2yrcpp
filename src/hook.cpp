@@ -2,6 +2,7 @@
 #include "debug_helpers.h"
 #include "errors.hpp"
 #include "process.hpp"
+#include "utility/time.hpp"
 #include <chrono>
 #include <thread>
 
@@ -28,11 +29,13 @@ unsigned int num_threads_at_tgt(const process::Process& P, const u8* target,
   return res;
 }
 
-Hook::Hook(addr_t src_address, const size_t code_length)
+Hook::Hook(addr_t src_address, const size_t code_length, const std::string name)
     : d_{src_address, 0u, code_length},
       dm_(this),
       count_enter_(0u),
       count_exit_(0u) {
+  DPRINTF("src_address=%p, length=%d, name=%s\n", src_address, code_length,
+          name.c_str());
   // Create detour
   auto p = dm_.getCode<u8*>();
   // Copy original instruction to detour
@@ -48,7 +51,7 @@ void threads_resume_wait_pause(const process::Process& P,
                                std::chrono::milliseconds m = 10ms) {
   auto main_tid = process::get_current_tid();
   P.resume_threads(main_tid);
-  std::this_thread::sleep_for(m);
+  util::sleep_ms(m);
   P.suspend_threads(main_tid);
 }
 
@@ -75,7 +78,12 @@ Hook::~Hook() {
   P.resume_threads(main_tid);
 }
 
-void Hook::add_callback(HookCallback c) { callbacks_.push_back(c); }
+void Hook::add_callback(HookCallback c) {
+  lock();
+  callbacks_.push_back(c);
+  unlock();
+}
+
 void Hook::call(Hook* H, X86Regs state) {
   H->lock();
   for (auto& c : H->callbacks()) {
@@ -88,6 +96,8 @@ std::vector<Hook::HookCallback>& Hook::callbacks() { return callbacks_; }
 void Hook::lock() { mu_.lock(); }
 void Hook::unlock() { mu_.unlock(); }
 Detour& Hook::detour() { return d_; }
+const std::string& Hook::name() const { return name_; }
+
 u8* Hook::codebuf() { return codebuf_; }
 
 void Hook::patch_code(u8* target_address, const u8* code,
@@ -101,9 +111,13 @@ void Hook::patch_code_safe(u8* target_address, const u8* code,
   auto P = process::get_current_process();
   auto main_tid = process::get_current_tid();
 
+  DPRINTF("suspending, tgt=%p, code=%p, len=%ld, main tid=%x\n", target_address,
+          code, code_length, main_tid);
   P.suspend_threads(main_tid);
+  DPRINTF("suspend done\n");
   // Wait until no thread is at target region
   while (num_threads_at_tgt(P, target_address, code_length) > 0) {
+    DPRINTF("waiting until thread exits target region..\n");
     threads_resume_wait_pause(P);
   }
   patch_code(target_address, code, code_length);

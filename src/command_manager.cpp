@@ -3,6 +3,9 @@
 #include "errors.hpp"
 #include "utility.h"
 #include <mutex>
+#include <queue>
+#include <utility>
+#include <tuple>
 
 using namespace command_manager;
 
@@ -10,10 +13,15 @@ bool QueueCompare::operator()(Command left, Command right) {
   return left.type >= right.type;
 }
 
-CommandManager::CommandManager() {}
+CommandManager::CommandManager() {
+  worker_ = std::thread([this]() { this->worker(); });
+}
 
 CommandManager::~CommandManager() {
   // Put stop signal to work queue
+  run_command(shutdown());
+
+  worker_.join();
 }
 
 void CommandManager::add_command(std::string name, fn_command cmd) {
@@ -22,6 +30,8 @@ void CommandManager::add_command(std::string name, fn_command cmd) {
     throw yrclient::general_error("Command already exists " + name);
   }
   commands_[name] = cmd;
+  DPRINTF("Added command %s, ptr=%p\n", name.c_str(),
+          cmd.target<CommandResult(void*)>());
 }
 
 uint64_t CommandManager::run_command(const int queue_id, std::string name,
@@ -51,33 +61,46 @@ uint64_t CommandManager::run_command(Command command) {
   return command.task_id;
 }
 
-void CommandManager::store_result(std::size_t task_id, CommandResult result) {
+std::tuple<std::unique_lock<std::mutex>, result_queue_t*>
+CommandManager::result_queue() {
+  return std::make_tuple(std::unique_lock<std::mutex>(result_mutex_),
+                         &result_queue_);
+}
+
+void CommandManager::store_result(std::size_t task_id, CommandResult&& result) {
   std::lock_guard<std::mutex> lock(result_mutex_);
   auto& qu = result_queue_.at(task_id);
-  qu.push(result);
+  qu.push(std::move(result));
+  DPRINTF("stored task %d, qsize=%d\n", task_id, qu.size());
 }
 
 void CommandManager::create_result_queue(const int id) {
-  throw yrclient::not_implemented();
+  std::lock_guard<std::mutex> lock(result_mutex_);
+  if (result_queue_.find(id) != result_queue_.end()) {
+    throw yrclient::general_error("Result queue exists " + std::to_string(id));
+  }
+  result_queue_[id] = std::queue<CommandResult>();
 }
 void CommandManager::destroy_result_queue(const int id) {
-  throw yrclient::not_implemented();
+  std::lock_guard<std::mutex> lock(result_mutex_);
+  result_queue_.erase(id);
 }
 
 void CommandManager::worker() {
   bool active = true;
+  DPRINTF("Spawn worker\n");
   while (active) {
-    DPRINTF("Spawn worker\n");
     std::unique_lock<std::mutex> k(work_queue_mut_);
     work_queue_cv_.wait(k, [this] { return work_queue_.size() > 0u; });
     auto cmd = work_queue_.top();
     work_queue_.pop();
     if (cmd.type == CommandType::CREATE_QUEUE) {
-      create_result_queue(std::stoi(cmd.args));
+      create_result_queue(cmd.queue_id);
     } else if (cmd.type == CommandType::DESTROY_QUEUE) {
-      destroy_result_queue(std::stoi(cmd.args));
+      destroy_result_queue(cmd.queue_id);
     } else if (cmd.type == CommandType::USER_DEFINED) {
-      throw yrclient::not_implemented();
+      CommandResult result = commands_[cmd.name](&cmd.args);
+      store_result(cmd.queue_id, std::move(result));
     } else if (cmd.type == CommandType::SHUTDOWN) {
       active = false;
     }

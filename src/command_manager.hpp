@@ -3,16 +3,19 @@
 #include <condition_variable>
 #include <map>
 #include <mutex>
+#include <memory>
+#include <tuple>
+#include <thread>
 #include <queue>
 #include <string>
 #include <vector>
 #include <cstdint>
+#include "types.h"
 
 namespace command_manager {
 
-struct CommandResult {
-  void* result;
-};
+using CommandResult = std::unique_ptr<vecu8>;
+using result_queue_t = std::map<size_t, std::queue<CommandResult>>;
 
 enum CommandType : int {
   CREATE_QUEUE = 0,
@@ -44,7 +47,7 @@ class QueueCompare {
 
 class CommandManager {
  public:
-  using fn_command = std::function<void(CommandManager*)>;
+  using fn_command = std::function<CommandResult(void*)>;
   CommandManager();
   ~CommandManager();
   void create_result_queue(const int id);
@@ -56,7 +59,7 @@ class CommandManager {
   /// discard it if the queue isn't available.
   uint64_t run_command(const int queue_id, std::string name, std::string args);
   uint64_t run_command(Command command);
-  void store_result(std::size_t task_id, CommandResult result);
+  void store_result(std::size_t task_id, CommandResult&& result);
 
   /// Generate built-in queue creation command
   static Command create_queue(const int id);
@@ -64,16 +67,19 @@ class CommandManager {
   static Command destroy_queue(const int id);
   /// Generate built-in shutdown command
   static Command shutdown();
+  /// Acquire result queue
+  std::tuple<std::unique_lock<std::mutex>, result_queue_t*> result_queue();
 
  private:
   std::priority_queue<Command, std::vector<Command>, QueueCompare> work_queue_;
   std::mutex work_queue_mut_;
   std::condition_variable work_queue_cv_;
-  std::map<size_t, std::queue<CommandResult>> result_queue_;
+  result_queue_t result_queue_;
   std::mutex result_mutex_;
   std::atomic_uint64_t task_counter_{0u};
   // TODO: thread safety
   std::mutex commands_mutex_;
   std::map<std::string, fn_command> commands_;
+  std::thread worker_;
 };
 }  // namespace command_manager

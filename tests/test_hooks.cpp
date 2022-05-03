@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "debug_helpers.h"
+#include "utility/time.hpp"
 #include "process.hpp"
 #include "hook.hpp"
 #include <xbyak/xbyak.h>
@@ -21,9 +22,7 @@ struct ExampleProgram : Xbyak::CodeGenerator {
 };
 
 ///
-/// Program that stays in infinite loop, until ECX equals specific value. This
-/// is used to simulate patch scenario where thread is at original (jump)
-/// location.
+/// Program that stays in infinite loop, until ECX equals specific value.
 size_t start_region(Xbyak::CodeGenerator& c, const unsigned int key) {
   using namespace Xbyak::util;
   c.push(key);
@@ -48,12 +47,6 @@ struct InfiniteLoop : Xbyak::CodeGenerator {
 };
 
 int __cdecl add_ints(const int a, const int b) { return a + b; }
-
-void DEBUG_WAIT() {
-  auto d = 10000ms;
-  cerr << "WAIT " << endl;
-  std::this_thread::sleep_for(d);
-}
 
 /// Sample function to test hooking on. Returns the number of bytes that need to
 /// be copied to detour
@@ -107,7 +100,9 @@ TEST(HookTest, TestCodeGeneration) {
   ASSERT_EQ(f(a, b), C.expected(a, b));
 }
 
+// FIXME: inherently broken
 TEST(HookTest, TestJumpLocationExampleCode) {
+  GTEST_SKIP();
   auto P = process::get_current_process();
   const int key = 0xdeadbeef;
   InfiniteLoop C(key);
@@ -116,18 +111,22 @@ TEST(HookTest, TestJumpLocationExampleCode) {
   const int main_tid = get_current_tid();
   P.suspend_threads(main_tid);
   // Set key to different value
+  // NB! this is broken -- no guarantee that thread is within our code
   P.for_each_thread([&main_tid](Thread* T, void* ctx) {
     (void)ctx;
     if (T->id() != main_tid) {
+      DPRINTF("Set GPR\n");
       T->set_gpr(x86Reg::ecx, 0);
     }
   });
+  util::sleep_ms(5000ms);
   // Resume threads
   P.resume_threads(main_tid);
+  DPRINTF("JOINING\n");
   t.join();
 }
 
-TEST(HookTest, CorrectBehaviorWhenThreadsInJumpLocation) {
+TEST(HookTest, BasicCallbackMultipleThreads) {
   const int key = 0xdeadbeef;
   const size_t num_threads = 3;
   // Create test function
@@ -153,7 +152,6 @@ TEST(HookTest, CorrectBehaviorWhenThreadsInJumpLocation) {
   for (auto& t : threads) {
     t.join();
   }
-  DPRINTF("All threads joined\n");
 }
 
 TEST(HookTest, CorrectBehaviorWhenThreadsInHook) {}

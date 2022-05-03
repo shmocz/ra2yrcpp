@@ -1,18 +1,37 @@
 #include "instrumentation_service.hpp"
+#include "command_manager.hpp"
 #include "errors.hpp"
 #include "config.hpp"
 #include "connection.hpp"
+#include "commands_builtin.hpp"
 #include "protocol/protocol.hpp"
+#include "util_string.hpp"
 #include <stdexcept>
 #include <string>
 
 using namespace yrclient;
+
+void InstrumentationService::add_command(std::string name,
+                                         IServiceCommand cmd) {
+  auto f = [cmd, this](void* p) -> command_manager::CommandResult {
+    IServiceArgs aa{this, reinterpret_cast<std::string*>(p), nullptr};
+    return cmd(aa);
+  };
+  cmd_manager_.add_command(name, f);
+}
+
+void InstrumentationService::create_hook(std::string name, u8* target,
+                                         const size_t code_length) {
+  hooks_.try_emplace(target, reinterpret_cast<addr_t>(target), code_length,
+                     name);
+}
 
 command_manager::CommandManager& InstrumentationService::cmd_manager() {
   return cmd_manager_;
 }
 
 server::Server& InstrumentationService::server() { return server_; }
+std::map<u8*, hook::Hook>& InstrumentationService::hooks() { return hooks_; }
 
 yrclient::Response reply_error(std::string message) {
   yrclient::Response R;
@@ -24,6 +43,28 @@ yrclient::Response reply_error(std::string message) {
   if (!R.mutable_body()->PackFrom(E)) {
     throw yrclient::general_error("Couldn't pack ACK message");
   }
+  return R;
+}
+
+yrclient::Response InstrumentationService::flush_results(const size_t id) {
+  yrclient::Response R;
+  auto [lock, res_queue] = cmd_manager().result_queue();
+  yrclient::CommandPollResult P;
+  auto& c_queue = res_queue->at(id);
+  while (!c_queue.empty()) {
+    auto& item = c_queue.front();
+    auto R = P.add_results();
+    R->set_result_code(RESPONSE_OK);
+    if (item == nullptr) {
+      R->set_result_code(RESPONSE_ERROR);
+    } else {
+      auto msg = yrclient::to_string(*item);
+      R->mutable_data()->assign(item->begin(), item->end());
+    }
+    c_queue.pop();
+  }
+
+  R.mutable_body()->PackFrom(P);
   return R;
 }
 
@@ -50,7 +91,7 @@ yrclient::Response InstrumentationService::process_request(
     }
     // write status back
     Response presp;
-    presp.set_code(Response::OK);
+    presp.set_code(RESPONSE_OK);
     RunCommandAck ack;
     ack.set_id(task_id);
     if (!presp.mutable_body()->PackFrom(ack)) {
@@ -61,7 +102,11 @@ yrclient::Response InstrumentationService::process_request(
     return presp;
   } else if (cmd.command_type() == yrclient::POLL) {
     // pop entries from result queue and send them back
-    throw yrclient::not_implemented();
+    try {
+      return flush_results(C->socket());
+    } catch (const std::out_of_range& e) {
+      return reply_error(e.what());
+    }
   } else {
     return reply_error("Unknown command: " +
                        std::to_string(cmd.command_type()));
@@ -98,6 +143,26 @@ InstrumentationService::InstrumentationService(const unsigned int max_clients,
   };
   server_.callbacks().accept = [this](auto* c) { this->on_accept(c); };
   server_.callbacks().close = [this](auto* c) { this->on_close(c); };
+  // TODO: avoid member function calls within ctor
+  add_builtin_commands();
+}
+
+void InstrumentationService::add_builtin_commands() {
+  auto cc = commands_builtin::get_commands();
+  for (auto& [name, fn] : *cc) {
+    add_command(name, fn);
+  }
+}
+
+void InstrumentationService::store_value(const std::string key,
+                                         std::unique_ptr<vecu8> data) {
+  storage_[key] = std::move(data);
+}
+vecu8* InstrumentationService::get_value(const std::string key) {
+  return storage_.at(key).get();
+}
+void InstrumentationService::remove_value(const std::string key) {
+  storage_.erase(key);
 }
 
 InstrumentationService::~InstrumentationService() {}

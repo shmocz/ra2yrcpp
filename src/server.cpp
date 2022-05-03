@@ -74,7 +74,6 @@ void Server::listener_thread() {
                                   this->connection_thread(c);
                                 });
     } else if (err == network::ERR_TIMEOUT) {
-      DPRINTF("timeout\n");
     } else {
       // fatal error
       DPRINTF("unknown\n");

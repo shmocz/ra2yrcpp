@@ -1,12 +1,35 @@
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
+protobuf_generate_python(PROTO_PY protocol/protocol.proto)
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS protocol/protocol.proto)
-add_library(process STATIC process.cpp errors.cpp)
-add_library(network STATIC network.cpp errors.cpp)
+add_library(errors OBJECT errors.cpp)
+add_library(process STATIC process.cpp exprocess.cpp $<TARGET_OBJECTS:errors>)
+add_library(network STATIC network.cpp $<TARGET_OBJECTS:errors>)
+add_library(hooks STATIC hook.cpp x86.cpp)
 target_link_libraries(network ${LIB_WSOCK})
+add_library(dll_inject STATIC dll_inject.cpp)
+target_link_libraries(dll_inject process)
 add_library(protocol STATIC protocol/protocol.cpp ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(protocol PUBLIC ${Protobuf_LIBRARIES})
 target_include_directories(protocol PUBLIC ${Protobuf_INCLUDE_DIRS})
+add_custom_target(protocol_py ALL DEPENDS ${PROTO_PY})
 add_library(connection STATIC connection.cpp)
 target_link_libraries(connection PUBLIC network)
-add_library(instrumentation_service STATIC instrumentation_service.cpp server.cpp command_manager.cpp hook.cpp process.cpp commands_builtin.cpp util_string.cpp)
-target_link_libraries(instrumentation_service PUBLIC protocol connection)
+add_library(
+  instrumentation_service STATIC
+  instrumentation_service.cpp
+  instrumentation_client.cpp
+  is_context.cpp
+  server.cpp
+  command_manager.cpp
+  context.cpp
+  hook.cpp
+  x86.cpp
+  commands_builtin.cpp
+  commands_yr.cpp
+  util_string.cpp)
+target_link_libraries(instrumentation_service PUBLIC protocol connection
+                                                     process)
+add_library(yrclient MODULE yrclient_dll.cpp)
+target_link_libraries(yrclient PUBLIC instrumentation_service)
+add_executable(dllitool dllitool.cpp)
+target_link_libraries(dllitool PUBLIC instrumentation_service dll_inject)

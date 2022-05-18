@@ -30,8 +30,7 @@ void CommandManager::add_command(std::string name, fn_command cmd) {
     throw yrclient::general_error("Command already exists " + name);
   }
   commands_[name] = cmd;
-  DPRINTF("Added command %s, ptr=%p\n", name.c_str(),
-          cmd.target<CommandResult(void*)>());
+  DPRINTF("Added command %s, ptr=%p\n", name.c_str());
 }
 
 uint64_t CommandManager::run_command(const int queue_id, std::string name,
@@ -99,8 +98,17 @@ void CommandManager::worker() {
     } else if (cmd.type == CommandType::DESTROY_QUEUE) {
       destroy_result_queue(cmd.queue_id);
     } else if (cmd.type == CommandType::USER_DEFINED) {
-      CommandResult result = commands_[cmd.name](&cmd.args);
-      store_result(cmd.queue_id, std::move(result));
+      // TODO: try-catch for failures
+      std::unique_ptr<vecu8> result = nullptr;
+      auto ecode = CommandResultCode::COMMAND_OK;
+      try {
+        result = commands_[cmd.name](&cmd.args);
+      } catch (const std::exception& e) {
+        ecode = CommandResultCode::COMMAND_ERROR;
+        const std::string r(e.what());
+        result = std::make_unique<vecu8>(r.begin(), r.end());
+      }
+      store_result(cmd.queue_id, CommandResult{std::move(result), ecode});
     } else if (cmd.type == CommandType::SHUTDOWN) {
       active = false;
     }

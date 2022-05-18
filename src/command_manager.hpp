@@ -14,7 +14,15 @@
 
 namespace command_manager {
 
-using CommandResult = std::unique_ptr<vecu8>;
+enum CommandResultCode : int { COMMAND_OK = 0, COMMAND_ERROR = 1 };
+
+using CommandResultData = std::unique_ptr<vecu8>;
+
+struct CommandResult {
+  CommandResultData data;
+  CommandResultCode code;
+};
+
 using result_queue_t = std::map<size_t, std::queue<CommandResult>>;
 
 enum CommandType : int {
@@ -47,7 +55,7 @@ class QueueCompare {
 
 class CommandManager {
  public:
-  using fn_command = std::function<CommandResult(void*)>;
+  using fn_command = std::function<std::unique_ptr<vecu8>(void*)>;
   CommandManager();
   ~CommandManager();
   void create_result_queue(const int id);

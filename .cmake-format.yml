@@ -1,0 +1,6 @@
+additional_commands:
+  new_make_test:
+    kwargs:
+      "NAME": '1'
+      "SRC": '*'
+      "LIB": '1'

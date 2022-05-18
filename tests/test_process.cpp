@@ -14,9 +14,7 @@ class ThreadTest : public ::testing::Test {
  protected:
   void SetUp() override {
     constexpr size_t num_threads = 3u;
-    auto f = [](std::chrono::milliseconds d) {
-      util::sleep_ms(d);
-    };
+    auto f = [](std::chrono::milliseconds d) { util::sleep_ms(d); };
     DPRINTF("Spawning %d threads\n", num_threads);
     for (auto i = 0u; i < num_threads; i++) {
       threads.emplace_back(thread(f, std::chrono::milliseconds((i + 1) * 500)));
@@ -25,7 +23,7 @@ class ThreadTest : public ::testing::Test {
   void TearDown() override {
     for (auto& t : threads) {
       t.join();
-    };
+    }
   }
   vector<thread> threads;
 };

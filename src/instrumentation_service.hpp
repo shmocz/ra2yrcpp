@@ -1,14 +1,22 @@
 #pragma once
-#include "protocol/protocol.hpp"
-#include "types.h"
-#include "server.hpp"
 #include "command_manager.hpp"
+#include "config.hpp"
+#include "connection.hpp"
+#include "errors.hpp"
+// See issue #1. hook.hpp includes xbyak so needs to be after protocol
+#include "protocol/protocol.hpp"
 #include "hook.hpp"
-#include <mutex>
+#include "server.hpp"
+#include "types.h"
+#include "util_string.hpp"
+#include <algorithm>
+#include <functional>
 #include <map>
 #include <memory>
-#include <tuple>
+#include <mutex>
+#include <stdexcept>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -23,17 +31,21 @@ struct IServiceArgs {
   void* result;
 };
 
-using IServiceCommand =
-    std::function<command_manager::CommandResult(IServiceArgs)>;
+using IServiceCommand = std::function<std::unique_ptr<vecu8>(IServiceArgs)>;
 
 class InstrumentationService {
  public:
+  using deleter_t = std::function<void(void*)>;
+  using storage_val = std::unique_ptr<void, deleter_t>;
   InstrumentationService(const unsigned int max_clients,
-                         const unsigned int port);
+                         const unsigned int port,
+                         std::function<std::string(InstrumentationService*)>
+                             on_shutdown = nullptr);
   ~InstrumentationService();
   void add_command(std::string name, IServiceCommand cmd);
   void remove_command();
   void install_hook_callback();
+  std::vector<process::thread_id_t> get_connection_threads();
   void create_hook(std::string name, u8* target, const size_t code_length);
   void start_server(const char* bind, const unsigned int port,
                     const size_t max_clients);
@@ -46,8 +58,11 @@ class InstrumentationService {
   command_manager::CommandManager& cmd_manager();
   server::Server& server();
   std::map<u8*, hook::Hook>& hooks();
-  void store_value(const std::string key, std::unique_ptr<vecu8> data);
-  vecu8* get_value(const std::string key);
+  std::tuple<std::unique_lock<std::mutex>, std::map<u8*, hook::Hook>*>
+  aq_hooks();
+  void store_value(const std::string key, vecu8* data);
+  void store_value(const std::string key, void* data, deleter_t deleter);
+  void* get_value(const std::string key);
   void remove_value(const std::string key);
 
  private:
@@ -57,7 +72,13 @@ class InstrumentationService {
   command_manager::CommandManager cmd_manager_;
   server::Server server_;
   std::map<u8*, hook::Hook> hooks_;
-  std::map<std::string, std::unique_ptr<vecu8>> storage_;
+  std::mutex mut_hooks_;
+  std::map<std::string, storage_val> storage_;
+  std::mutex mut_storage_;
+  std::function<std::string(InstrumentationService*)> on_shutdown_;
 };
+
+std::tuple<yrclient::InstrumentationService*, std::vector<std::string>, void*>
+get_args(yrclient::IServiceArgs args);
 
 };  // namespace yrclient

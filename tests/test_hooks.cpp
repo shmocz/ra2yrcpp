@@ -23,18 +23,18 @@ struct ExampleProgram : Xbyak::CodeGenerator {
 
 ///
 /// Program that stays in infinite loop, until ECX equals specific value.
-size_t start_region(Xbyak::CodeGenerator& c, const unsigned int key) {
+size_t start_region(Xbyak::CodeGenerator* c, const unsigned int key) {
   using namespace Xbyak::util;
-  c.push(key);
-  c.mov(ecx, ptr[esp]);
-  c.add(esp, 0x4);
-  return c.getSize();
+  c->push(key);
+  c->mov(ecx, ptr[esp]);
+  c->add(esp, 0x4);
+  return c->getSize();
 }
 struct InfiniteLoop : Xbyak::CodeGenerator {
   size_t start_region_size;
-  InfiniteLoop(const unsigned int key) {
+  explicit InfiniteLoop(const unsigned int key) {
     L("L1");
-    start_region_size = start_region(*this, key);
+    start_region_size = start_region(this, key);
     // Dummy instructions to decrease our chances of looping forever
     for (int i = 0; i < 20; i++) {
       mov(eax, ecx);
@@ -50,18 +50,18 @@ int __cdecl add_ints(const int a, const int b) { return a + b; }
 
 /// Sample function to test hooking on. Returns the number of bytes that need to
 /// be copied to detour
-size_t gen_add(Xbyak::CodeGenerator& c) {
+size_t gen_add(Xbyak::CodeGenerator* c) {
   using namespace Xbyak::util;
   size_t sz = 8u;
-  c.mov(eax, ptr[esp + 0x4]);
-  c.add(eax, ptr[esp + 0x8]);
-  c.ret();
+  c->mov(eax, ptr[esp + 0x4]);
+  c->add(eax, ptr[esp + 0x8]);
+  c->ret();
   return sz;
 }
 
 TEST(HookTest, XbyakCodegenTest) {
   Xbyak::CodeGenerator C;
-  (void)gen_add(C);
+  (void)gen_add(&C);
   auto f = C.getCode<int __cdecl (*)(const int, const int)>();
   int c = 10;
 
@@ -84,7 +84,7 @@ TEST(HookTest, BasicHookingWorks) {
   };
   Hook::HookCallback cb{my_cb, &cookie};
   Xbyak::CodeGenerator C;
-  size_t patch_size = gen_add(C);
+  size_t patch_size = gen_add(&C);
   auto f = C.getCode<int __cdecl (*)(const int, const int)>();
   hook::Hook H(reinterpret_cast<addr_t>(f), patch_size);
   H.add_callback(cb);

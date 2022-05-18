@@ -1,6 +1,11 @@
 #pragma once
 
 #include "types.h"
+#include "debug_helpers.h"
+#include "util_string.hpp"
+#include "utility/container.hpp"
+#include "process.hpp"
+#include "x86.hpp"
 #include <xbyak/xbyak.h>
 #include <mutex>
 #include <functional>
@@ -8,6 +13,10 @@
 #include <vector>
 
 namespace hook {
+
+using process::thread_id_t;
+
+/// TODO: verify that a region is writable before attempting to write to it
 
 /// Represents control flow redirection at particular location.
 struct Detour {
@@ -41,6 +50,7 @@ class Hook {
     void* user_data;
   };
 
+  // TODO: fail if code is too short
   struct DetourTrampoline : Xbyak::CodeGenerator {
     DetourTrampoline(const u8* target, const size_t code_length) {
       push(reinterpret_cast<u32>(target));
@@ -49,32 +59,16 @@ class Hook {
       if (pad_length > 0) {
         nop(pad_length, false);
       }
+      DPRINTF("Trampoline size=%d\n", getSize());
     }
   };
-
-  static std::vector<Xbyak::Reg32> get_regs(const Xbyak::CodeGenerator& c) {
-    return {c.eax, c.ebx, c.ecx, c.edx, c.esi, c.edi, c.ebp, c.esp};
-  }
-
-  static void restore_regs(Xbyak::CodeGenerator* c) {
-    for (auto r : get_regs(*c)) {
-      c->pop(r);
-    }
-  }
-
-  static void save_regs(Xbyak::CodeGenerator* c) {
-    auto regs = get_regs(*c);
-    for (auto r = regs.rbegin(); r != regs.rend(); r++) {
-      c->push(*r);
-    }
-  }
 
   struct DetourMain : Xbyak::CodeGenerator {
     DetourMain(const addr_t target, const addr_t hook, const size_t code_length,
                const addr_t call_hook, unsigned int* count_enter,
                unsigned int* count_exit) {
       nop(code_length, false);  // placeholder for original instruction(s)
-      save_regs(this);
+      x86::save_regs(this);
       push(hook);
       mov(eax, call_hook);
       lock();
@@ -83,7 +77,7 @@ class Hook {
       lock();
       inc(dword[count_exit]);
       add(esp, 0x4);
-      restore_regs(this);
+      x86::restore_regs(this);
       push(target + code_length);
       ret();
     }
@@ -98,10 +92,13 @@ class Hook {
   /// @param src_address Address that will be hooked
   /// @param code_length Number of bytes to copy to detour's location
   /// @param name (Optional) Name of the hook
+  /// @param no_suspend (Optional) List of threads to not suspend during
+  /// patching (in addition to current thread id)
   /// TODO: move constructor
   ///
   Hook(addr_t src_address, const size_t code_length,
-       const std::string name = "");
+       const std::string name = "",
+       const std::vector<thread_id_t> no_suspend = {});
   ~Hook();
   void add_callback(HookCallback c);
   /// Invoke all registered hook functions. This function is thread safe.
@@ -131,6 +128,7 @@ class Hook {
   std::mutex mu_;
   CodeBuf codebuf_;
   DetourMain dm_;
+  std::vector<thread_id_t> no_suspend_;
   unsigned int count_enter_;
   unsigned int count_exit_;
 };

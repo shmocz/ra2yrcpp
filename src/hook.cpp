@@ -4,6 +4,7 @@
 #include "process.hpp"
 #include "utility/time.hpp"
 #include <chrono>
+#include <string>
 #include <thread>
 
 using namespace hook;
@@ -29,17 +30,22 @@ unsigned int num_threads_at_tgt(const process::Process& P, const u8* target,
   return res;
 }
 
-Hook::Hook(addr_t src_address, const size_t code_length, const std::string name)
+Hook::Hook(addr_t src_address, const size_t code_length, const std::string name,
+           const std::vector<thread_id_t> no_suspend)
     : d_{src_address, 0u, code_length},
+      name_(name),
       dm_(this),
+      no_suspend_(no_suspend),
       count_enter_(0u),
       count_exit_(0u) {
-  DPRINTF("src_address=%p, length=%d, name=%s\n", src_address, code_length,
-          name.c_str());
+  auto s = yrclient::join_string(utility::vmap(
+      no_suspend_, [](auto a) -> std::string { return yrclient::to_hex(a); }));
+  DPRINTF("src_address=%p, length=%d, name=%s, masked_tids=%s\n", src_address,
+          code_length, name.c_str(), s.c_str());
   // Create detour
   auto p = dm_.getCode<u8*>();
   // Copy original instruction to detour
-  memcpy(p, reinterpret_cast<void*>(src_address), code_length);
+  patch_code(p, reinterpret_cast<u8*>(src_address), code_length);
 
   // Patch target region
   DetourTrampoline D(p, code_length);
@@ -103,7 +109,8 @@ u8* Hook::codebuf() { return codebuf_; }
 void Hook::patch_code(u8* target_address, const u8* code,
                       const size_t code_length) {
   DPRINTF("patch at %p, bytes=%d\n", target_address, code_length);
-  memcpy(target_address, code, code_length);
+  auto P = process::get_current_process();
+  P.write_memory(target_address, code, code_length);
 }
 
 void Hook::patch_code_safe(u8* target_address, const u8* code,
@@ -113,7 +120,9 @@ void Hook::patch_code_safe(u8* target_address, const u8* code,
 
   DPRINTF("suspending, tgt=%p, code=%p, len=%ld, main tid=%x\n", target_address,
           code, code_length, main_tid);
-  P.suspend_threads(main_tid);
+  auto ns = std::vector<thread_id_t>(no_suspend_);
+  ns.push_back(main_tid);
+  P.suspend_threads(ns);
   DPRINTF("suspend done\n");
   // Wait until no thread is at target region
   while (num_threads_at_tgt(P, target_address, code_length) > 0) {
@@ -121,7 +130,7 @@ void Hook::patch_code_safe(u8* target_address, const u8* code,
     threads_resume_wait_pause(P);
   }
   patch_code(target_address, code, code_length);
-  P.resume_threads(main_tid);
+  P.resume_threads(ns);
 }
 
 unsigned int* Hook::count_enter() { return &count_enter_; }

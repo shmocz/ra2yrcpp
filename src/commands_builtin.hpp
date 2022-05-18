@@ -2,6 +2,7 @@
 
 #include "command_manager.hpp"
 #include "instrumentation_service.hpp"
+#include "util_string.hpp"
 #include <map>
 #include <string>
 #include <vector>

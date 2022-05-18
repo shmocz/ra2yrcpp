@@ -1,25 +1,8 @@
 #include "commands_builtin.hpp"
 #include "command_manager.hpp"
-#include "util_string.hpp"
-#include "instrumentation_service.hpp"
-#include <regex>
-#include <tuple>
 
 using namespace commands_builtin;
-
-std::tuple<yrclient::InstrumentationService*, std::vector<std::string>, void*>
-get_args(yrclient::IServiceArgs args) {
-  return std::make_tuple(args.I, yrclient::split_string(*args.args),
-                         args.result);
-}
-
-u32 parse_address(const std::string s) {
-  std::regex re("0x[0-9a-fA-F]+");
-  if (!std::regex_match(s, re)) {
-    throw std::runtime_error("invalid address");
-  }
-  return std::stoul(s, nullptr, 16);
-}
+using yrclient::parse_address;
 
 /// Adds two unsigned integers, and returns result in EAX
 struct TestProgram : Xbyak::CodeGenerator {
@@ -47,12 +30,12 @@ void test_cb(hook::Hook* h, void* data, X86Regs* state) {
   (void)state;
   auto I = static_cast<yrclient::InstrumentationService*>(data);
   std::string s("0xbeefdead");
-  I->store_value("test_key", std::make_unique<vecu8>(s.begin(), s.end()));
+  I->store_value("test_key", new vecu8(s.begin(), s.end()));
 }
 
 static std::map<std::string, yrclient::IServiceCommand> commands = {
     {"install_hook",
-     [](yrclient::IServiceArgs args) -> command_manager::CommandResult {
+     [](yrclient::IServiceArgs args) {
        auto [I, cmd_args, result] = get_args(args);
        std::string name = cmd_args[0];
        std::string address = cmd_args[1];
@@ -77,14 +60,15 @@ static std::map<std::string, yrclient::IServiceCommand> commands = {
        auto [I, cmd_args, result] = get_args(args);
        std::string key = cmd_args[0];
        std::string value = cmd_args[1];
-       I->store_value(key, std::make_unique<vecu8>(value.begin(), value.end()));
+       auto v = new vecu8(value.begin(), value.end());
+       I->store_value(key, v);
        return std::make_unique<vecu8>(value.begin(), value.end());
      }},
     {"get_value",
      [](auto args) {
        auto [I, cmd_args, result] = get_args(args);
        std::string key = cmd_args[0];
-       auto v = I->get_value(key);
+       auto v = reinterpret_cast<vecu8*>(I->get_value(key));
        return std::make_unique<vecu8>(v->begin(), v->end());
      }},
     {"hookable_command",

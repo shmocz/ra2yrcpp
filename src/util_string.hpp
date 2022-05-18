@@ -25,4 +25,7 @@ std::vector<std::string> split_string(const std::string& s,
 // join vector of strings
 std::string join_string(const std::vector<std::string> v,
                         const std::string delim = " ");
+
+// parse hex number from string
+u32 parse_address(const std::string s);
 }  // namespace yrclient

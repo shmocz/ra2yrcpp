@@ -1,10 +1,14 @@
 #pragma once
 
+#include "types.h"
 #include <chrono>
 #include <functional>
+#include <string>
+#include <vector>
 
 namespace process {
 
+using thread_id_t = u32;
 using std::size_t;
 using namespace std::chrono_literals;
 
@@ -28,6 +32,8 @@ void* open_thread(unsigned long access, bool inherit_handle,
 /// Return current thread id
 int get_current_tid();
 void* get_current_process_handle();
+std::vector<u32> get_process_list();
+std::string get_process_name(const u32 pid);
 
 /// Platform-specific thread data (like CONTEXT on WIN32)
 struct ThreadData {
@@ -61,27 +67,32 @@ class Thread {
   // targetThread = ;
 };
 
+void save_context(Thread* T);
+
 class Process {
  public:
   // Construct from existing process handle
   explicit Process(void* handle);
   // Open process handle to specified pid
-  explicit Process(const int pid);
+  explicit Process(const u32 pid, const u32 perm = 0u);
   ~Process();
   unsigned long get_pid() const;
   void* handle() const;
   // Write size bytes from src to dest
   void write_memory(void* dest, const void* src, const size_t size);
   // Allocate memory to process
-  // LPVOID allocate_memory(const size_t size, DWORD alloc_type,
-  //                       DWORD alloc_protect);
+  void* allocate_memory(const size_t size, unsigned long alloc_type,
+                        unsigned long alloc_protect);
   void for_each_thread(std::function<void(Thread*, void*)> callback,
                        void* cb_ctx = nullptr) const;
   // Suspend all threads. If main_tid > -1, suspend if thread's id != main_tid
-  void suspend_threads(const int main_tid = -1,
-                       const std::chrono::milliseconds delay = 2000ms) const;
-  void resume_threads(const int main_tid = -1) const;
-  // void inject_code(DWORD thread_id, vecu8 shellcode, u32 sc_entry);
+  void suspend_threads(const thread_id_t tmain_tid = -1,
+                       const std::chrono::milliseconds delay = 1000ms) const;
+  // Suspend all threads, except threads in no_suspend
+  void suspend_threads(const std::vector<thread_id_t> no_suspend = {},
+                       const std::chrono::milliseconds delay = 1000ms) const;
+  void resume_threads(const thread_id_t main_tid = -1) const;
+  void resume_threads(const std::vector<thread_id_t> no_resume = {}) const;
 
  private:
   void* handle_;

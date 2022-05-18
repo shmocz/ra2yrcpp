@@ -1,40 +1,55 @@
 #pragma once
 #include "config.hpp"
 #include "connection.hpp"
+#include "errors.hpp"
 #include "network.hpp"
+#include "process.hpp"
+#include <algorithm>
 #include <atomic>
 #include <functional>
+#include <memory>
+#include <mutex>
+#include <queue>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace server {
 using network::socket_t;
+template <typename T>
+using uptr = std::unique_ptr<T>;
 
 class ConnectionCTX {
  public:
-  ConnectionCTX(socket_t s,
-                std::function<void(connection::Connection*)> main_loop);
+  using ctx_fn = std::function<void(ConnectionCTX*)>;
+  ConnectionCTX(uptr<connection::Connection> c, ctx_fn main_loop);
+
+  ~ConnectionCTX();
   void join();
+  connection::Connection& c();
+  process::thread_id_t thread_id;
 
  private:
-  connection::Connection c_;
-  std::function<void(connection::Connection*)> main_loop_;
+  uptr<connection::Connection> c_;
+  ctx_fn main_loop_;
   std::thread thread_;
 };
 
-class Server {
-  struct Callbacks {
-    std::function<vecu8(connection::Connection* C, vecu8* bytes)> receive_bytes;
-    std::function<void(connection::Connection* C, vecu8* bytes)> send_bytes;
-    std::function<void(connection::Connection* C)> accept;
-    std::function<void(connection::Connection* C)> close;
-  };
+struct Callbacks {
+  std::function<vecu8(connection::Connection* C, vecu8* bytes)> receive_bytes;
+  std::function<void(connection::Connection* C, vecu8* bytes)> send_bytes;
+  std::function<void(connection::Connection* C)> accept;
+  std::function<void(connection::Connection* C)> close;
+};
 
+// TODO: callback for something like "on_ctx_remove"
+class Server {
  public:
   Server() = delete;
   Server(unsigned int num_clients = cfg::MAX_CLIENTS,
-         unsigned int port = cfg::SERVER_PORT, Callbacks cb = {});
+         unsigned int port = cfg::SERVER_PORT, Callbacks cb = {},
+         const unsigned int accept_timeout_ms = cfg::ACCEPT_TIMEOUT_MS);
   ~Server();
   void add_callback();
   /// Main loop spawned for each new connection
@@ -48,6 +63,8 @@ class Server {
   bool is_closing() const;
   Callbacks& callbacks();
   void signal_close();
+  size_t num_clients();
+  std::vector<uptr<ConnectionCTX>>& connections();
 
  private:
   const unsigned int max_clients_;
@@ -55,8 +72,14 @@ class Server {
   std::string port_;
   std::thread listen_thread_;
   Callbacks callbacks_;
+  const unsigned int accept_timeout_ms_;
   connection::Connection listen_connection_;
   std::atomic_bool is_closing_;
-  std::vector<ConnectionCTX> connections_;
+  std::vector<uptr<ConnectionCTX>> connections_;
+  std::queue<connection::Connection*> close_queue_;
+  /// Remove Connections that have been marked as closed from the connections
+  /// vector
+  void clear_closed();
+  std::mutex connections_mut_;
 };
 }  // namespace server

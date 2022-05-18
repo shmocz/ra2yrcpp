@@ -140,7 +140,13 @@ Connection::Connection(std::string port) : port_(port) {
 }
 
 Connection::Connection(network::socket_t s) : socket_(s) {}
-Connection::~Connection() { network::closesocket(socket_); }
+Connection::~Connection() {
+  try {
+    network::closesocket(socket_);
+  } catch (const yrclient::system_error& e) {
+    DPRINTF("closesocket() failed, something's messed up\n");
+  }
+}
 // TODO: pass by pointer
 int Connection::send_bytes(const vecu8& bytes) {
   connection::SocketIO S(&socket_);

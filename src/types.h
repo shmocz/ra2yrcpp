@@ -18,9 +18,9 @@ X(64);
 typedef u32 addr_t;
 
 union X86Regs {
-  u32 regs[8];
+  u32 regs[9];
   struct {
-    u32 eax, ebx, ecx, edx, esi, edi, ebp, esp;
+    u32 eflags, eax, ebx, ecx, edx, esi, edi, ebp, esp;
   };
 };
 

@@ -17,7 +17,7 @@ SocketIO::SocketIO(network::socket_t* socket) : socket_(socket) {}
 vecu8 SocketIO::read_chunk(const size_t bytes) {
   size_t to_read = std::min(buflen(), bytes);
   ssize_t res;
-  DPRINTF("recv sock=%d,bytes=%d\n", *socket_, bytes);
+  // DPRINTF("recv sock=%d,bytes=%d\n", *socket_, bytes);
   if ((res = network::recv(*socket_, buf_, bytes, 0)) < 0) {
     throw yrclient::system_error("recv()");
   }
@@ -30,7 +30,7 @@ vecu8 SocketIO::read_chunk(const size_t bytes) {
 size_t SocketIO::write_chunk(const vecu8& message) {
   size_t to_send = std::min(buflen(), message.size());
   ssize_t res;
-  DPRINTF("writing, sock=%d,bytes=%d\n", *socket_, message.size());
+  // DPRINTF("writing, sock=%d,bytes=%d\n", *socket_, message.size());
   if ((res = network::send(*socket_, &message[0], to_send, 0)) < 0) {
     throw yrclient::system_error("send()");
   }
@@ -45,7 +45,7 @@ vecu8 connection::read_bytes(ChunkReaderWriter* rw, const size_t chunk_size) {
   auto f = [&rw](const size_t l) { return rw->read_chunk(l); };
   u32 length = read_obj<u32>(f);
   // Read message body
-  DPRINTF("Reading a message of size %d\n", length);
+  // DPRINTF("Reading a message of size %d\n", length);
   if (length > cfg::MAX_MESSAGE_LENGTH) {
     throw std::runtime_error("Too large message");
   }

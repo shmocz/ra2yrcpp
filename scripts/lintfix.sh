@@ -24,7 +24,6 @@ echo "$I" | grep -P '\[runtime/explicit\].*' | while read line; do
 	# get fname and lineno
 	echo $line | perl -p -e 's/([^:]+):(\d+):.+$/$1 $2/g'
 done | while read fname line; do
-	patt="$(echo "$patt" | sed 's/\*/\\*/g')"
 	S='s/(\s*)(\w+)(\(.+)/$1explicit $2$3/g if $. == '"$line"
 	perl -i -pe "$S" "$fname"
 done

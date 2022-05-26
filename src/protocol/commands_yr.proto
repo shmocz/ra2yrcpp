@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package yrclient.commands;
+
+import "protocol.proto";
+
+message CreateHooks {
+  message Args {}
+  message Result {}
+  optional Args args = 1;
+  optional Result result = 2;
+}
+
+message CreateCallbacks {
+  message Args {}
+  message Result {}
+  optional Args args = 1;
+  optional Result result = 2;
+}
+
+message GetGameState {
+  message Args {}
+  message Result {
+    yrclient.GameState state = 1;
+  }
+  optional Args args = 1;
+  optional Result result = 2;
+}

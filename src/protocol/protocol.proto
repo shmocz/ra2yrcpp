@@ -20,6 +20,8 @@ enum CommandType {
   SHUTDOWN = 2;
   CLIENT_COMMAND = 3;
   POLL = 4;
+  CLIENT_COMMAND_NEW = 5;
+  POLL_NEW = 6;
 }
 
 // TODO: no need for separate error message types...
@@ -36,6 +38,7 @@ message RunCommandAck {
 }
 
 message CommandResult {
+  // need to serialize the protobuf message here!
   optional bytes data = 1;
   ResponseCode result_code = 2;
 }
@@ -51,16 +54,82 @@ message Command {
   }
   optional CommandType command_type = 1;
   optional ClientCommand client_command = 2;
+  google.protobuf.Any command_new = 3;
 }
 
-message RpcRequest {
-  string data = 1;
+message NewCommandPollResult {
+  repeated google.protobuf.Any results = 1;
 }
 
 message GameState {
   uint32 current_frame = 1;
 }
 
-service ReadGameState {
-  rpc ReadGameState(RpcRequest) returns (GameState);
+message ReadGamestate {
+  GameState result = 1;
 }
+
+message NewResult {
+  optional ResponseCode code = 1;
+  google.protobuf.Any body = 2;
+}
+
+message InstallHook {
+  message Args {
+    string name = 1;
+    uint32 address = 2;
+    uint32 code_length = 3;
+  }
+  message Result {
+
+  }
+  optional Args args = 1;
+  optional Result result = 2;
+}
+
+message AddCallback {
+  message Args {
+    uint32 hook_address = 1;
+    uint32 callback_address = 2;
+  }
+  message Result {
+
+  }
+  optional Args args = 1;
+  optional Result result = 2;
+}
+
+message StoreValue {
+  message Args {
+    string key = 1;
+    string value = 2;
+  }
+  optional Args args = 1;
+  optional string result = 2;
+}
+
+message GetValue {
+  message Args {
+    string key = 1;
+  }
+  optional Args args = 1;
+  optional string result = 2;
+}
+
+message HookableCommand {
+  message Args {}
+
+  message Result {
+    uint32 address_test_function = 1;
+    uint32 code_size = 2;
+    uint32 address_test_callback = 3;
+  }
+  optional Args args = 1;
+  optional Result result = 2;
+}
+
+//#if 0
+// struct hookable_command_res {
+//  std::string addr_test, code_size, addr_test_cb;
+//};
+//#endif

@@ -70,10 +70,11 @@ TEST_F(ServerTest, MultipleConnections) {
   loop_all();
   loop_all();
 
+
   // Spawn connection, this should fail
   {
     Connection cfail(S->address(), S->port());
-    ASSERT_THROW(conn_loop(&cfail), yrclient::system_error);
+    ASSERT_ANY_THROW(conn_loop(&cfail));
   }
 
   // Close one connection

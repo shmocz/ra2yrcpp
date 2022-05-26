@@ -4,6 +4,7 @@
 #include "exprocess.hpp"
 #include "gtest/gtest.h"
 #include "instrumentation_client.hpp"
+#include "client_utils.hpp"
 #include "is_context.hpp"
 #include "utility/time.hpp"
 #include "x86.hpp"
@@ -80,6 +81,7 @@ TEST_F(DLLInjectTest, BasicLoading) {
   ASSERT_EQ(addr1, addr2);
 }
 
+// TODO: strange error??? this fails if stderr is piped to a file
 TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
   is_context::DLLoader L(p_LoadLibrary, p_GetProcAddress, path_dll, name_init);
   auto p = L.getCode<u8*>();
@@ -95,9 +97,20 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
   // run some commands
   std::string f1 = "flag1";
   std::string key = "key1";
-  auto r1 = client.run_one("store_value", {key, f1});
-  ASSERT_EQ(client.run_one("get_value", key), f1);
-  // shutdown the service
+
+  {
+    yrclient::StoreValue s;
+    s.mutable_args()->set_key(key);
+    s.mutable_args()->set_value(f1);
+    auto r1 = client_utils::run(s, &client);
+    // DPRINTF("RES %s\n", yrclient::to_json(r1).c_str());
+
+    yrclient::GetValue g;
+    g.mutable_args()->set_key(key);
+    auto r2 = client_utils::run(g, &client);
+    ASSERT_EQ(r2, f1);
+  }
+
   auto s = client.shutdown();
 
   // NB. gotta wait explicitly, cuz WaitFoSingleObject could fail and we cant

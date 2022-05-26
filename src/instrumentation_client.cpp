@@ -1,6 +1,9 @@
 #include "instrumentation_client.hpp"
+#include "errors.hpp"
+#include "protocol/protocol.hpp"
 
 using namespace instrumentation_client;
+using yrclient::to_json;
 
 InstrumentationClient::InstrumentationClient(
     connection::Connection* conn, const std::chrono::milliseconds poll_timeout,
@@ -9,26 +12,14 @@ InstrumentationClient::InstrumentationClient(
 
 yrclient::Response InstrumentationClient::poll() {
   yrclient::Command C;
-  C.set_command_type(yrclient::POLL);
-  auto R = send_command("", "", yrclient::POLL);
-  return R;
+  return send_command(C, yrclient::POLL_NEW);
 }
 
-yrclient::CommandPollResult instrumentation_client::parse_poll(
-    const yrclient::Response& R) {
-  yrclient::CommandPollResult P;
+template <typename T>
+auto unpack(const yrclient::Response& R) {
+  T P;
   R.body().UnpackTo(&P);
   return P;
-}
-
-std::vector<std::string> instrumentation_client::get_poll_results(
-    const yrclient::Response& R) {
-  std::vector<std::string> res;
-  auto P = parse_poll(R);
-  for (auto& c : P.results()) {
-    res.push_back(c.data());
-  }
-  return res;
 }
 
 size_t InstrumentationClient::send_data(const vecu8& data) {
@@ -45,7 +36,14 @@ yrclient::Response InstrumentationClient::send_message(const vecu8& data) {
   return R;
 }
 
-yrclient::Response InstrumentationClient::send_command(
+yrclient::Response InstrumentationClient::send_message(
+    const google::protobuf::Message& M) {
+  auto data = yrclient::to_vecu8(M);
+  assert(!data.empty());
+  return send_message(data);
+}
+
+yrclient::Response InstrumentationClient::send_command_old(
     std::string name, std::string args, yrclient::CommandType type) {
   yrclient::Command C;
   C.set_command_type(type);
@@ -54,60 +52,49 @@ yrclient::Response InstrumentationClient::send_command(
     CC->set_name(name);
     CC->set_args(args);
   }
-  auto data = yrclient::to_vecu8(C);
-  assert(!data.empty());
-  auto R = send_message(data);
-  return R;
+  // auto data = yrclient::to_vecu8(C);
+  return send_message(C);
 }
 
-yrclient::Response InstrumentationClient::run_command(std::string name,
-                                                      std::string args) {
-  auto r_ack = send_command(name, args);
-  auto r_body = poll();
-  return r_body;
+yrclient::Response InstrumentationClient::send_command(
+    const google::protobuf::Message& cmd, yrclient::CommandType type) {
+  yrclient::Command C;
+  C.set_command_type(type);
+  if (!C.mutable_command_new()->PackFrom(cmd)) {
+    throw yrclient::general_error("Packging message failed");
+  }
+  return send_message(C);
 }
 
-yrclient::CommandPollResult InstrumentationClient::poll_until(
+yrclient::NewCommandPollResult InstrumentationClient::poll_until(
     const std::chrono::milliseconds timeout,
     const std::chrono::milliseconds rate) {
-  yrclient::CommandPollResult P;
-  auto deadline = util::current_time() + timeout;
-  while (P.results().size() < 1 && util::current_time() < deadline) {
+  yrclient::NewCommandPollResult P;
+  auto f = [&]() {
     auto R = poll();
-    P = parse_poll(R);
-    util::sleep_ms(rate);
-  }
+    R.body().UnpackTo(&P);
+    return P.results().size() < 1;
+  };
+  util::call_until(timeout, rate, f);
   return P;
 }
 
-std::string InstrumentationClient::run_one(std::string name, std::string args) {
-  auto r_ack = send_command(name, args);
+yrclient::NewResult InstrumentationClient::run_one(
+    const google::protobuf::Message& M) {
+  auto r_ack = send_command(M, yrclient::CLIENT_COMMAND_NEW);
+  // use reflection to set the command type
+  if (r_ack.code() == yrclient::RESPONSE_ERROR) {
+    throw std::runtime_error("ACK " + to_json(r_ack));
+  }
   auto res = poll_until(poll_timeout_, poll_rate_);
-  auto err = [&](std::string args) {
-    throw std::runtime_error(name + " " + args);
-  };
-  if (res.results().size() < 1) {
-    err("No results in queue");
-  }
-  if (res.results().size() > 1) {
-    err("Excess entries in result queue");
-  }
   auto res0 = res.results()[0];
-  if (res0.result_code() == yrclient::RESPONSE_ERROR) {
-    err("Command failed");
-  }
-  DPRINTF("name=%s, args=%s, result=%s\n", name.c_str(), args.c_str(),
-          res0.data().c_str());
-  return res0.data();
-}
-
-std::string InstrumentationClient::run_one(std::string name,
-                                           std::vector<std::string> args) {
-  return run_one(name, yrclient::join_string(args));
+  yrclient::NewResult r;
+  res0.UnpackTo(&r);
+  return r;
 }
 
 std::string InstrumentationClient::shutdown() {
-  auto r = send_command("shutdown", {}, yrclient::SHUTDOWN);
+  auto r = send_command_old("shutdown", {}, yrclient::SHUTDOWN);
   yrclient::TextResponse T;
   r.body().UnpackTo(&T);
   return T.message();

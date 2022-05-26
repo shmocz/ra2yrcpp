@@ -79,6 +79,8 @@ TEST(HookTest, BasicHookingWorks) {
   int res = add_ints(a, b);
   int cookie = 0u;
   auto my_cb = [](Hook* h, void* data, X86Regs* state) {
+    (void)h;
+    (void)state;
     int* p = reinterpret_cast<int*>(data);
     *p = 0xdeadbeef;
   };
@@ -135,7 +137,11 @@ TEST(HookTest, BasicCallbackMultipleThreads) {
   auto f = C.get_code();
 
   // Callback which allows the thread to exit the infinite loop
-  auto cb_f = [&key](Hook* h, void* data, X86Regs* state) { state->ecx = 0; };
+  auto cb_f = [&key](Hook* h, void* data, X86Regs* state) {
+    (void)h;
+    (void)data;
+    state->ecx = 0;
+  };
   Hook::HookCallback cb{cb_f, nullptr};
 
   // spawn threads

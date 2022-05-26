@@ -7,6 +7,7 @@
 #include "utility/time.hpp"
 #include "instrumentation_service.hpp"
 #include "instrumentation_client.hpp"
+#include "client_utils.hpp"
 #include <unistd.h>
 #include <chrono>
 #include <vector>
@@ -17,19 +18,6 @@
 using namespace yrclient;
 using namespace std::chrono_literals;
 using instrumentation_client::InstrumentationClient;
-
-struct hookable_command_res {
-  std::string addr_test, code_size, addr_test_cb;
-};
-
-// TODO: const-correctness
-hookable_command_res run_hookable(InstrumentationClient* C) {
-  hookable_command_res res;
-
-  auto s = C->run_one("hookable_command");
-  auto r = split_string(s);
-  return hookable_command_res{r[0], r[1], r[2]};
-}
 
 class IServiceTest : public ::testing::Test {
  protected:
@@ -46,27 +34,27 @@ class IServiceTest : public ::testing::Test {
   std::unique_ptr<connection::Connection> C_;
   std::unique_ptr<InstrumentationClient> client;
   // void TearDown() override {}
-};
-
-TEST_F(IServiceTest, BasicCommandsWork) {
-  {
-    GTEST_SKIP();
-    //  Execute test command and verify it's result
-    std::vector<std::string> first;
-    for (int i = 0; i < 15; i++) {
-      auto resp = client->run_command("test_command", "lol");
-      CommandPollResult P;
-      resp.body().UnpackTo(&P);
-      if (i == 0) {
-        for (auto& c : P.results()) {
-          first.push_back(c.data());
-        }
-        ASSERT_EQ(first.size(), 1);
-      }
-      ASSERT_EQ(P.results().size(), first.size());
-    }
+  template <typename T>
+  std::string run_one(const T& msg) {
+    auto r = client->run_one(msg);
+    T aa;
+    r.body().UnpackTo(&aa);
+    return aa.result();
   }
-}
+  auto run_hookable() {
+    // FIXME: unpack to same object
+    yrclient::HookableCommand h;
+    auto r = client->run_one(h);
+    decltype(h) aa;
+    r.body().UnpackTo(&aa);
+    return aa.result();
+  }
+
+  template <typename T>
+  auto run(const T& cmd) {
+    return client_utils::run(cmd, client.get());
+  }
+};
 
 TEST_F(IServiceTest, HookingGetSetWorks) {
   // store initial flag value
@@ -74,20 +62,32 @@ TEST_F(IServiceTest, HookingGetSetWorks) {
   std::string flag1 = "0xdeadbeef";
   std::string flag2 = "0xbeefdead";
   auto value_eq = [&](std::string v) {
-    ASSERT_EQ(client->run_one("get_value", key), v);
+    yrclient::GetValue g;
+    g.mutable_args()->set_key(key);
+    auto r = run_one(g);
+    ASSERT_EQ(r, v);
   };
 
-  client->run_one("store_value", {key, flag1});
-  auto res0 = run_hookable(client.get());
+  yrclient::StoreValue s;
+  s.mutable_args()->set_key(key);
+  s.mutable_args()->set_value(flag1);
+  auto rrr = run_one(s);
+  auto res0 = run_hookable();
+  ASSERT_NE(res0.address_test_function(), 0);
   value_eq(flag1);
-  client->run_one("install_hook",
-                  {"test_hook", res0.addr_test, res0.code_size});
+  yrclient::InstallHook ih;
+  auto* ih_a = ih.mutable_args();
+  ih_a->set_address(res0.address_test_function());
+  ih_a->set_name("test_hook");
+  ih_a->set_code_length(res0.code_size());
+  auto res_ih_a = run(ih);
   value_eq(flag1);
-
   // install callback, which modifies the value (TODO: jit the callback)
-  client->run_one("add_callback", {res0.addr_test, res0.addr_test_cb});
-  auto res1 = run_hookable(client.get());
-
+  yrclient::AddCallback ac;
+  ac.mutable_args()->set_hook_address(res0.address_test_function());
+  ac.mutable_args()->set_callback_address(res0.address_test_callback());
+  auto res_ac = run(ac);
+  auto res1 = run_hookable();
   value_eq(flag2);
 }
 
@@ -99,7 +99,7 @@ TEST_F(IServiceTest, BasicCommunicationWorks) {
     // repeat few times
     for (int i = 0; i < 3; i++) {
       for (const auto& [name, value] : datas) {
-        auto resp = client->send_command(name, value);
+        auto resp = client->send_command_old(name, value);
         std::cerr << to_json(resp) << std::endl;
         ASSERT_EQ(resp.code(), yrclient::RESPONSE_ERROR);
       }

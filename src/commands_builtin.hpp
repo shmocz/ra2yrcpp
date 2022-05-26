@@ -1,18 +1,23 @@
 #pragma once
 
-#include "command_manager.hpp"
+#include "command/command.hpp"
 #include "instrumentation_service.hpp"
+#include "protocol/protocol.hpp"
 #include "util_string.hpp"
+#include "utility.h"
+#include "util_command.hpp"
 #include <map>
-#include <string>
-#include <vector>
 #include <memory>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 namespace commands_builtin {
 
-using command_manager::CommandResult;
 using yrclient::InstrumentationService;
 
-std::map<std::string, yrclient::IServiceCommand>* get_commands();
+void command_deleter(command::Command* c);
+std::map<std::string, command::Command::handler_t>* get_commands();
 
 }  // namespace commands_builtin

@@ -1,16 +1,25 @@
 #include "commands_yr.hpp"
-#include "errors.hpp"
-#include "util_string.hpp"
-#include "protocol/protocol.hpp"
 
 using namespace commands_yr;
+using util_command::ISCommand;
+using yrclient::as;
+using yrclient::asptr;
 using yrclient::parse_address;
 
 void cb_save_state(hook::Hook* h, void* data, X86Regs* state) {
   (void)h;
   (void)state;
   auto I = static_cast<yrclient::InstrumentationService*>(data);
-  u8* p_current_frame = reinterpret_cast<u8*>(0xA8ED84);
+  auto [mut, s] = I->aq_storage();
+  const std::string k = "game_state";
+#if 1
+  if (!(s->find(k) != s->end())) {
+    I->store_value(k, new yrclient::GameState(),
+                   [](void* data) { delete as<yrclient::GameState*>(data); });
+  }
+#endif
+  auto game_state = asptr<yrclient::GameState>(I->get_value(k));
+  game_state->set_current_frame(serialize::read_obj_le<u32>(as<u8*>(0xA8ED84)));
 }
 
 struct hook_entry {
@@ -29,19 +38,19 @@ static std::map<std::string, hook_entry> hooks = {
 static std::map<std::string, cb_entry> callbacks = {
     {"save_state", {"on_frame_update", &cb_save_state}}};
 
-static std::map<std::string, yrclient::IServiceCommand> commands = {
-    {"create_hooks",
-     [](yrclient::IServiceArgs args) {
-       auto [I, cmd_args, result] = get_args(args);
+static std::map<std::string, command::Command::handler_t> commands = {
+    {"CreateHooks",
+     [](command::Command* c) {
+       ISCommand<yrclient::commands::CreateHooks> Q(c);
        for (auto& [k, v] : hooks) {
-         I->create_hook(k, reinterpret_cast<u8*>(v.p_target), v.code_size);
+         Q.I()->create_hook(k, reinterpret_cast<u8*>(v.p_target), v.code_size);
        }
-       return std::make_unique<vecu8>();
+       Q.save_command_result();
      }},
-    {"create_callbacks",
-     [](yrclient::IServiceArgs args) {
-       auto [I, cmd_args, result] = get_args(args);
-       auto [lk, hhooks] = I->aq_hooks();
+    {"CreateCallbacks",
+     [](command::Command* c) {
+       ISCommand<yrclient::commands::CreateCallbacks> Q(c);
+       auto [lk, hhooks] = Q.I()->aq_hooks();
        for (auto& [k, v] : callbacks) {
          auto target = v.target;
          auto h = std::find_if(hhooks->begin(), hhooks->end(), [&](auto& a) {
@@ -51,20 +60,23 @@ static std::map<std::string, yrclient::IServiceCommand> commands = {
            throw yrclient::general_error(std::string("No such hook: ") +
                                          target);
          }
-         h->second.add_callback(hook::Hook::HookCallback{v.p_callback, I});
+         h->second.add_callback(hook::Hook::HookCallback{v.p_callback, Q.I()});
        }
-       return std::make_unique<vecu8>();
+       Q.save_command_result();
      }},
-    {"get_state", [](yrclient::IServiceArgs args) {
-       auto [I, cmd_args, result] = get_args(args);
-       std::string name = cmd_args[0];
-       std::string address = cmd_args[1];
-       const size_t code_length = std::stoi(cmd_args[2]);
-       I->create_hook(name, reinterpret_cast<u8*>(parse_address(address)),
-                      code_length);
-       return std::make_unique<vecu8>();
-     }}};
+    {"GetGameState",
+     [](command::Command* c) {
+       ISCommand<yrclient::commands::GetGameState> Q(c);
+       // Copy saved game state
+       auto [mut, s] = Q.I()->aq_storage();
+       auto res = Q.result().mutable_result();
+       auto val = asptr<yrclient::GameState>(s->at("game_state").get());
+       res->mutable_state()->CopyFrom(*val);
+       Q.save_command_result();
+     }},
+};
 
-std::map<std::string, yrclient::IServiceCommand>* commands_yr::get_commands() {
+std::map<std::string, command::Command::handler_t>*
+commands_yr::get_commands() {
   return &commands;
 }

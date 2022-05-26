@@ -49,6 +49,16 @@ new_make_test(
   LIB process dll_inject instrumentation_service)
 
 new_make_test(
+  NAME test_new_commands
+  SRC test_new_commands.cpp
+  LIB instrumentation_service)
+
+new_make_test(
+  NAME test_command_manager
+  SRC test_command_manager.cpp
+  LIB command_manager)
+
+new_make_test(
   NAME test_protocol
   SRC test_protocol.cpp
   LIB proto_manager)

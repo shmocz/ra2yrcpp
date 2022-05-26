@@ -44,6 +44,7 @@ Hook::Hook(addr_t src_address, const size_t code_length, const std::string name,
           code_length, name.c_str(), s.c_str());
   // Create detour
   auto p = dm_.getCode<u8*>();
+
   // Copy original instruction to detour
   patch_code(p, reinterpret_cast<u8*>(src_address), code_length);
 

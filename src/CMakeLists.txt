@@ -7,6 +7,8 @@ add_library(errors OBJECT errors.cpp)
 add_library(process STATIC process.cpp exprocess.cpp $<TARGET_OBJECTS:errors>)
 add_library(network STATIC network.cpp $<TARGET_OBJECTS:errors>)
 add_library(hooks STATIC hook.cpp x86.cpp)
+add_library(command_manager STATIC command/command_manager.cpp
+                                   command/command.cpp errors.cpp)
 target_link_libraries(network ${LIB_WSOCK})
 add_library(dll_inject STATIC dll_inject.cpp)
 target_link_libraries(dll_inject process)
@@ -25,7 +27,6 @@ add_library(
   instrumentation_client.cpp
   is_context.cpp
   server.cpp
-  command_manager.cpp
   context.cpp
   hook.cpp
   x86.cpp
@@ -33,7 +34,7 @@ add_library(
   commands_yr.cpp
   util_string.cpp)
 target_link_libraries(instrumentation_service PUBLIC protocol connection
-                                                     process)
+                                                     process command_manager)
 add_library(yrclient MODULE yrclient_dll.cpp)
 target_link_libraries(yrclient PUBLIC instrumentation_service)
 add_executable(dllitool dllitool.cpp)

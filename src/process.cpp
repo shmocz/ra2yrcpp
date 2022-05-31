@@ -3,6 +3,7 @@
 #include <thread>
 #include <chrono>
 #include "errors.hpp"
+#include "util_string.hpp"
 #ifdef _WIN32
 #include "utility.h"
 #include "utility/scope_guard.hpp"
@@ -207,6 +208,14 @@ void Process::write_memory(void* dest, const void* src, const size_t size) {
   DPRINTF("dest=%p, bytes=%ld\n", dest, size);
   if (WriteProcessMemory(handle_, dest, src, size, nullptr) == 0) {
     throw yrclient::system_error("WriteProcessMemory");
+  }
+}
+
+void Process::read_memory(void* dest, const void* src, const size_t size) {
+  if (ReadProcessMemory(handle_, src, dest, size, nullptr) == 0) {
+    throw yrclient::system_error("ReadProcessMemory src=" +
+                                 yrclient::to_hex(reinterpret_cast<u32>(src)) +
+                                 ",count=" + std::to_string(size));
   }
 }
 

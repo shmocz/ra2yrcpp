@@ -8,6 +8,7 @@
 #include "is_context.hpp"
 
 void ls(std::vector<std::string> args) {
+  (void)args;
   auto plist = process::get_process_list();
   for (auto pid : plist) {
     std::cout << process::get_process_name(pid) << "\t" << pid << std::endl;
@@ -23,7 +24,7 @@ void inject_dll(std::vector<std::string> args) {
                          "init_iservice");
   auto p = L.getCode<u8*>();
   vecu8 sc(p, p + L.getSize());
-  dll_inject::suspend_inject_resume(P.handle(), path_dll, sc);
+  dll_inject::suspend_inject_resume(P.handle(), sc);
 #if 0
   auto handle = winutils::open_process(pid);
   dll_inject::suspend_inject_resume(handle, path_dll, path_shellcode);

@@ -1,9 +1,7 @@
 #include "dll_inject.hpp"
-#include "utility/time.hpp"
 #include <handleapi.h>
 #include <tlhelp32.h>
 #include <winnt.h>
-#include <vector>
 #include <xbyak/xbyak.h>
 
 using namespace dll_inject;
@@ -28,9 +26,11 @@ void dll_inject::inject_code(process::Process* P, int thread_id,
   T.set_gpr(x86Reg::eip, reinterpret_cast<int>(sc_addr));
 }
 
-void dll_inject::suspend_inject_resume(handle_t ex_handle,
-                                       const std::string path_dll,
-                                       vecu8 shellcode) {
+void dll_inject::suspend_inject_resume(
+    handle_t ex_handle, vecu8 shellcode,
+    const std::chrono::milliseconds delay_post_suspend,
+    const std::chrono::milliseconds delay_post_inject,
+    const std::chrono::milliseconds delay_pre_resume) {
   process::Process P(ex_handle);
   P.suspend_threads(-1);
   unsigned long tid = 0;
@@ -40,17 +40,17 @@ void dll_inject::suspend_inject_resume(handle_t ex_handle,
       tid = T->id();
     }
   });
-  util::sleep_ms(3000);
+  util::sleep_ms(delay_post_suspend);
   inject_code(&P, tid, shellcode);
-  util::sleep_ms(6000);
+  util::sleep_ms(delay_post_inject);
   // Resume only the injected thread
-  P.for_each_thread([&tid](auto * T, auto* ctx) {
+  P.for_each_thread([&tid](auto* T, auto* ctx) {
     (void)ctx;
     if (T->id() == tid) {
       T->resume();
     }
   });
-  util::sleep_ms(3000);
+  util::sleep_ms(delay_pre_resume);
   // Wait a bit, then resume others
   P.resume_threads(tid);
 }

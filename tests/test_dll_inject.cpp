@@ -89,7 +89,7 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
   exprocess::ExProcess P("dummy_program.exe 10 1000");
 
   util::sleep_ms(1000);
-  dll_inject::suspend_inject_resume(P.handle(), path_dll, sc);
+  dll_inject::suspend_inject_resume(P.handle(), sc);
   util::sleep_ms(1000);
   network::Init();
   auto conn = connection::Connection("", std::to_string(cfg::SERVER_PORT));

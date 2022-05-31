@@ -14,6 +14,8 @@ struct ISCommand {
     a->M->UnpackTo(&result_);
   }
 
+  ~ISCommand() { save_command_result(); }
+
   auto& args() { return result_.args(); }
   auto& result() { return result_; }
   void set_result(result_t val) { result_.set_result(val); }

@@ -48,17 +48,14 @@ static std::map<std::string, command::Command::handler_t> commands_new = {
        auto v = new vecu8(a.value().begin(), a.value().end());
        Q.I()->store_value(a.key(), v);
        Q.set_result(a.value());
-       // Encode result to NewResult message and put to result queue
-       // TODO: could do this in dtor?
-       Q.save_command_result();
      }},
     {"GetValue",
      [](command::Command* c) {
        ISCommand<yrclient::GetValue> Q(c);
        // NB: ensure correct radix
+       // FIXME: proper locking
        auto val = yrclient::as<vecu8*>(Q.I()->get_value(Q.args().key()));
        Q.set_result(yrclient::to_string(*val));
-       Q.save_command_result();
      }},
     {"HookableCommand",
      [](command::Command* c) {
@@ -71,7 +68,6 @@ static std::map<std::string, command::Command::handler_t> commands_new = {
        res->set_address_test_function(reinterpret_cast<u32>(t_addr));
        res->set_address_test_callback(reinterpret_cast<u32>(&test_cb));
        res->set_code_size(t.entry_size);
-       Q.save_command_result();
      }},
     {"InstallHook",
      [](command::Command* c) {
@@ -79,7 +75,6 @@ static std::map<std::string, command::Command::handler_t> commands_new = {
        auto& a = Q.args();
        Q.I()->create_hook(a.name(), reinterpret_cast<u8*>(a.address()),
                           a.code_length());
-       Q.save_command_result();
      }},
     {"AddCallback", [](command::Command* c) {
        ISCommand<yrclient::AddCallback> Q(c);
@@ -91,7 +86,6 @@ static std::map<std::string, command::Command::handler_t> commands_new = {
            .add_callback(hook::Hook::HookCallback{
                reinterpret_cast<hook::Hook::hook_cb_t>(a.callback_address()),
                Q.I()});
-       Q.save_command_result();
      }}};
 
 std::map<std::string, command::Command::handler_t>*

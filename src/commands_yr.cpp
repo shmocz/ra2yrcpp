@@ -45,7 +45,6 @@ static std::map<std::string, command::Command::handler_t> commands = {
        for (auto& [k, v] : hooks) {
          Q.I()->create_hook(k, reinterpret_cast<u8*>(v.p_target), v.code_size);
        }
-       Q.save_command_result();
      }},
     {"CreateCallbacks",
      [](command::Command* c) {
@@ -62,7 +61,6 @@ static std::map<std::string, command::Command::handler_t> commands = {
          }
          h->second.add_callback(hook::Hook::HookCallback{v.p_callback, Q.I()});
        }
-       Q.save_command_result();
      }},
     {"GetGameState",
      [](command::Command* c) {
@@ -72,7 +70,6 @@ static std::map<std::string, command::Command::handler_t> commands = {
        auto res = Q.result().mutable_result();
        auto val = asptr<yrclient::GameState>(s->at("game_state").get());
        res->mutable_state()->CopyFrom(*val);
-       Q.save_command_result();
      }},
 };
 

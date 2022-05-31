@@ -212,8 +212,6 @@ void InstrumentationService::add_builtin_commands() {
   }
 }
 
-auto lock(std::mutex* m) { return std::unique_lock<std::mutex>(*m); }
-
 void InstrumentationService::store_value(const std::string key, vecu8* data) {
   store_value(key, reinterpret_cast<void*>(data),
               [](void* data) { delete reinterpret_cast<vecu8*>(data); });
@@ -221,19 +219,18 @@ void InstrumentationService::store_value(const std::string key, vecu8* data) {
 
 void InstrumentationService::store_value(const std::string key, void* data,
                                          deleter_t deleter) {
-  auto lk = lock(&mut_storage_);
   DPRINTF("key=%s,val=%p\n", key.c_str(), data);
   storage_[key] = storage_val(data, deleter);
 }
 
 void* InstrumentationService::get_value(const std::string key) {
-  auto lk = lock(&mut_storage_);
-  return storage_.at(key).get();
+  auto [lk, s] = aq_storage();
+  return s->at(key).get();
 }
 
 void InstrumentationService::remove_value(const std::string key) {
-  auto lk = lock(&mut_storage_);
-  storage_.erase(key);
+  auto [lk, s] = aq_storage();
+  s->erase(key);
 }
 
 // TODO: remove?

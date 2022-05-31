@@ -46,6 +46,7 @@ static std::map<std::string, command::Command::handler_t> commands_new = {
        // NB: ensure correct radix
        auto& a = Q.args();
        auto v = new vecu8(a.value().begin(), a.value().end());
+       auto [lk, s] = Q.I()->aq_storage();
        Q.I()->store_value(a.key(), v);
        Q.set_result(a.value());
      }},

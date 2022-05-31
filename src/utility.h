@@ -25,4 +25,9 @@ inline T as(U u) {
   return reinterpret_cast<T>(u);
 }
 
+template <typename C, typename T, typename U>
+auto band(const T& t, const U& u) {
+  return ((C)t) & ((C)u);
+}
+
 }  // namespace yrclient

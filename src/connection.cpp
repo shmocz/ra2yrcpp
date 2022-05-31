@@ -71,7 +71,7 @@ vecu8 connection::read_bytes(ChunkReaderWriter* rw, const size_t chunk_size) {
 size_t connection::write_bytes(const vecu8& bytes, ChunkReaderWriter* writer,
                                const size_t chunk_size) {
   size_t c_sent = 0u;
-  size_t sz = bytes.size();
+  u32 sz = bytes.size();
   // Write length
   vecu8 ssz(sizeof(u32), 0);
   std::copy(reinterpret_cast<char*>(&sz),

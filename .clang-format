@@ -6,4 +6,15 @@ Language: Cpp
 # Force pointers to the type for C++.
 DerivePointerAlignment: false
 PointerAlignment: Left
-SortIncludes: Never
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^"protocol/protocol.hpp' # must be included before windows includes!
+    Priority: 1
+  - Regex: '^".+'
+    Priority: 2
+  - Regex: '^<xbyak/.+'
+    Priority: 3
+  - Regex: '<c(stdio|stdint|string)>'
+    Priority: 4
+  - Regex: '<.+>'
+    Priority: 5

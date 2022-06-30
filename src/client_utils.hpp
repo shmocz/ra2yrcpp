@@ -1,14 +1,19 @@
 #pragma once
 #include "instrumentation_client.hpp"
+#include "protocol/protocol.hpp"
 #include <type_traits>
 
 namespace client_utils {
 template <typename T>
 inline auto run(const T& cmd,
                 instrumentation_client::InstrumentationClient* client) {
-  std::remove_cv_t<std::remove_reference_t<decltype(cmd)>> res;
-  auto r = client->run_one(cmd);
-  r.body().UnpackTo(&res);
-  return res.result();
+  try {
+    auto r = client->run_one(cmd);
+    DPRINTF("res=%s\n", to_json(r).c_str());
+    return yrclient::from_any<T>(r.result()).result();
+  } catch (const std::exception& e) {
+    DPRINTF("failed to run: %s\n", e.what());
+    throw;
+  }
 }
 }  // namespace client_utils

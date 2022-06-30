@@ -1,6 +1,5 @@
 #include "command_manager.hpp"
 
-
 using namespace command;
 
 CommandEntry::CommandEntry(const std::string name, Command::handler_t handler,
@@ -50,34 +49,37 @@ CommandManager::~CommandManager() {
 
 CommandFactory& CommandManager::factory() { return factory_; }
 
-guarded<results_queue_t> CommandManager::results_queue() {
-  return util::acquire(mut_results_, &results_queue_);
-}
+results_queue_t& CommandManager::results_queue() { return results_queue_; }
 
 void CommandManager::create_queue(const uint64_t id) {
-  auto [lk_rq, rq] = results_queue();
+  // auto [lk_rq, rq] = results_queue();
+  std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
   // DPRINTF("id=%d, rq=%p\n", id, rq);
-  (*rq)[id] = std::queue<std::shared_ptr<Command>>();
+  // (*rq)[id] = std::queue<std::shared_ptr<Command>>();
+  DPRINTF("queue_id=%llu\n", id);
+  results_queue_[id] = async_queue::AsyncQueue<std::shared_ptr<Command>>();
 }
 
 void CommandManager::destroy_queue(const uint64_t id) {
-  auto [lk_rq, rq] = results_queue();
+  // auto [lk_rq, rq] = results_queue();
+  std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
   // DPRINTF("id=%d,rq=%p\n", id, rq);
-  rq->erase(id);
+  DPRINTF("queue_id=%llu\n", id);
+  results_queue_.erase(id);
 }
 
 void CommandManager::invoke_user_command(std::shared_ptr<Command> cmd) {
   *cmd->result_code() = ResultCode::NONE;
   try {
-    DPRINTF("run\n");
     cmd->run();
     *cmd->result_code() = ResultCode::OK;
   } catch (std::exception& e) {
     DPRINTF("fail %s\n", e.what());
     *cmd->result_code() = ResultCode::ERROR;
   }
-  auto [lk_rq, rq] = results_queue();
-  auto& q = rq->at(cmd->queue_id());
+  std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
+  auto& q = results_queue_.at(cmd->queue_id());
+  DPRINTF("task_id=%llu\n", cmd->task_id());
   q.push(cmd);
 }
 
@@ -112,7 +114,6 @@ void CommandManager::worker() {
     work_queue_cv_.wait(k, [this] { return work_queue_.size() > 0u; });
     auto cmd = work_queue_.top();
     work_queue_.pop();
-    DPRINTF("cmd: %s\n", cmd->name().c_str());
     switch (cmd->type()) {
       case CommandType::CREATE_QUEUE:
         create_queue(cmd->queue_id());
@@ -134,14 +135,16 @@ void CommandManager::worker() {
 }
 
 std::vector<std::shared_ptr<Command>> CommandManager::flush_results(
-    const uint64_t id) {
-  auto [lk_rq, rq] = results_queue();
+    const uint64_t id, const std::chrono::milliseconds timeout,
+    const std::size_t count) {
+  std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
   std::vector<cmd_entry_t> r;
-  auto& q = rq->at(id);
-  while (!q.empty()) {
-    auto p = q.front();
-    q.pop();
-    r.push_back(p);
+  if (results_queue_.find(id) == results_queue_.end()) {
+    throw std::out_of_range(std::string("no such queue ") + std::to_string(id));
   }
-  return r;
+  auto& q = results_queue_.at(id);
+  l.unlock();
+  auto res = q.pop(count, timeout);
+  DPRINTF("res_size=%d\n", (int)res.size());
+  return res;
 }

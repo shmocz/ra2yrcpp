@@ -1,11 +1,14 @@
 #pragma once
 
+#include "async_queue.hpp"
 #include "command.hpp"
 #include "debug_helpers.h"
 #include "errors.hpp"
 #include "utility/sync.hpp"
 #include "utility/time.hpp"
+
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <map>
 #include <memory>
@@ -19,6 +22,10 @@
 #include <vector>
 
 namespace command {
+
+namespace {
+using namespace std::chrono_literals;
+}
 
 using cmd_entry_t = std::shared_ptr<Command>;
 
@@ -60,7 +67,7 @@ template <typename T>
 using guarded = std::tuple<std::unique_lock<std::mutex>, T*>;
 
 using results_queue_t =
-    std::map<uint64_t, std::queue<std::shared_ptr<Command>>>;
+    std::map<uint64_t, async_queue::AsyncQueue<std::shared_ptr<Command>>>;
 
 class CommandManager {
  public:
@@ -81,9 +88,11 @@ class CommandManager {
   /// Puts a shutdown Command to work queue
   void shutdown();
   ///
+  results_queue_t& results_queue();
   CommandFactory& factory();
-  guarded<results_queue_t> results_queue();
-  std::vector<std::shared_ptr<Command>> flush_results(const uint64_t id);
+  std::vector<std::shared_ptr<Command>> flush_results(
+      const uint64_t id, const std::chrono::milliseconds timeout = 0ms,
+      const std::size_t count = 0u);
 
  private:
   std::atomic_bool active_{true};
@@ -95,6 +104,7 @@ class CommandManager {
   std::condition_variable work_queue_cv_;
   std::mutex work_queue_mut_;
   results_queue_t results_queue_;
-  std::mutex mut_results_;
+  std::timed_mutex mut_results_;
+  std::chrono::milliseconds timeout_;
 };
 }  // namespace command

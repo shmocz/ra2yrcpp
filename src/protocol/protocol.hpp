@@ -1,12 +1,11 @@
 #pragma once
-#include "types.h"
-#include "protocol.pb.h"
 #include "commands_yr.pb.h"
-#include <google/protobuf/util/json_util.h>
-#include "debug_helpers.h"
+#include "protocol.pb.h"
+#include "types.h"
 #include "util_string.hpp"
+
+#include <google/protobuf/util/json_util.h>
 #include <string>
-#include <regex>
 
 namespace yrclient {
 
@@ -24,8 +23,19 @@ inline vecu8 to_vecu8(const T& msg) {
   return res;
 }
 
+template <typename T>
+T from_any(const google::protobuf::Any& a) {
+  T res;
+  if (!a.UnpackTo(&res)) {
+    throw std::runtime_error(std::string("Could not unpack message ") +
+                             message_type(res));
+  }
+  return res;
+}
+
 std::string to_json(const google::protobuf::Message& m);
 std::string message_type(const google::protobuf::Any& m);
 std::string message_type(const google::protobuf::Message& m);
-
+yrclient::Response make_response(const yrclient::ResponseCode code,
+                                 const google::protobuf::Message& body);
 }  // namespace yrclient

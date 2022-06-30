@@ -1,5 +1,4 @@
 #include "protocol.hpp"
-#include "google/protobuf/util/json_util.h"
 
 std::string yrclient::to_json(const google::protobuf::Message& m) {
   std::string res;
@@ -17,3 +16,13 @@ std::string yrclient::message_type(const google::protobuf::Message& m) {
   return m.GetTypeName();
 }
 #endif
+
+yrclient::Response yrclient::make_response(
+    const yrclient::ResponseCode code, const google::protobuf::Message& body) {
+  yrclient::Response r;
+  r.set_code(code);
+  if (!r.mutable_body()->PackFrom(body)) {
+    throw std::runtime_error("Could not pack message body");
+  }
+  return r;
+}

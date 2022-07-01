@@ -119,3 +119,11 @@ int network::setsockopt(socket_t s, int level, int optname, const char* optval,
                         int optlen) {
   return ::setsockopt(s, level, optname, optval, optlen);
 }
+
+int network::get_last_network_error() {
+#ifdef _WIN32
+  return WSAGetLastError();
+#else
+#error Not implemented
+#endif
+}

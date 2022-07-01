@@ -98,4 +98,5 @@ void set_io_timeout(socket_t s, const unsigned long timeout);
 ///
 socket_t socket(addrinfo* ptr,
                 const unsigned long timeout = cfg::SOCKET_SR_TIMEOUT);
+int get_last_network_error();
 };  // namespace network

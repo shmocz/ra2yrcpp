@@ -40,6 +40,22 @@ void commands_builtin::command_deleter(command::Command* c) {
 // e.g. with some template spells or protobuf's reflection features, that would
 // be awesome
 static std::map<std::string, command::Command::handler_t> commands_new = {
+    {"GetSystemState",
+     [](command::Command* c) {
+       ISCommand<yrclient::GetSystemState> Q(c);
+       auto* state = Q.command_data().mutable_result()->mutable_state();
+       for (auto& c : Q.I()->server().connections()) {
+         auto* conn = state->add_connections();
+         conn->set_socket_id(c->c().socket());
+         auto dur =
+             std::chrono::duration<double>(c->timestamp().time_since_epoch());
+         conn->set_timestamp(dur.count());
+       }
+       auto& rq = Q.I()->cmd_manager().results_queue();
+       for (const auto& [k, v] : rq) {
+         state->add_queues()->set_queue_id(k);
+       }
+     }},
     {"StoreValue",
      [](command::Command* c) {
        ISCommand<yrclient::StoreValue> Q(c);

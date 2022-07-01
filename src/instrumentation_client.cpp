@@ -6,11 +6,23 @@ using namespace instrumentation_client;
 using yrclient::to_json;
 
 InstrumentationClient::InstrumentationClient(
-    connection::Connection* conn, const std::chrono::milliseconds poll_timeout,
+    std::shared_ptr<connection::Connection> conn,
+    const std::chrono::milliseconds poll_timeout,
     const std::chrono::milliseconds poll_rate)
     : conn_(conn), poll_timeout_(poll_timeout), poll_rate_(poll_rate) {}
 
-yrclient::Response InstrumentationClient::poll() {
+InstrumentationClient::InstrumentationClient(
+    const std::string host, const std::string port,
+    const std::chrono::milliseconds poll_timeout,
+    const std::chrono::milliseconds poll_rate)
+    : InstrumentationClient(std::shared_ptr<connection::Connection>(
+                                new connection::Connection(host, port)),
+                            poll_timeout, poll_rate) {}
+
+// TODO: get rid of this
+yrclient::Response InstrumentationClient::poll(
+    const std::chrono::milliseconds timeout) {
+  (void)timeout;
   yrclient::Command C;
   return send_command(C, yrclient::POLL_NEW);
 }

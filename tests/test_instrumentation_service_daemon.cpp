@@ -16,15 +16,13 @@ class IClient {
  public:
   explicit IClient(InstrumentationService* I) {
     auto& S = I->server();
-    C_ = std::make_unique<connection::Connection>(S.address(), S.port());
-    client = std::make_unique<InstrumentationClient>(C_.get());
+    client = std::make_unique<InstrumentationClient>(S.address(), S.port());
   }
   template <typename T>
   auto run(const T& cmd) {
     return client_utils::run(cmd, client.get());
   }
 
-  std::unique_ptr<connection::Connection> C_;
   std::unique_ptr<InstrumentationClient> client;
 };
 

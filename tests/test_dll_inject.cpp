@@ -92,8 +92,7 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
   dll_inject::suspend_inject_resume(P.handle(), sc);
   util::sleep_ms(1000);
   network::Init();
-  auto conn = connection::Connection("", std::to_string(cfg::SERVER_PORT));
-  auto client = InstrumentationClient(&conn);
+  auto client = InstrumentationClient("", std::to_string(cfg::SERVER_PORT));
   // run some commands
   std::string f1 = "flag1";
   std::string key = "key1";

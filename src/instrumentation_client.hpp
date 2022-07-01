@@ -14,10 +14,13 @@ using namespace std::chrono_literals;
 
 class InstrumentationClient {
  public:
-  // TODO: client should probs. own the connection
-  InstrumentationClient(connection::Connection* conn,
+  InstrumentationClient(std::shared_ptr<connection::Connection> conn,
                         const std::chrono::milliseconds poll_timeout = 5000ms,
                         const std::chrono::milliseconds poll_rate = 250ms);
+  InstrumentationClient(const std::string host, const std::string port,
+                        const std::chrono::milliseconds poll_timeout = 5000ms,
+                        const std::chrono::milliseconds poll_rate = 250ms);
+
   size_t send_data(const vecu8& data);
 
   yrclient::Response send_message(const vecu8& data);
@@ -38,7 +41,7 @@ class InstrumentationClient {
   std::string shutdown();
 
  private:
-  connection::Connection* conn_;
+  std::shared_ptr<connection::Connection> conn_;
   const std::chrono::milliseconds poll_timeout_;
   const std::chrono::milliseconds poll_rate_;
 };

@@ -30,7 +30,8 @@ std::string yrclient::get_error_message(const int error_code) {
 
   std::string message(buf, size);
   LocalFree(buf);
-  return message;
+  // Remove \r\n
+  return message.substr(0, message.find("\r\n"));
 #else
 #error Not Implemented
 #endif

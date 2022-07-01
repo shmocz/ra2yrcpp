@@ -32,6 +32,24 @@ auto unpack(const yrclient::Response& R) {
   return P;
 }
 
+yrclient::PollResults InstrumentationClient::poll_blocking(
+    const std::chrono::milliseconds timeout, const u64 queue_id) {
+  yrclient::PollResults C;
+  if (queue_id < (u64)-1) {
+    auto* args = C.mutable_args();
+    args->set_queue_id(queue_id);
+    args->set_timeout((u64)timeout.count());
+  }
+  auto resp = send_command(C, yrclient::POLL_BLOCKING);
+  if (resp.code() == yrclient::RESPONSE_ERROR) {
+    auto msg = yrclient::from_any<yrclient::TextResponse>(resp.body());
+    DPRINTF("%s\n", to_json(msg).c_str());
+    throw yrclient::system_error(msg.message());
+  }
+  DPRINTF("resp=%s\n", to_json(resp).c_str());
+  return yrclient::from_any<yrclient::PollResults>(resp.body());
+}
+
 size_t InstrumentationClient::send_data(const vecu8& data) {
   size_t sent = conn_->send_bytes(data);
   assert(sent == data.size());

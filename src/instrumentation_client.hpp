@@ -47,8 +47,11 @@ class InstrumentationClient {
   yrclient::Response send_command(const google::protobuf::Message& cmd,
                                   yrclient::CommandType type);
 
-  yrclient::Response poll();
-  yrclient::NewCommandPollResult poll_until(
+  yrclient::Response poll(const std::chrono::milliseconds timeout = 0ms);
+  yrclient::PollResults poll_blocking(
+      const std::chrono::milliseconds timeout = 5000ms,
+      const u64 queue_id = (u64)-1);
+  yrclient::PollResults poll_until(
       const std::chrono::milliseconds timeout = 5000ms,
       const std::chrono::milliseconds rate = 250ms);
   yrclient::NewResult run_one(const google::protobuf::Message& M);

@@ -148,6 +148,24 @@ yrclient::Response InstrumentationService::process_request(
         return reply_error(e.what());
       }
     }
+    case yrclient::POLL_BLOCKING: {
+      try {
+        yrclient::PollResults R;
+        cmd.command_new().UnpackTo(&R);
+        // TODO: correct check?
+        const u64 queue_id = R.args().queue_id();
+        const auto timeout = std::chrono::milliseconds(
+            R.args().IsInitialized() ? (u32)R.args().timeout()
+                                     : cfg::POLL_BLOCKING_TIMEOUT_MS);
+        DPRINTF("queue_id=%llu,timeout=%llu\n", queue_id, (u64)timeout.count());
+        // TODO: race condition? what if flush occurs after destroying cmd
+        // manager? server should've been shut down before command manager, so
+        // shouldnt be possible
+        return flush_results(queue_id, timeout);
+      } catch (const std::exception& e) {
+        return reply_error(e.what());
+      }
+    }
     case yrclient::SHUTDOWN: {
       try {
         DPRINTF("shutdown signal");

@@ -67,7 +67,7 @@ static std::map<std::string, command::Command::handler_t> commands = {
        ISCommand<yrclient::commands::GetGameState> Q(c);
        // Copy saved game state
        auto [mut, s] = Q.I()->aq_storage();
-       auto res = Q.result().mutable_result();
+       auto res = Q.command_data().mutable_result();
        auto val = asptr<yrclient::GameState>(s->at("game_state").get());
        res->mutable_state()->CopyFrom(*val);
      }},

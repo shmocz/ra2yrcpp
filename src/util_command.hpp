@@ -10,17 +10,18 @@ struct ISCommand {
 
   explicit ISCommand(command::Command* c)
       : c(c), a((yrclient::ISArgs*)c->args()) {
-    result_q_ = new yrclient::NewResult();
-    a->M->UnpackTo(&result_);
+    result_q_ = new yrclient::CommandResult();
+    a->M->UnpackTo(&command_data_);
   }
 
   ~ISCommand() { save_command_result(); }
 
-  auto& args() { return result_.args(); }
-  auto& result() { return result_; }
-  void set_result(result_t val) { result_.set_result(val); }
+  auto& args() { return command_data_.args(); }
+  auto& command_data() { return command_data_; }
+  void set_result(result_t val) { command_data_.set_result(val); }
   void save_command_result() {
-    result_q_->mutable_body()->PackFrom(result_);
+    result_q_->set_command_id(c->task_id());
+    result_q_->mutable_result()->PackFrom(command_data_);
     c->set_result(reinterpret_cast<void*>(result_q_));
   }
   auto* I() { return a->I; }
@@ -28,8 +29,8 @@ struct ISCommand {
 
   command::Command* c;
   yrclient::ISArgs* a;
-  T result_;
-  yrclient::NewResult* result_q_;
+  T command_data_;
+  yrclient::CommandResult* result_q_;
   yrclient::ISArgs* res;
 };
 }  // namespace util_command

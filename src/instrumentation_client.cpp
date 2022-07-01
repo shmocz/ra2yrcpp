@@ -94,34 +94,41 @@ yrclient::Response InstrumentationClient::send_command(
   return send_message(C);
 }
 
-yrclient::NewCommandPollResult InstrumentationClient::poll_until(
+yrclient::PollResults InstrumentationClient::poll_until(
     const std::chrono::milliseconds timeout,
     const std::chrono::milliseconds rate) {
-  yrclient::NewCommandPollResult P;
+  yrclient::PollResults P;
   auto f = [&]() {
-    auto R = poll();
-    R.body().UnpackTo(&P);
-    return P.results().size() < 1;
+    auto response = poll();
+    if (!response.body().UnpackTo(&P)) {
+      throw std::runtime_error("Could not unpack poll results");
+    }
+    return P.result().results().size() < 1;
   };
   util::call_until(timeout, rate, f);
   DPRINTF("size=%d\n", P.result().results().size());
   return P;
 }
 
-yrclient::NewResult InstrumentationClient::run_one(
+yrclient::CommandResult InstrumentationClient::run_one(
     const google::protobuf::Message& M) {
   auto r_ack = send_command(M, yrclient::CLIENT_COMMAND_NEW);
-  // use reflection to set the command type
   if (r_ack.code() == yrclient::RESPONSE_ERROR) {
     throw std::runtime_error("ACK " + to_json(r_ack));
   }
-  auto res = poll_until(poll_timeout_, poll_rate_);
-  auto res0 = res.results()[0];
-  yrclient::NewResult r;
-  res0.UnpackTo(&r);
-  return r;
+  try {
+    auto res = poll_until(poll_timeout_, poll_rate_);
+    if (res.result().results_size() == 0) {
+      return yrclient::CommandResult();
+    }
+    return res.result().results()[0];
+  } catch (const std::runtime_error& e) {
+    DPRINTF("broken connection %s\n", e.what());
+    return yrclient::CommandResult();
+  }
 }
 
+// FIXME: remove old code
 std::string InstrumentationClient::shutdown() {
   auto r = send_command_old("shutdown", {}, yrclient::SHUTDOWN);
   yrclient::TextResponse T;

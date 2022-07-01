@@ -54,7 +54,15 @@ class InstrumentationClient {
   yrclient::PollResults poll_until(
       const std::chrono::milliseconds timeout = 5000ms,
       const std::chrono::milliseconds rate = 250ms);
-  yrclient::NewResult run_one(const google::protobuf::Message& M);
+  ///
+  /// Run single command on the backend and poll result immediately back.
+  ///
+  /// @param M command encoded into protobuf message
+  /// @result of the command
+  /// @exception yrclient::timeout if result isn't available within specified
+  /// time interval.
+  ///
+  yrclient::CommandResult run_one(const google::protobuf::Message& M);
   std::string shutdown();
 
  private:

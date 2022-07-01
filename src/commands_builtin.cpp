@@ -31,7 +31,7 @@ void save_command_result(command::Command* c, google::protobuf::Message* m) {
 
 void commands_builtin::command_deleter(command::Command* c) {
   if (c->result()) {
-    auto* M = yrclient::as<yrclient::NewResult*>(c->result());
+    auto* M = yrclient::as<yrclient::CommandResult*>(c->result());
     delete M;
   }
 }
@@ -65,7 +65,7 @@ static std::map<std::string, command::Command::handler_t> commands_new = {
        t_addr(3, 3);
        ISCommand<yrclient::HookableCommand> Q(c);
        // yrclient::HookableCommand::Result res;
-       auto res = Q.result().mutable_result();
+       auto res = Q.command_data().mutable_result();
        res->set_address_test_function(reinterpret_cast<u32>(t_addr));
        res->set_address_test_callback(reinterpret_cast<u32>(&test_cb));
        res->set_code_size(t.entry_size);

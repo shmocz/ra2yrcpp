@@ -1,17 +1,18 @@
+#include "debug_helpers.h"
 #include "google/protobuf/any.pb.h"
-#include "google/protobuf/arena.h"
 #include "google/protobuf/dynamic_message.h"
 #include "gtest/gtest.h"
-#include "protocol/protocol.hpp"
 #include "proto_manager.hpp"
+#include "protocol/protocol.hpp"
 #include "util_string.hpp"
+
 #include <cstdio>
-#include <vector>
+
 #include <iostream>
 #include <memory>
+#include <vector>
 
 using google::protobuf::Any;
-using google::protobuf::Message;
 
 class ProtocolTest : public ::testing::Test {
  protected:
@@ -19,7 +20,6 @@ class ProtocolTest : public ::testing::Test {
     key = "key";
     val = "val";
   }
-  // void TearDown() override {}
 
   yrclient::StoreValue get_storeval() {
     yrclient::StoreValue S;
@@ -39,12 +39,12 @@ TEST_F(ProtocolTest, ProtoManager) {
   R.set_code(yrclient::RESPONSE_OK);
   R.mutable_body()->PackFrom(S);
   P.add_handler(S.GetTypeName(), []() { return new decltype(S); });
-// R.body().descriptor()
+  // R.body().descriptor()
   auto* msg = P.get_message(yrclient::message_type(R.body()));
   R.body().UnpackTo(msg);
-  auto *refl = msg->GetReflection();
-  auto *descr = msg->GetDescriptor();
-  auto *args_fd = descr->FindFieldByName("args");
+  auto* refl = msg->GetReflection();
+  auto* descr = msg->GetDescriptor();
+  auto* args_fd = descr->FindFieldByName("args");
   const auto& args = refl->GetMessage(*msg, args_fd);
   DPRINTF("prot=%s\n", yrclient::to_json(*msg).c_str());
   DPRINTF("args=%s\n", yrclient::to_json(args).c_str());
@@ -52,7 +52,7 @@ TEST_F(ProtocolTest, ProtoManager) {
 
 TEST_F(ProtocolTest, GenericMessages) {
   yrclient::NewResult R;
-auto S = get_storeval();
+  auto S = get_storeval();
   Any dest;
   dest.PackFrom(S);
   R.set_code(yrclient::RESPONSE_OK);

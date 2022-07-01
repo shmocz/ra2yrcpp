@@ -1,19 +1,19 @@
-#include "gtest/gtest.h"
-#include "debug_helpers.h"
 #include "command/command_manager.hpp"
-#include <vector>
-#include <memory>
+#include "debug_helpers.h"
+#include "gtest/gtest.h"
 #include "utility.h"
 #include "utility/time.hpp"
 
-// using namespace std::chrono_literals;
+#include <chrono>
+#include <memory>
+#include <vector>
+
 using yrclient::as;
 using namespace std::chrono_literals;
 
 class CommandManagerTest : public ::testing::Test {
  protected:
   void SetUp() override {}
-  // void TearDown() override {}
   command::CommandManager M;
 };
 
@@ -81,7 +81,7 @@ TEST_F(CommandManagerTest, RegisterAndRunCommand) {
   M.factory().add_entry(
       cmd_name,
       [&key](command::Command* c) {
-        as<decltype(&flag)>(c->args())->assign(key);
+        as<decltype(flag)*>(c->args())->assign(key);
       },
       nullptr);
   auto cmd = std::shared_ptr<command::Command>(

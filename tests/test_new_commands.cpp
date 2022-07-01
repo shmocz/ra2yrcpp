@@ -39,14 +39,13 @@ class NewCommandsTest : public ::testing::Test {
     I = std::make_unique<yrclient::InstrumentationService>(cfg::MAX_CLIENTS,
                                                            cfg::SERVER_PORT);
     auto& S = I->server();
-    C_ = std::make_unique<connection::Connection>(S.address(), S.port());
-    client = std::make_unique<InstrumentationClient>(C_.get(), 5000ms, 10ms);
+    client = std::make_unique<InstrumentationClient>(S.address(), S.port(),
+                                                     5000ms, 10ms);
     key = "key";
     val = "val";
   }
 
   std::unique_ptr<yrclient::InstrumentationService> I;
-  std::unique_ptr<connection::Connection> C_;
   std::unique_ptr<InstrumentationClient> client;
   std::string key;
   std::string val;
@@ -59,7 +58,7 @@ class NewCommandsTest : public ::testing::Test {
     auto r = client->run_one(s);
     std::string vv;
     decltype(s) aa;
-    r.body().UnpackTo(&aa);
+    r.result().UnpackTo(&aa);
     ASSERT_EQ(aa.result(), v);
   }
 
@@ -68,7 +67,7 @@ class NewCommandsTest : public ::testing::Test {
     auto r = client->run_one(g);
     std::string vv;
     decltype(g) aa;
-    r.body().UnpackTo(&aa);
+    r.result().UnpackTo(&aa);
     ASSERT_EQ(aa.result(), v);
   }
 };
@@ -94,7 +93,7 @@ TEST_F(NewCommandsTest, FetchOne) {
   auto g = get_getval();
   auto res2 = client->run_one(g);
   yrclient::GetValue v;
-  res2.body().UnpackTo(&v);
+  res2.result().UnpackTo(&v);
   ASSERT_EQ(v.result(), val);
 }
 
@@ -102,8 +101,7 @@ TEST_F(NewCommandsTest, BasicCommandTest) {
   {
     auto cmd_store = get_storeval();
     // schedule cmd, get ACK
-    auto resp =
-        client->send_command(cmd_store, yrclient::CLIENT_COMMAND_NEW);
+    auto resp = client->send_command(cmd_store, yrclient::CLIENT_COMMAND_NEW);
     ASSERT_EQ(resp.code(), yrclient::OK);
     auto cmds = client->poll();
   }

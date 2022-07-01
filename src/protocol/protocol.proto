@@ -22,6 +22,7 @@ enum CommandType {
   POLL = 4;
   CLIENT_COMMAND_NEW = 5;
   POLL_NEW = 6;
+  POLL_BLOCKING = 7;
 }
 
 // TODO: no need for separate error message types...
@@ -29,22 +30,8 @@ message TextResponse {
   optional string message = 1;
 }
 
-message ErrorResponse {
-  optional string error_message = 1;
-}
-
 message RunCommandAck {
   optional int64 id = 1;
-}
-
-message CommandResult {
-  // need to serialize the protobuf message here!
-  optional bytes data = 1;
-  ResponseCode result_code = 2;
-}
-
-message CommandPollResult {
-  repeated CommandResult results = 1;
 }
 
 message Command {
@@ -61,17 +48,54 @@ message NewCommandPollResult {
   repeated google.protobuf.Any results = 1;
 }
 
-message GameState {
-  uint32 current_frame = 1;
+message SystemState {
+  message Connection {
+    string host = 1;
+    string port = 2;
+    uint64 socket_id = 3;
+    double timestamp = 4;
+  }
+  message CommandQueue {
+    uint64 queue_id = 1;
+    uint64 size = 2;
+  }
+  repeated Connection connections = 1;
+  repeated CommandQueue queues = 2;
 }
 
-message ReadGamestate {
-  GameState result = 1;
+message GameState {
+  uint32 current_frame = 1;
 }
 
 message NewResult {
   optional ResponseCode code = 1;
   google.protobuf.Any body = 2;
+}
+
+message CommandResult {
+  int64 command_id = 1;
+  google.protobuf.Any result = 2;
+};
+
+message PollResults {
+  message Args {
+    uint64 queue_id = 1;
+    uint64 timeout = 2;
+  }
+  message Result {
+    repeated CommandResult results = 1;
+  }
+  Args args = 1;
+  Result result = 2;
+}
+
+message GetSystemState {
+  message Args {}
+  message Result {
+    SystemState state = 1;
+  }
+  Args args = 1;
+  Result result = 2;
 }
 
 message InstallHook {
@@ -80,9 +104,7 @@ message InstallHook {
     uint32 address = 2;
     uint32 code_length = 3;
   }
-  message Result {
-
-  }
+  message Result {}
   optional Args args = 1;
   optional Result result = 2;
 }
@@ -92,9 +114,7 @@ message AddCallback {
     uint32 hook_address = 1;
     uint32 callback_address = 2;
   }
-  message Result {
-
-  }
+  message Result {}
   optional Args args = 1;
   optional Result result = 2;
 }
@@ -127,9 +147,3 @@ message HookableCommand {
   optional Args args = 1;
   optional Result result = 2;
 }
-
-//#if 0
-// struct hookable_command_res {
-//  std::string addr_test, code_size, addr_test_cb;
-//};
-//#endif

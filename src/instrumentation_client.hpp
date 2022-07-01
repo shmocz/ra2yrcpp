@@ -1,10 +1,14 @@
 #pragma once
-#include "connection.hpp"
 #include "protocol/protocol.hpp"
+
+#include "connection.hpp"
+#include "errors.hpp"
 #include "util_string.hpp"
 #include "utility/time.hpp"
+
 #include <cassert>
 #include <chrono>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -21,17 +25,27 @@ class InstrumentationClient {
                         const std::chrono::milliseconds poll_timeout = 5000ms,
                         const std::chrono::milliseconds poll_rate = 250ms);
 
+  ///
+  /// Send bytes and return number of bytes sent.
+  /// @exception std::runtime_error on write failure
+  ///
   size_t send_data(const vecu8& data);
 
+  ///
+  /// Send encoded message to server and read response back.
+  /// @exception std::runtime_error on read/write failure.
+  ///
   yrclient::Response send_message(const vecu8& data);
+  /// Send protobuf message to server.
   yrclient::Response send_message(const google::protobuf::Message& M);
 
   yrclient::Response send_command_old(
       std::string name, std::string args,
       yrclient::CommandType type = yrclient::CLIENT_COMMAND);
 
+  /// Send a command of given type to server and read response.
   yrclient::Response send_command(const google::protobuf::Message& cmd,
-                                      yrclient::CommandType type);
+                                  yrclient::CommandType type);
 
   yrclient::Response poll();
   yrclient::NewCommandPollResult poll_until(

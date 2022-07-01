@@ -1,6 +1,4 @@
 #include "instrumentation_client.hpp"
-#include "errors.hpp"
-#include "protocol/protocol.hpp"
 
 using namespace instrumentation_client;
 using yrclient::to_json;
@@ -88,6 +86,7 @@ yrclient::NewCommandPollResult InstrumentationClient::poll_until(
     return P.results().size() < 1;
   };
   util::call_until(timeout, rate, f);
+  DPRINTF("size=%d\n", P.result().results().size());
   return P;
 }
 

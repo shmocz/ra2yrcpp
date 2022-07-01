@@ -1,18 +1,18 @@
 #pragma once
+#include "protocol/protocol.hpp"
+
 #include "command/command_manager.hpp"
 #include "config.hpp"
 #include "connection.hpp"
 #include "errors.hpp"
-#include "google/protobuf/message.h"
-#include "protocol/protocol.hpp"
+#include "hook.hpp"
 #include "server.hpp"
 #include "types.h"
 #include "util_string.hpp"
 #include "utility/sync.hpp"
-// See issue #1. hook.hpp includes xbyak so needs to be after protocol
-#include "hook.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <functional>
 #include <map>
 #include <memory>
@@ -22,7 +22,12 @@
 #include <tuple>
 #include <utility>
 #include <vector>
+
 namespace yrclient {
+
+namespace {
+using namespace std::chrono_literals;
+};
 
 // Forward declaration
 class InstrumentationService;
@@ -42,16 +47,8 @@ struct ISArgs {
   google::protobuf::Any* M;
 };
 
-/// Command args, which holds handle to IService
-struct IServiceArgsNew {
-  InstrumentationService* I;
-  yrclient::Command* cmd;  // result is stored directly to here
-};
-
 /// Command to be executed in IService context
 using IServiceCommand = std::function<std::unique_ptr<vecu8>(IServiceArgs)>;
-using IServiceCommandNew =
-    std::function<std::unique_ptr<vecu8>(IServiceArgsNew)>;
 template <typename T>
 using aq_t = std::tuple<std::unique_lock<std::mutex>, T>;
 using deleter_t = std::function<void(void*)>;
@@ -79,7 +76,7 @@ class InstrumentationService {
   vecu8 on_receive_bytes(connection::Connection* C, vecu8* bytes);
   void on_send_bytes(connection::Connection* C, vecu8* bytes);
   void on_accept_connection(connection::Connection* C);
-  command::CommandManager& cmd_manager_new();
+  command::CommandManager& cmd_manager();
   server::Server& server();
   std::map<u8*, hook::Hook>& hooks();
   aq_t<std::map<u8*, hook::Hook>*> aq_hooks();
@@ -91,9 +88,10 @@ class InstrumentationService {
 
  private:
   void add_builtin_commands();
-  yrclient::Response flush_results_new(const u64 queue_id);
+  yrclient::Response flush_results(
+      const u64 queue_id, const std::chrono::milliseconds delay = 1000ms);
   yrclient::Response process_request(connection::Connection* C, vecu8* bytes);
-  command::CommandManager cmd_manager_new_;
+  command::CommandManager cmd_manager_;
   server::Server server_;
   std::map<u8*, hook::Hook> hooks_;
   std::mutex mut_hooks_;
@@ -102,7 +100,4 @@ class InstrumentationService {
   std::function<std::string(InstrumentationService*)> on_shutdown_;
 };
 
-std::tuple<yrclient::InstrumentationService*, std::vector<std::string>, void*>
-get_args(yrclient::IServiceArgs args);
-
-};  // namespace yrclient
+}  // namespace yrclient

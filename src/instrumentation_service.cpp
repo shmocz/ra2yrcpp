@@ -1,4 +1,5 @@
 #include "instrumentation_service.hpp"
+
 #include "commands_builtin.hpp"
 #include "commands_yr.hpp"
 
@@ -7,7 +8,7 @@ using namespace yrclient;
 void InstrumentationService::add_command_new(
     std::string name, command::Command::handler_t fn,
     command::Command::deleter_t deleter) {
-  cmd_manager_new_.factory().add_entry(name, fn, deleter);
+  cmd_manager_.factory().add_entry(name, fn, deleter);
 }
 
 std::vector<process::thread_id_t>
@@ -27,8 +28,8 @@ void InstrumentationService::create_hook(std::string name, u8* target,
                      name, tids);
 }
 
-command::CommandManager& InstrumentationService::cmd_manager_new() {
-  return cmd_manager_new_;
+command::CommandManager& InstrumentationService::cmd_manager() {
+  return cmd_manager_;
 }
 
 server::Server& InstrumentationService::server() { return server_; }
@@ -60,17 +61,18 @@ yrclient::Response reply_ok(std::string message) {
   return *reply_body(&R, T);
 }
 
-yrclient::Response InstrumentationService::flush_results_new(
-    const u64 queue_id) {
-  auto results = cmd_manager_new().flush_results(queue_id);
+yrclient::Response InstrumentationService::flush_results(
+    const u64 queue_id, const std::chrono::milliseconds delay) {
+  auto results = cmd_manager().flush_results(queue_id, delay, 0);
   yrclient::Response R;
-  yrclient::NewCommandPollResult P;
-  // auto& c_queue = res_queue->at(queue_id);
+  yrclient::PollResults P;
+  auto* PR = P.mutable_result();
   while (!results.empty()) {
     auto item = results.back();
-    auto* cmd_result = as<google::protobuf::Message*>(item->result());
-    auto R = P.add_results();
-    R->PackFrom(*cmd_result);
+    auto* cmd_result = as<CommandResult*>(item->result());
+    auto* res = PR->add_results();
+    res->set_command_id(cmd_result->command_id());
+    res->mutable_result()->CopyFrom(cmd_result->result());
     results.pop_back();
   }
 
@@ -96,10 +98,9 @@ yrclient::Response handle_cmd_ng(InstrumentationService* I,
           .back();
 
   try {
-    auto* a = new ISArgs{I, aa};
-
-    auto c = I->cmd_manager_new().factory().make_command(name, a, C->socket());
-    I->cmd_manager_new().enqueue_command(std::shared_ptr<command::Command>(c));
+    auto c = I->cmd_manager().factory().make_command(name, new ISArgs{I, aa},
+                                                     C->socket());
+    I->cmd_manager().enqueue_command(std::shared_ptr<command::Command>(c));
     task_id = c->task_id();
   } catch (const std::exception& e) {
     return reply_error(join_string({e.what(), name}));
@@ -142,7 +143,7 @@ yrclient::Response InstrumentationService::process_request(
     } break;
     case yrclient::POLL_NEW: {
       try {
-        return flush_results_new(C->socket());
+        return flush_results(C->socket());
       } catch (const std::out_of_range& e) {
         return reply_error(e.what());
       }
@@ -170,13 +171,13 @@ vecu8 InstrumentationService::on_receive_bytes(connection::Connection* C,
 
 void InstrumentationService::on_accept(connection::Connection* C) {
   // Create result queue
-  cmd_manager_new().enqueue_builtin(command::CommandType::CREATE_QUEUE,
-                                    C->socket());
+  cmd_manager().enqueue_builtin(command::CommandType::CREATE_QUEUE,
+                                C->socket());
 }
 
 void InstrumentationService::on_close(connection::Connection* C) {
-  cmd_manager_new().enqueue_builtin(command::CommandType::DESTROY_QUEUE,
-                                    C->socket());
+  cmd_manager().enqueue_builtin(command::CommandType::DESTROY_QUEUE,
+                                C->socket());
 }
 
 void InstrumentationService::on_send_bytes(connection::Connection* C,
@@ -243,9 +244,3 @@ aq_t<storage_t*> InstrumentationService::aq_storage() {
 }
 
 InstrumentationService::~InstrumentationService() {}
-
-std::tuple<yrclient::InstrumentationService*, std::vector<std::string>, void*>
-yrclient::get_args(yrclient::IServiceArgs args) {
-  return std::make_tuple(args.I, yrclient::split_string(*args.args),
-                         args.result);
-}

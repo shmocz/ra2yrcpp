@@ -4,6 +4,8 @@
 #include "errors.hpp"
 #include "network.hpp"
 #include "process.hpp"
+#include "utility/time.hpp"
+
 #include <algorithm>
 #include <atomic>
 #include <functional>
@@ -29,11 +31,13 @@ class ConnectionCTX {
   void join();
   connection::Connection& c();
   process::thread_id_t thread_id;
+  std::chrono::system_clock::time_point timestamp() const;
 
  private:
   uptr<connection::Connection> c_;
   ctx_fn main_loop_;
   std::thread thread_;
+  std::chrono::system_clock::time_point timestamp_;
 };
 
 struct Callbacks {

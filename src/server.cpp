@@ -50,7 +50,10 @@ void Server::connection_thread(connection::Connection* C) {
 
 ConnectionCTX::ConnectionCTX(std::unique_ptr<connection::Connection> c,
                              ctx_fn main_loop)
-    : c_(std::move(c)), main_loop_(main_loop), thread_(main_loop_, this) {}
+    : c_(std::move(c)),
+      main_loop_(main_loop),
+      thread_(main_loop_, this),
+      timestamp_(util::current_time()) {}
 
 void ConnectionCTX::join() {
   if (thread_.joinable()) {
@@ -61,6 +64,10 @@ void ConnectionCTX::join() {
 ConnectionCTX::~ConnectionCTX() { join(); }
 
 connection::Connection& ConnectionCTX::c() { return *c_; }
+
+std::chrono::system_clock::time_point ConnectionCTX::timestamp() const {
+  return timestamp_;
+}
 
 void Server::clear_closed() {
   while (!close_queue_.empty()) {

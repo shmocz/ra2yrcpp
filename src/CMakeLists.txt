@@ -32,6 +32,7 @@ add_library(
   context.cpp
   commands_builtin.cpp
   commands_yr.cpp
+  multi_client.cpp
   util_string.cpp)
 target_link_libraries(instrumentation_service
                       PUBLIC protocol connection process command_manager hooks)

@@ -62,3 +62,8 @@ new_make_test(
   NAME test_protocol
   SRC test_protocol.cpp
   LIB proto_manager)
+
+new_make_test(
+  NAME test_multi_client
+  SRC test_multi_client.cpp
+  LIB instrumentation_service)

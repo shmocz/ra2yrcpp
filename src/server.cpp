@@ -1,4 +1,5 @@
 #include "server.hpp"
+
 #include "debug_helpers.h"
 
 using namespace server;
@@ -32,17 +33,17 @@ void Server::connection_thread(connection::Connection* C) {
       auto response = on_receive_bytes(C, &msg);
       on_send_bytes(C, &response);
     } catch (const yrclient::timeout& E) {
-      DPRINTF("timeout");
     } catch (const yrclient::system_error& E) {
       DPRINTF("system error: %s\n", E.what());
       // broken connection
       break;
     } catch (const std::runtime_error& E) {
-      DPRINTF("runtime error: %s\n", E.what());
+      DPRINTF("error: %s, sock=%d\n", E.what(), C->socket());
       // fatal error
       break;
     }
   } while (!is_closing());
+  DPRINTF("exiting, sock=%d\n", C->socket());
   if (callbacks().close) {
     callbacks().close(C);
   }
@@ -92,18 +93,19 @@ void Server::listener_thread() {
       auto conn = std::make_unique<connection::Connection>(client);
       if (connections_.size() >= max_clients_) {
       } else {
+        DPRINTF("new conn, sock=%d\n", conn.get()->socket());
         connections_.emplace_back(std::make_unique<ConnectionCTX>(
             std::move(conn), [this](ConnectionCTX* ctx) -> void {
               ctx->thread_id = process::get_current_tid();
               auto c = &ctx->c();
               this->connection_thread(c);
+              DPRINTF("closing\n");
               this->close_queue_.push(c);
             }));
       }
     } else if (err == network::ERR_TIMEOUT) {
     } else {
-      // fatal error
-      DPRINTF("unknown\n");
+      throw yrclient::system_error("Unknown error");
     }
   } while (!is_closing());
   DPRINTF("Exit listener\n");

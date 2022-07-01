@@ -53,6 +53,13 @@ socket_error network::connect(socket_t s, const network::sockaddr* name,
   return ERR_UNKNOWN;
 }
 
+void network::set_io_timeout(socket_t s, const unsigned long timeout) {
+  auto* pt = reinterpret_cast<const char*>(&timeout);
+  setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, pt, sizeof(timeout));
+  setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, pt, sizeof(timeout));
+  DPRINTF("sock=%d,timeout=%d\n", s, timeout);
+}
+
 // TODO: don't throw exceptions inside these
 socket_t network::socket(addrinfo* ptr, const unsigned long timeout) {
   auto s = ::socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
@@ -61,9 +68,7 @@ socket_t network::socket(addrinfo* ptr, const unsigned long timeout) {
   }
   if (timeout > 0) {
 #ifdef _WIN32
-    auto* pt = reinterpret_cast<const char*>(&timeout);
-    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, pt, sizeof(timeout));
-    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, pt, sizeof(timeout));
+    set_io_timeout(s, timeout);
 #else
 #error Not implemented
 #endif

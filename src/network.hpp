@@ -24,9 +24,9 @@ typedef unsigned int socket_t;
 #define IPPROTO_TCP 6
 #define AF_INET 2
 #define SOMAXCONN 0x7fffffff
+constexpr int ETIMEOUT = 10060;
 constexpr int SOL_SOCKET = 0xffff;
 constexpr int SO_REUSEADDR = 0x0004;
-
 // ws2tcpip.h
 #define AI_PASSIVE 0x00000001
 #endif
@@ -91,6 +91,7 @@ ssize_t recv(socket_t s, void* buffer, const size_t length, int flags);
 ssize_t send(socket_t s, const void* buffer, const size_t length, int flags);
 int setsockopt(socket_t s, int level, int optname, const char* optval,
                int optlen);
+void set_io_timeout(socket_t s, const unsigned long timeout);
 ///
 /// Create socket from given addrinfo. If timeout is greater than zero, then it
 /// will be set as send/recv timeout (milliseconds).

@@ -24,6 +24,8 @@ void Server::connection_thread(connection::Connection* C) {
   if (callbacks().accept) {
     callbacks().accept(C);
   }
+  DPRINTF("accepted, sock=%d\n", C->socket());
+  network::set_io_timeout(C->socket(), cfg::SOCKET_SR_TIMEOUT);
   do {
     try {
       auto msg = C->read_bytes();

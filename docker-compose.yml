@@ -1,0 +1,14 @@
+version: "3.9"
+services:
+  builder:
+    environment:
+      CMAKE_TOOLCHAIN_FILE: /home/user/project/toolchains/mingw-w64-i686-docker.cmake
+    image: shmocz/yrclient:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        MAKE_JOBS: 4
+        PROTOBUF_VERSION: "v3.9.1"
+    volumes:
+      - .:/home/user/project

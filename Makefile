@@ -29,5 +29,7 @@ test:
 	set -e; for f in $(TESTS); do \
 		WINEPATH="./build/src" wine $$f; done
 
+docker_build:
+	docker-compose build
 
 .PHONY: build doc lint format test

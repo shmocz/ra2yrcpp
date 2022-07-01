@@ -1,12 +1,4 @@
 #include "connection.hpp"
-#include "debug_helpers.h"
-#include "errors.hpp"
-#include "network.hpp"
-#include "utility/scope_guard.hpp"
-#include <algorithm>
-#include <string>
-#include <stdexcept>
-#include <cstring>
 
 using namespace connection;
 
@@ -17,12 +9,20 @@ SocketIO::SocketIO(network::socket_t* socket) : socket_(socket) {}
 vecu8 SocketIO::read_chunk(const size_t bytes) {
   size_t to_read = std::min(buflen(), bytes);
   ssize_t res;
-  // DPRINTF("recv sock=%d,bytes=%d\n", *socket_, bytes);
+#ifdef DEBUG_SOCKETIO
+  DPRINTF("recv sock=%d,bytes=%d\n", *socket_, bytes);
+#endif
   if ((res = network::recv(*socket_, buf_, bytes, 0)) < 0) {
-    throw yrclient::system_error("recv()");
+    auto e = network::get_last_network_error();
+    if (e == network::ETIMEOUT) {
+      throw yrclient::timeout();
+    }
+    DPRINTF("neterr=%d\n", e);
+    throw yrclient::system_error(std::string("recv() ") + std::to_string(res),
+                                 e);
   }
   if (res == 0) {
-    throw std::runtime_error("Connection closed");
+    throw yrclient::system_error("read_chunk() connection closed");
   }
   return vecu8(buf(), buf() + to_read);
 }
@@ -30,22 +30,28 @@ vecu8 SocketIO::read_chunk(const size_t bytes) {
 size_t SocketIO::write_chunk(const vecu8& message) {
   size_t to_send = std::min(buflen(), message.size());
   ssize_t res;
-  // DPRINTF("writing, sock=%d,bytes=%d\n", *socket_, message.size());
-  if ((res = network::send(*socket_, &message[0], to_send, 0)) < 0) {
+#ifdef DEBUG_SOCKETIO
+  DPRINTF("writing, sock=%d,bytes=%d\n", *socket_, to_send);
+#endif
+  if ((res = network::send(*socket_, message.data(), to_send, 0)) < 0) {
     throw yrclient::system_error("send()");
   }
   if (res == 0) {
-    throw std::runtime_error("Connection closed");
+    throw yrclient::system_error("write_chunk(): connection closed");
   }
   return to_send;
 }
 
 vecu8 connection::read_bytes(ChunkReaderWriter* rw, const size_t chunk_size) {
   // FIXME: dedicated method
-  auto f = [&rw](const size_t l) { return rw->read_chunk(l); };
-  u32 length = read_obj<u32>(f);
-  // Read message body
-  // DPRINTF("Reading a message of size %d\n", length);
+  auto f = [&rw](const size_t l) {
+    try {
+      return rw->read_chunk(l);
+    } catch (const yrclient::system_error& e) {
+      throw std::runtime_error(e.what());
+    }
+  };
+  const u32 length = read_obj<u32>(f);
   if (length > cfg::MAX_MESSAGE_LENGTH) {
     throw std::runtime_error("Too large message");
   }
@@ -54,13 +60,17 @@ vecu8 connection::read_bytes(ChunkReaderWriter* rw, const size_t chunk_size) {
   auto it = res.begin();
   while (bytes > 0) {
     size_t bytes_chunk = std::min(bytes, chunk_size);
-    vecu8 chunk = rw->read_chunk(bytes_chunk);
-    if (bytes_chunk != chunk.size()) {
-      throw std::runtime_error("Chunk size mismatch");
+    try {
+      vecu8 chunk = f(bytes_chunk);
+      if (bytes_chunk != chunk.size()) {
+        throw std::runtime_error("Chunk size mismatch");
+      }
+      std::copy(chunk.begin(), chunk.end(), it);
+      bytes -= chunk.size();
+      it += chunk.size();
+    } catch (const yrclient::timeout& e) {
+      throw std::runtime_error("Broken connection");
     }
-    std::copy(chunk.begin(), chunk.end(), it);
-    bytes -= chunk.size();
-    it += chunk.size();
   }
   if (bytes != 0) {
     throw std::runtime_error("Remaining bytes should be zero");
@@ -70,17 +80,25 @@ vecu8 connection::read_bytes(ChunkReaderWriter* rw, const size_t chunk_size) {
 
 size_t connection::write_bytes(const vecu8& bytes, ChunkReaderWriter* writer,
                                const size_t chunk_size) {
+  auto f = [&writer](const vecu8& v) {
+    try {
+      return writer->write_chunk(v);
+    } catch (const yrclient::system_error& e) {
+      throw std::runtime_error(e.what());
+    }
+  };
+
   size_t c_sent = 0u;
   u32 sz = bytes.size();
   // Write length
   vecu8 ssz(sizeof(u32), 0);
   std::copy(reinterpret_cast<char*>(&sz),
             (reinterpret_cast<char*>(&sz)) + sizeof(sz), ssz.begin());
-  writer->write_chunk(ssz);
+  f(ssz);
   // Write rest of the data
   for (auto it = bytes.begin(); it < bytes.end(); it += chunk_size) {
     vecu8 msg(it, std::min(bytes.end(), it + chunk_size));
-    size_t count = writer->write_chunk(msg);
+    size_t count = f(msg);
     c_sent += count;
   }
   if (c_sent != bytes.size()) {
@@ -116,6 +134,7 @@ Connection::Connection(std::string host, std::string port)
       break;
     }
   }
+  DPRINTF("init_sock=%d\n", socket_);
 }
 
 Connection::Connection(std::string port) : port_(port) {
@@ -146,6 +165,7 @@ Connection::~Connection() {
   } catch (const yrclient::system_error& e) {
     DPRINTF("closesocket() failed, something's messed up\n");
   }
+  DPRINTF("sock=%d\n", socket_);
 }
 // TODO: pass by pointer
 int Connection::send_bytes(const vecu8& bytes) {

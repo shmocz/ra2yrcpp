@@ -1,14 +1,18 @@
 #pragma once
-#include "debug_helpers.h"
-#include "types.h"
 #include "config.hpp"
+#include "debug_helpers.h"
+#include "errors.hpp"
 #include "network.hpp"
+#include "types.h"
+#include "utility/scope_guard.hpp"
+
+#include <cstring>
+
 #include <algorithm>
-#include <vector>
 #include <functional>
 #include <stdexcept>
 #include <string>
-
+#include <vector>
 namespace connection {
 
 using ReaderFn = std::function<vecu8(size_t)>;
@@ -53,15 +57,36 @@ class ChunkReaderWriter {
   u8 buf_[cfg::DEFAULT_BUFLEN];
 };
 
+///
+/// Write bytes using the supplied writer.
+/// @exception std::runtime_error on write failure
+///
 size_t write_bytes(const vecu8& bytes, ChunkReaderWriter* writer,
                    const size_t chunk_size = cfg::DEFAULT_BUFLEN);
+
+///
+/// Read bytes using the supplied reader.
+/// @exception yrclient::timeout if reading timed out
+/// @exception std::runtime_error on any other read failure
+///
 vecu8 read_bytes(ChunkReaderWriter* rw,
                  const size_t chunk_size = cfg::DEFAULT_BUFLEN);
 
 class SocketIO : public ChunkReaderWriter {
  public:
   explicit SocketIO(network::socket_t* socket);
+  ///
+  /// Read bytes from socket.
+  /// @param bytes number of bytes to read
+  /// @exception yrclient::system_error if recv() fails on socket
+  ///
   vecu8 read_chunk(const size_t bytes) override;
+
+  ///
+  /// Write bytes to socket.
+  /// @param message bytes to write
+  /// @exception yrclient::system_error if send() fails on socket
+  ///
   size_t write_chunk(const vecu8& message) override;
 
  private:
@@ -77,8 +102,15 @@ class Connection {
   explicit Connection(std::string port);
   explicit Connection(network::socket_t s);
   ~Connection();
+  ///
   /// Send bytes and return number of bytes sent. TODO: use size_t
+  /// @exception std::runtime_error on write failure
+  ///
   int send_bytes(const vecu8& bytes);
+  ///
+  /// Read entire message from socket.
+  /// @exception std::runtime_error on read failure
+  ///
   vecu8 read_bytes();
   network::socket_t socket();
 

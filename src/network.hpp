@@ -1,8 +1,8 @@
 #pragma once
 #include "config.hpp"
 #ifdef _WIN32
-#include <psdk_inc/_ip_types.h>
 #include <_bsd_types.h>
+#include <psdk_inc/_ip_types.h>
 #endif
 #include <string>
 

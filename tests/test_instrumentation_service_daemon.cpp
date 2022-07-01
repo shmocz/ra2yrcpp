@@ -1,12 +1,13 @@
-#include "gtest/gtest.h"
-#include "context.hpp"
-#include "connection.hpp"
 #include "client_utils.hpp"
-#include "instrumentation_service.hpp"
+#include "connection.hpp"
+#include "context.hpp"
+#include "gtest/gtest.h"
 #include "instrumentation_client.hpp"
+#include "instrumentation_service.hpp"
 #include "is_context.hpp"
-#include <vector>
+
 #include <memory>
+#include <vector>
 
 using namespace yrclient;
 using context::Context;

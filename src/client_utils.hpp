@@ -1,6 +1,8 @@
 #pragma once
-#include "instrumentation_client.hpp"
 #include "protocol/protocol.hpp"
+
+#include "instrumentation_client.hpp"
+
 #include <type_traits>
 
 namespace client_utils {

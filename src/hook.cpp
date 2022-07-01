@@ -1,8 +1,10 @@
 #include "hook.hpp"
+
 #include "debug_helpers.h"
 #include "errors.hpp"
 #include "process.hpp"
 #include "utility/time.hpp"
+
 #include <chrono>
 #include <string>
 #include <thread>

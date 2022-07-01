@@ -1,6 +1,8 @@
 #pragma once
 #include "types.h"
+
 #include <xbyak/xbyak.h>
+
 #include <algorithm>
 #include <vector>
 

@@ -1,11 +1,13 @@
-#include "gtest/gtest.h"
 #include "debug_helpers.h"
-#include "utility/time.hpp"
-#include "process.hpp"
+#include "gtest/gtest.h"
 #include "hook.hpp"
+#include "process.hpp"
+#include "utility/time.hpp"
+
 #include <xbyak/xbyak.h>
-#include <vector>
+
 #include <thread>
+#include <vector>
 
 using namespace process;
 using namespace hook;

@@ -1,6 +1,7 @@
 #pragma once
-#include "command/command.hpp"
 #include "protocol/protocol.hpp"
+
+#include "command/command.hpp"
 #include "instrumentation_service.hpp"
 namespace util_command {
 

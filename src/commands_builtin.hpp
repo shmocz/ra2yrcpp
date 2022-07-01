@@ -1,11 +1,13 @@
 #pragma once
 
+#include "protocol/protocol.hpp"
+
 #include "command/command.hpp"
 #include "instrumentation_service.hpp"
-#include "protocol/protocol.hpp"
+#include "util_command.hpp"
 #include "util_string.hpp"
 #include "utility.h"
-#include "util_command.hpp"
+
 #include <map>
 #include <memory>
 #include <string>

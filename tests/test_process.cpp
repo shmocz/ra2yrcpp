@@ -1,11 +1,12 @@
-#include <gtest/gtest.h>
 #include "debug_helpers.h"
 #include "process.hpp"
 #include "utility.h"
 #include "utility/scope_guard.hpp"
 #include "utility/time.hpp"
-#include <vector>
+
+#include <gtest/gtest.h>
 #include <thread>
+#include <vector>
 
 using namespace process;
 using namespace std;

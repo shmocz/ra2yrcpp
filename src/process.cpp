@@ -1,13 +1,16 @@
 #include "process.hpp"
+
 #include "debug_helpers.h"
-#include <thread>
-#include <chrono>
 #include "errors.hpp"
 #include "util_string.hpp"
+
+#include <chrono>
+#include <thread>
 #ifdef _WIN32
 #include "utility.h"
 #include "utility/scope_guard.hpp"
 #include "utility/time.hpp"
+
 #include <cstdlib>
 #include <processthreadsapi.h>
 #include <psapi.h>

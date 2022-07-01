@@ -1,17 +1,19 @@
+#include "client_utils.hpp"
 #include "config.hpp"
 #include "debug_helpers.h"
 #include "dll_inject.hpp"
 #include "exprocess.hpp"
 #include "gtest/gtest.h"
 #include "instrumentation_client.hpp"
-#include "client_utils.hpp"
 #include "is_context.hpp"
 #include "utility/time.hpp"
 #include "x86.hpp"
-#include <vector>
-#include <thread>
-#include <libloaderapi.h>
+
 #include <xbyak/xbyak.h>
+
+#include <libloaderapi.h>
+#include <thread>
+#include <vector>
 
 using instrumentation_client::InstrumentationClient;
 

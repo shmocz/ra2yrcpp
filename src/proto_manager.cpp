@@ -1,4 +1,5 @@
 #include "proto_manager.hpp"
+
 #include "debug_helpers.h"
 
 using namespace proto_manager;

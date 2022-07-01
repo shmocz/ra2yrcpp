@@ -1,4 +1,5 @@
 #include "util_string.hpp"
+
 #include <regex>
 
 std::vector<std::string> yrclient::split_string(const std::string& str,

@@ -1,6 +1,7 @@
+#include "network.hpp"
+
 #include "debug_helpers.h"
 #include "errors.hpp"
-#include "network.hpp"
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>

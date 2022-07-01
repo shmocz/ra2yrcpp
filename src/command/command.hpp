@@ -1,10 +1,10 @@
 #pragma once
 #include <functional>
-#include <string>
 #include <map>
-#include <vector>
-#include <stdexcept>
 #include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 namespace command {
 
@@ -42,7 +42,7 @@ class Command {
   ResultCode* result_code();
   methods_t& methods();
   // FIXME: use directly ref. in result(). this is just to not to break old code
-  void set_result(void *p);
+  void set_result(void* p);
 
  private:
   methods_t methods_;

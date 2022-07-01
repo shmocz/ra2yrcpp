@@ -1,8 +1,9 @@
 #pragma once
-#include <algorithm>
-#include <vector>
-#include <functional>
 #include "debug_helpers.h"
+
+#include <algorithm>
+#include <functional>
+#include <vector>
 
 namespace utility {
 

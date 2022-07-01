@@ -1,8 +1,10 @@
 #include "dll_inject.hpp"
+
+#include <xbyak/xbyak.h>
+
 #include <handleapi.h>
 #include <tlhelp32.h>
 #include <winnt.h>
-#include <xbyak/xbyak.h>
 
 using namespace dll_inject;
 using process::x86Reg;

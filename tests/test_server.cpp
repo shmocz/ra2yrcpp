@@ -1,15 +1,16 @@
+#include "config.hpp"
+#include "connection.hpp"
+#include "debug_helpers.h"
 #include "errors.hpp"
 #include "gtest/gtest.h"
-#include "connection.hpp"
-#include "config.hpp"
-#include "debug_helpers.h"
-#include "util_string.hpp"
 #include "server.hpp"
+#include "util_string.hpp"
 #include "utility/time.hpp"
+
+#include <memory>
+#include <thread>
 #include <unistd.h>
 #include <vector>
-#include <thread>
-#include <memory>
 
 static const std::string T_MESSAGE = "CLIENT";
 static const std::string T_KEY = "KEY";
@@ -69,7 +70,6 @@ TEST_F(ServerTest, MultipleConnections) {
   // Loop conns
   loop_all();
   loop_all();
-
 
   // Spawn connection, this should fail
   {

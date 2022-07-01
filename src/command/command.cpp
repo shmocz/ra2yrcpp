@@ -1,6 +1,8 @@
 #include "command.hpp"
-#include <stdexcept>
+
 #include "debug_helpers.h"
+
+#include <stdexcept>
 
 using namespace command;
 
@@ -49,4 +51,4 @@ const std::string& Command::name() const { return name_; }
 ResultCode* Command::result_code() { return &result_code_; }
 
 Command::methods_t& Command::methods() { return methods_; }
-void Command::set_result(void *p) { result_ = p; }
+void Command::set_result(void* p) { result_ = p; }

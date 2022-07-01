@@ -1,10 +1,10 @@
 #pragma once
 
-#include <functional>
 #include <condition_variable>
-#include <thread>
-#include <string>
+#include <functional>
 #include <mutex>
+#include <string>
+#include <thread>
 
 namespace context {
 

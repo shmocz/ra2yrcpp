@@ -1,8 +1,9 @@
 #pragma once
 #include "protocol/protocol.hpp"
-#include <string>
-#include <map>
+
 #include <functional>
+#include <map>
+#include <string>
 
 namespace proto_manager {
 using handler_t = std::function<google::protobuf::Message*()>;

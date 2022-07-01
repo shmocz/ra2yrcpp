@@ -1,9 +1,10 @@
+#include "protocol/protocol.hpp"
+
 #include "debug_helpers.h"
 #include "google/protobuf/any.pb.h"
 #include "google/protobuf/dynamic_message.h"
 #include "gtest/gtest.h"
 #include "proto_manager.hpp"
-#include "protocol/protocol.hpp"
 #include "util_string.hpp"
 
 #include <cstdio>

@@ -1,20 +1,22 @@
-#include "gtest/gtest.h"
-#include "config.hpp"
-#include "debug_helpers.h"
 #include "protocol/protocol.hpp"
+
+#include "client_utils.hpp"
+#include "config.hpp"
 #include "connection.hpp"
+#include "debug_helpers.h"
+#include "gtest/gtest.h"
+#include "instrumentation_client.hpp"
+#include "instrumentation_service.hpp"
 #include "util_string.hpp"
 #include "utility/time.hpp"
-#include "instrumentation_service.hpp"
-#include "instrumentation_client.hpp"
-#include "client_utils.hpp"
-#include <unistd.h>
-#include <chrono>
-#include <stdexcept>
-#include <vector>
-#include <thread>
+
 #include <cassert>
+#include <chrono>
 #include <memory>
+#include <stdexcept>
+#include <thread>
+#include <unistd.h>
+#include <vector>
 
 using namespace yrclient;
 using namespace std::chrono_literals;

@@ -1,3 +1,5 @@
+#include "protocol/protocol.hpp"
+
 #include "client_utils.hpp"
 #include "config.hpp"
 #include "connection.hpp"
@@ -6,7 +8,6 @@
 #include "instrumentation_client.hpp"
 #include "instrumentation_service.hpp"
 #include "multi_client.hpp"
-#include "protocol/protocol.hpp"
 #include "utility/time.hpp"
 
 #include <chrono>

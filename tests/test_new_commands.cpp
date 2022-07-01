@@ -1,18 +1,21 @@
+#include "protocol/protocol.hpp"
+
+#include "connection.hpp"
+#include "context.hpp"
 #include "google/protobuf/any.pb.h"
 #include "google/protobuf/descriptor.h"
 #include "google/protobuf/message.h"
 #include "gtest/gtest.h"
-#include "context.hpp"
-#include "connection.hpp"
-#include "instrumentation_service.hpp"
 #include "instrumentation_client.hpp"
+#include "instrumentation_service.hpp"
 #include "is_context.hpp"
-#include "protocol/protocol.hpp"
 #include "util_string.hpp"
+
 #include <cstdio>
-#include <vector>
+
 #include <iostream>
 #include <memory>
+#include <vector>
 
 using namespace std::chrono_literals;
 using instrumentation_client::InstrumentationClient;

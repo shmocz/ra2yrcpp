@@ -10,7 +10,7 @@ enum ResponseCode {
 }
 
 message Response {
-  optional ResponseCode code = 1;
+  ResponseCode code = 1;
   google.protobuf.Any body = 2;
 }
 
@@ -27,20 +27,20 @@ enum CommandType {
 
 // TODO: no need for separate error message types...
 message TextResponse {
-  optional string message = 1;
+  string message = 1;
 }
 
 message RunCommandAck {
-  optional int64 id = 1;
+  int64 id = 1;
 }
 
 message Command {
   message ClientCommand {
-    optional string name = 1;
-    optional string args = 2;
+    string name = 1;
+    string args = 2;
   }
-  optional CommandType command_type = 1;
-  optional ClientCommand client_command = 2;
+  CommandType command_type = 1;
+  ClientCommand client_command = 2;
   google.protobuf.Any command_new = 3;
 }
 
@@ -68,7 +68,7 @@ message GameState {
 }
 
 message NewResult {
-  optional ResponseCode code = 1;
+  ResponseCode code = 1;
   google.protobuf.Any body = 2;
 }
 
@@ -105,8 +105,8 @@ message InstallHook {
     uint32 code_length = 3;
   }
   message Result {}
-  optional Args args = 1;
-  optional Result result = 2;
+  Args args = 1;
+  Result result = 2;
 }
 
 message AddCallback {
@@ -115,8 +115,8 @@ message AddCallback {
     uint32 callback_address = 2;
   }
   message Result {}
-  optional Args args = 1;
-  optional Result result = 2;
+  Args args = 1;
+  Result result = 2;
 }
 
 message StoreValue {
@@ -124,16 +124,16 @@ message StoreValue {
     string key = 1;
     string value = 2;
   }
-  optional Args args = 1;
-  optional string result = 2;
+  Args args = 1;
+  string result = 2;
 }
 
 message GetValue {
   message Args {
     string key = 1;
   }
-  optional Args args = 1;
-  optional string result = 2;
+  Args args = 1;
+  string result = 2;
 }
 
 message HookableCommand {
@@ -144,6 +144,6 @@ message HookableCommand {
     uint32 code_size = 2;
     uint32 address_test_callback = 3;
   }
-  optional Args args = 1;
-  optional Result result = 2;
+  Args args = 1;
+  Result result = 2;
 }

@@ -15,10 +15,13 @@ For convenience, a Docker image is provided with all necessary dependencies to b
 
 To build the Docker image:
 ```
-$ make docker_build
+$ make docker
 ```
 
-(TODO) To build the program:
+To build the program:
+```
+$ make docker_build
+```
 
 ## Tests
 

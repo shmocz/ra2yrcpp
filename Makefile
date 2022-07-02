@@ -23,13 +23,18 @@ clean:
 	make clean
 
 build:
-	cmake --build build --config Debug --target all -j 8
+	mkdir -p $(BUILDDIR)
+	cmake -S . -B $(BUILDDIR)
+	cmake --build $(BUILDDIR) --config Debug --target all -j $(nproc)
 
 test:
 	set -e; for f in $(TESTS); do \
 		WINEPATH="./build/src" wine $$f; done
 
-docker_build:
+docker:
 	docker-compose build
 
-.PHONY: build doc lint format test
+docker_build:
+	docker-compose run --rm builder make BUILDDIR=$(BUILDDIR) build
+
+.PHONY: build doc lint format test docker docker_build

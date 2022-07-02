@@ -5,6 +5,7 @@ protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS protocol/protocol.proto
                       protocol/commands_yr.proto)
 add_library(errors OBJECT errors.cpp)
 add_library(process STATIC process.cpp exprocess.cpp $<TARGET_OBJECTS:errors>)
+target_link_libraries(process PUBLIC psapi)
 add_library(network STATIC network.cpp $<TARGET_OBJECTS:errors>)
 add_library(hooks STATIC hook.cpp x86.cpp)
 add_library(command_manager STATIC command/command_manager.cpp

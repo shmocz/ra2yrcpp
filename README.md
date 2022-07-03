@@ -1,6 +1,6 @@
-# YRClient
+# ra2yrcpp
 
-Client for Red Alert 2 Yuri's Revenge, inspired by [s2client-api](https://github.com/Blizzard/s2client-api).
+Library for providing core functionality for interaction with Red Alert 2 Yuri's Revenge game process. Inspired by [s2client-api](https://github.com/Blizzard/s2client-api).
 
 ## Install
 

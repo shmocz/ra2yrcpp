@@ -1,10 +1,5 @@
 #include "multi_client.hpp"
 
-#include "errors.hpp"
-#include "network.hpp"
-#include "protocol/protocol.hpp"
-
-#include <stdexcept>
 using namespace multi_client;
 
 AutoPollClient::AutoPollClient(const std::string host, const std::string port,
@@ -34,9 +29,8 @@ AutoPollClient::~AutoPollClient() {
 yrclient::Response AutoPollClient::send_command(
     const google::protobuf::Message& cmd) {
   // Send command
-  auto resp =
-      get_client(ClientType::COMMAND)
-          ->send_command(cmd, yrclient::CommandType::CLIENT_COMMAND_NEW);
+  auto resp = get_client(ClientType::COMMAND)
+                  ->send_command(cmd, yrclient::CommandType::CLIENT_COMMAND);
   auto ack = yrclient::from_any<yrclient::RunCommandAck>(resp.body());
   // Wait until item found from polled messages
   DPRINTF("ack=%lld\n", ack.id());
@@ -46,7 +40,7 @@ yrclient::Response AutoPollClient::send_command(
 
 static std::vector<u64> get_queue_ids(InstrumentationClient* I) {
   std::vector<u64> r;
-  auto res = client_utils::run(yrclient::GetSystemState(), I);
+  auto res = client_utils::run(yrclient::commands::GetSystemState(), I);
   for (auto& q : res.state().queues()) {
     r.push_back(q.queue_id());
   }

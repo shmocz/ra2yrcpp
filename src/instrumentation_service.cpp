@@ -87,7 +87,7 @@ yrclient::Response handle_cmd_ng(InstrumentationService* I,
   using yrclient::split_string;
   // TODO: reduce amount of copies we make
   vecu8 result;
-  auto client_cmd = cmd->command_new();
+  auto client_cmd = cmd->command();
   auto* aa = new google::protobuf::Any();
   aa->CopyFrom(client_cmd);
   // schedule command execution
@@ -133,15 +133,12 @@ yrclient::Response InstrumentationService::process_request(
   // execute parsed command & write result
   vecu8 result;
   switch (cmd.command_type()) {
-    case yrclient::CLIENT_COMMAND: {
+    case yrclient::CLIENT_COMMAND_OLD: {
       return reply_error("Deprecated");
     } break;
-    case yrclient::CLIENT_COMMAND_NEW:
+    case yrclient::CLIENT_COMMAND:
       return handle_cmd_ng(this, C, bytes, &cmd);
     case yrclient::POLL: {
-      return reply_error("Deprecated");
-    } break;
-    case yrclient::POLL_NEW: {
       try {
         return flush_results(C->socket());
       } catch (const std::out_of_range& e) {
@@ -151,7 +148,7 @@ yrclient::Response InstrumentationService::process_request(
     case yrclient::POLL_BLOCKING: {
       try {
         yrclient::PollResults R;
-        cmd.command_new().UnpackTo(&R);
+        cmd.command().UnpackTo(&R);
         // TODO: correct check?
         const u64 queue_id =
             R.args().queue_id() > 0 ? R.args().queue_id() : (u64)C->socket();

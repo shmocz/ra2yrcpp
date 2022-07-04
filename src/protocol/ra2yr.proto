@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package yrclient.ra2yr;
+
+message GameState {
+  uint32 current_frame = 1;
+}

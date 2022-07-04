@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package yrclient;
+
+import "google/protobuf/any.proto";
+
+enum ResponseCode {
+  OK = 0;
+  ERROR = 1;
+}
+
+message Response {
+  ResponseCode code = 1;
+  google.protobuf.Any body = 2;
+}
+
+message TextResponse {
+  string message = 1;
+}
+
+enum CommandType {
+  NONE = 0;
+  SHUTDOWN = 1;
+  CLIENT_COMMAND = 2;
+  CLIENT_COMMAND_OLD = 3;
+  POLL = 4;
+  POLL_BLOCKING = 5;
+}
+
+message Command {
+  message ClientCommand {
+    string name = 1;
+    string args = 2;
+  }
+  CommandType command_type = 1;
+  ClientCommand client_command_old = 2;
+  google.protobuf.Any command = 3;
+}
+
+message RunCommandAck {
+  int64 id = 1;
+}
+
+message CommandResult {
+  int64 command_id = 1;
+  google.protobuf.Any result = 2;
+};
+
+message PollResults {
+  message Args {
+    uint64 queue_id = 1;
+    uint64 timeout = 2;
+  }
+  message Result {
+    repeated CommandResult results = 1;
+  }
+  Args args = 1;
+  Result result = 2;
+}
+
+message SystemState {
+  message Connection {
+    string host = 1;
+    string port = 2;
+    uint64 socket_id = 3;
+    double timestamp = 4;
+  }
+  message CommandQueue {
+    uint64 queue_id = 1;
+    uint64 size = 2;
+  }
+  repeated Connection connections = 1;
+  repeated CommandQueue queues = 2;
+}

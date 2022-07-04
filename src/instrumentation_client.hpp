@@ -41,7 +41,7 @@ class InstrumentationClient {
 
   yrclient::Response send_command_old(
       std::string name, std::string args,
-      yrclient::CommandType type = yrclient::CLIENT_COMMAND);
+      yrclient::CommandType type = yrclient::CLIENT_COMMAND_OLD);
 
   /// Send a command of given type to server and read response.
   yrclient::Response send_command(const google::protobuf::Message& cmd,

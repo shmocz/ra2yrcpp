@@ -22,7 +22,7 @@ yrclient::Response InstrumentationClient::poll(
     const std::chrono::milliseconds timeout) {
   (void)timeout;
   yrclient::Command C;
-  return send_command(C, yrclient::POLL_NEW);
+  return send_command(C, yrclient::POLL);
 }
 
 template <typename T>
@@ -75,8 +75,8 @@ yrclient::Response InstrumentationClient::send_command_old(
     std::string name, std::string args, yrclient::CommandType type) {
   yrclient::Command C;
   C.set_command_type(type);
-  if (type == yrclient::CLIENT_COMMAND) {
-    auto* CC = C.mutable_client_command();
+  if (type == yrclient::CLIENT_COMMAND_OLD) {
+    auto* CC = C.mutable_client_command_old();
     CC->set_name(name);
     CC->set_args(args);
   }
@@ -88,7 +88,7 @@ yrclient::Response InstrumentationClient::send_command(
     const google::protobuf::Message& cmd, yrclient::CommandType type) {
   yrclient::Command C;
   C.set_command_type(type);
-  if (!C.mutable_command_new()->PackFrom(cmd)) {
+  if (!C.mutable_command()->PackFrom(cmd)) {
     throw yrclient::general_error("Packging message failed");
   }
   return send_message(C);
@@ -112,7 +112,7 @@ yrclient::PollResults InstrumentationClient::poll_until(
 
 yrclient::CommandResult InstrumentationClient::run_one(
     const google::protobuf::Message& M) {
-  auto r_ack = send_command(M, yrclient::CLIENT_COMMAND_NEW);
+  auto r_ack = send_command(M, yrclient::CLIENT_COMMAND);
   if (r_ack.code() == yrclient::RESPONSE_ERROR) {
     throw std::runtime_error("ACK " + to_json(r_ack));
   }

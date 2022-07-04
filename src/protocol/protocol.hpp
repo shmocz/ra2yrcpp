@@ -1,6 +1,7 @@
 #pragma once
+#include "commands_builtin.pb.h"
 #include "commands_yr.pb.h"
-#include "protocol.pb.h"
+#include "core.pb.h"
 #include "types.h"
 #include "util_string.hpp"
 
@@ -23,6 +24,12 @@ inline vecu8 to_vecu8(const T& msg) {
   return res;
 }
 
+std::string to_json(const google::protobuf::Message& m);
+std::string message_type(const google::protobuf::Any& m);
+std::string message_type(const google::protobuf::Message& m);
+yrclient::Response make_response(const yrclient::ResponseCode code,
+                                 const google::protobuf::Message& body);
+
 template <typename T>
 T from_any(const google::protobuf::Any& a) {
   T res;
@@ -32,10 +39,4 @@ T from_any(const google::protobuf::Any& a) {
   }
   return res;
 }
-
-std::string to_json(const google::protobuf::Message& m);
-std::string message_type(const google::protobuf::Any& m);
-std::string message_type(const google::protobuf::Message& m);
-yrclient::Response make_response(const yrclient::ResponseCode code,
-                                 const google::protobuf::Message& body);
 }  // namespace yrclient

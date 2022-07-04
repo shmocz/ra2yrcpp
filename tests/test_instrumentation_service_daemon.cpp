@@ -41,11 +41,11 @@ TEST_F(IServiceDaemonTest, BasicSetup) {
     is_context::make_is_ctx(&ctx);
     IClient C(reinterpret_cast<InstrumentationService*>(ctx.data()));
     auto& client = C.client;
-    yrclient::StoreValue s;
+    yrclient::commands::StoreValue s;
     s.mutable_args()->set_key(key);
     s.mutable_args()->set_value(flag1);
     auto res0 = client_utils::run(s, client.get());
-    yrclient::GetValue g;
+    yrclient::commands::GetValue g;
     g.mutable_args()->set_key(key);
 
     auto res1 = client_utils::run(g, client.get());

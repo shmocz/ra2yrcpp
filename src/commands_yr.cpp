@@ -14,11 +14,12 @@ void cb_save_state(hook::Hook* h, void* data, X86Regs* state) {
   const std::string k = "game_state";
 #if 1
   if (!(s->find(k) != s->end())) {
-    I->store_value(k, new yrclient::GameState(),
-                   [](void* data) { delete as<yrclient::GameState*>(data); });
+    I->store_value(k, new yrclient::ra2yr::GameState(), [](void* data) {
+      delete as<yrclient::ra2yr::GameState*>(data);
+    });
   }
 #endif
-  auto game_state = asptr<yrclient::GameState>(I->get_value(k));
+  auto game_state = asptr<yrclient::ra2yr::GameState>(I->get_value(k));
   game_state->set_current_frame(serialize::read_obj_le<u32>(as<u8*>(0xA8ED84)));
 }
 
@@ -68,7 +69,7 @@ static std::map<std::string, command::Command::handler_t> commands = {
        // Copy saved game state
        auto [mut, s] = Q.I()->aq_storage();
        auto res = Q.command_data().mutable_result();
-       auto val = asptr<yrclient::GameState>(s->at("game_state").get());
+       auto val = asptr<yrclient::ra2yr::GameState>(s->at("game_state").get());
        res->mutable_state()->CopyFrom(*val);
      }},
 };

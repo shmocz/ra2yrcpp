@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package yrclient.commands;
 
-import "protocol.proto";
+import "ra2yr.proto";
 
 message CreateHooks {
   message Args {}
@@ -21,7 +21,7 @@ message CreateCallbacks {
 message GetGameState {
   message Args {}
   message Result {
-    yrclient.GameState state = 1;
+    yrclient.ra2yr.GameState state = 1;
   }
   Args args = 1;
   Result result = 2;

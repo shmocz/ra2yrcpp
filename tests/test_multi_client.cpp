@@ -51,7 +51,7 @@ class MultiClientTest : public ::testing::Test {
 
 TEST_F(MultiClientTest, RunRegularCommand) {
   const unsigned count = 5u;
-  yrclient::HookableCommand cmd;
+  yrclient::commands::HookableCommand cmd;
   for (auto i = 0u; i < count; i++) {
     DPRINTF("number=%d\n", i);
     auto res0 = run_async<decltype(cmd)>(cmd);
@@ -60,7 +60,7 @@ TEST_F(MultiClientTest, RunRegularCommand) {
 }
 
 TEST_F(MultiClientTest, RunCommandsAndVerify) {
-  yrclient::HookableCommand cmd;
+  yrclient::commands::HookableCommand cmd;
   auto r = run_async<decltype(cmd)>(cmd);
   const u32 addr = r.address_test_callback();
   ASSERT_GT(r.address_test_callback(), 0);

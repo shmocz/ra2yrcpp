@@ -100,13 +100,13 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
   std::string key = "key1";
 
   {
-    yrclient::StoreValue s;
+    yrclient::commands::StoreValue s;
     s.mutable_args()->set_key(key);
     s.mutable_args()->set_value(f1);
     auto r1 = client_utils::run(s, &client);
-    // DPRINTF("RES %s\n", yrclient::to_json(r1).c_str());
+    // DPRINTF("RES %s\n", yrclient::commandsto_json(r1).c_str());
 
-    yrclient::GetValue g;
+    yrclient::commands::GetValue g;
     g.mutable_args()->set_key(key);
     auto r2 = client_utils::run(g, &client);
     ASSERT_EQ(r2, f1);

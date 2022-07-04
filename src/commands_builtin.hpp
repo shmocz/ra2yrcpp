@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+namespace yrclient {
 namespace commands_builtin {
 
 using yrclient::InstrumentationService;
@@ -23,3 +24,4 @@ void command_deleter(command::Command* c);
 std::map<std::string, command::Command::handler_t>* get_commands();
 
 }  // namespace commands_builtin
+}  // namespace yrclient

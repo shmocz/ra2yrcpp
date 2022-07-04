@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package yrclient.commands;
+
+import "google/protobuf/any.proto";
+import "core.proto";
+
+message GetSystemState {
+  message Args {}
+  message Result {
+    yrclient.SystemState state = 1;
+  }
+  Args args = 1;
+  Result result = 2;
+}
+
+message InstallHook {
+  message Args {
+    string name = 1;
+    uint32 address = 2;
+    uint32 code_length = 3;
+  }
+  message Result {}
+  Args args = 1;
+  Result result = 2;
+}
+
+message AddCallback {
+  message Args {
+    uint32 hook_address = 1;
+    uint32 callback_address = 2;
+  }
+  message Result {}
+  Args args = 1;
+  Result result = 2;
+}
+
+message StoreValue {
+  message Args {
+    string key = 1;
+    string value = 2;
+  }
+  Args args = 1;
+  string result = 2;
+}
+
+message GetValue {
+  message Args {
+    string key = 1;
+  }
+  Args args = 1;
+  string result = 2;
+}
+
+message HookableCommand {
+  message Args {}
+
+  message Result {
+    uint32 address_test_function = 1;
+    uint32 code_size = 2;
+    uint32 address_test_callback = 3;
+  }
+  Args args = 1;
+  Result result = 2;
+}

@@ -1,8 +1,8 @@
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-protobuf_generate_python(PROTO_PY protocol/protocol.proto
-                         protocol/commands_yr.proto)
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS protocol/protocol.proto
-                      protocol/commands_yr.proto)
+set(PROTO_FILES protocol/core.proto protocol/ra2yr.proto
+                protocol/commands_builtin.proto protocol/commands_yr.proto)
+protobuf_generate_python(PROTO_PY ${PROTO_FILES})
+protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
 add_library(errors OBJECT errors.cpp)
 add_library(process STATIC process.cpp exprocess.cpp $<TARGET_OBJECTS:errors>)
 target_link_libraries(process PUBLIC psapi)

@@ -20,16 +20,16 @@
 using namespace std::chrono_literals;
 using instrumentation_client::InstrumentationClient;
 
-yrclient::StoreValue get_storeval(std::string key, std::string val) {
-  yrclient::StoreValue s;
+yrclient::commands::StoreValue get_storeval(std::string key, std::string val) {
+  yrclient::commands::StoreValue s;
 
   s.mutable_args()->set_key(key);
   s.mutable_args()->set_value(val);
   return s;
 }
 
-yrclient::GetValue get_getval(std::string key) {
-  yrclient::GetValue s;
+yrclient::commands::GetValue get_getval(std::string key) {
+  yrclient::commands::GetValue s;
 
   s.mutable_args()->set_key(key);
   return s;
@@ -95,7 +95,7 @@ TEST_F(NewCommandsTest, FetchOne) {
   auto res1 = client->run_one(s);
   auto g = get_getval();
   auto res2 = client->run_one(g);
-  yrclient::GetValue v;
+  yrclient::commands::GetValue v;
   res2.result().UnpackTo(&v);
   ASSERT_EQ(v.result(), val);
 }
@@ -104,7 +104,7 @@ TEST_F(NewCommandsTest, BasicCommandTest) {
   {
     auto cmd_store = get_storeval();
     // schedule cmd, get ACK
-    auto resp = client->send_command(cmd_store, yrclient::CLIENT_COMMAND_NEW);
+    auto resp = client->send_command(cmd_store, yrclient::CLIENT_COMMAND);
     ASSERT_EQ(resp.code(), yrclient::OK);
     auto cmds = client->poll();
   }

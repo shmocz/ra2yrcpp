@@ -1,6 +1,6 @@
 #include "commands_builtin.hpp"
 
-using namespace commands_builtin;
+using namespace yrclient::commands;
 using util_command::ISCommand;
 
 /// Adds two unsigned integers, and returns result in EAX
@@ -23,13 +23,7 @@ void test_cb(hook::Hook* h, void* data, X86Regs* state) {
   I->store_value("test_key", new vecu8(s.begin(), s.end()));
 }
 
-void save_command_result(command::Command* c, google::protobuf::Message* m) {
-  auto* r = new yrclient::NewResult();
-  r->mutable_body()->PackFrom(*m);
-  c->set_result(yrclient::as<void*>(r));
-}
-
-void commands_builtin::command_deleter(command::Command* c) {
+void yrclient::commands_builtin::command_deleter(command::Command* c) {
   if (c->result()) {
     auto* M = yrclient::as<yrclient::CommandResult*>(c->result());
     delete M;
@@ -42,7 +36,7 @@ void commands_builtin::command_deleter(command::Command* c) {
 static std::map<std::string, command::Command::handler_t> commands_new = {
     {"GetSystemState",
      [](command::Command* c) {
-       ISCommand<yrclient::GetSystemState> Q(c);
+       ISCommand<GetSystemState> Q(c);
        auto* state = Q.command_data().mutable_result()->mutable_state();
        for (auto& c : Q.I()->server().connections()) {
          auto* conn = state->add_connections();
@@ -58,7 +52,7 @@ static std::map<std::string, command::Command::handler_t> commands_new = {
      }},
     {"StoreValue",
      [](command::Command* c) {
-       ISCommand<yrclient::StoreValue> Q(c);
+       ISCommand<StoreValue> Q(c);
        // NB: ensure correct radix
        auto& a = Q.args();
        auto v = new vecu8(a.value().begin(), a.value().end());
@@ -68,7 +62,7 @@ static std::map<std::string, command::Command::handler_t> commands_new = {
      }},
     {"GetValue",
      [](command::Command* c) {
-       ISCommand<yrclient::GetValue> Q(c);
+       ISCommand<GetValue> Q(c);
        // NB: ensure correct radix
        // FIXME: proper locking
        auto val = yrclient::as<vecu8*>(Q.I()->get_value(Q.args().key()));
@@ -79,7 +73,7 @@ static std::map<std::string, command::Command::handler_t> commands_new = {
        static TestProgram t;
        auto t_addr = t.get_code();
        t_addr(3, 3);
-       ISCommand<yrclient::HookableCommand> Q(c);
+       ISCommand<HookableCommand> Q(c);
        // yrclient::HookableCommand::Result res;
        auto res = Q.command_data().mutable_result();
        res->set_address_test_function(reinterpret_cast<u32>(t_addr));
@@ -88,13 +82,13 @@ static std::map<std::string, command::Command::handler_t> commands_new = {
      }},
     {"InstallHook",
      [](command::Command* c) {
-       ISCommand<yrclient::InstallHook> Q(c);
+       ISCommand<InstallHook> Q(c);
        auto& a = Q.args();
        Q.I()->create_hook(a.name(), reinterpret_cast<u8*>(a.address()),
                           a.code_length());
      }},
     {"AddCallback", [](command::Command* c) {
-       ISCommand<yrclient::AddCallback> Q(c);
+       ISCommand<AddCallback> Q(c);
        auto& a = Q.args();
        // TODO: create proper ctors for HookCallback
        Q.I()
@@ -106,6 +100,6 @@ static std::map<std::string, command::Command::handler_t> commands_new = {
      }}};
 
 std::map<std::string, command::Command::handler_t>*
-commands_builtin::get_commands() {
+yrclient::commands_builtin::get_commands() {
   return &commands_new;
 }

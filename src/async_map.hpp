@@ -2,11 +2,13 @@
 #include "async_queue.hpp"
 #include "errors.hpp"
 #include "utility/sync.hpp"
+
+#include <chrono>
 #include <condition_variable>
 #include <map>
 #include <mutex>
-#include <chrono>
 #include <ratio>
+#include <string>
 
 namespace async_map {
 

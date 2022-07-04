@@ -1,18 +1,23 @@
 #pragma once
+#include "protocol/protocol.hpp"
+
 #include "async_map.hpp"
 #include "client_utils.hpp"
 #include "connection.hpp"
 #include "errors.hpp"
 #include "instrumentation_client.hpp"
 #include "instrumentation_service.hpp"
-#include "protocol/protocol.hpp"
+#include "network.hpp"
 
 #include <cstdint>
 
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <map>
 #include <memory>
+#include <string>
+#include <vector>
 
 namespace multi_client {
 namespace {

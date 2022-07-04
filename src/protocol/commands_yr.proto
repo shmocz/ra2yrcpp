@@ -26,3 +26,30 @@ message GetGameState {
   Args args = 1;
   Result result = 2;
 }
+
+message GetTypeClasses {
+  message Args {}
+  message Result {
+    repeated yrclient.ra2yr.TypeClass classes = 1;
+  }
+  Args args = 1;
+  Result result = 2;
+}
+
+message GetObjects {
+  message Args {}
+  message Result {
+    repeated yrclient.ra2yr.Unit units = 1;
+  }
+  Args args = 1;
+  Result result = 2;
+}
+
+message GetHouses {
+  message Args {}
+  message Result {
+    repeated yrclient.ra2yr.House houses = 1;
+  }
+  Args args = 1;
+  Result result = 2;
+}

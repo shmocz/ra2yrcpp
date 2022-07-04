@@ -5,3 +5,78 @@ package yrclient.ra2yr;
 message GameState {
   uint32 current_frame = 1;
 }
+
+enum SpeedType {
+  SPEED_TYPE_FOOT = 0;
+  SPEED_TYPE_TRACK = 1;
+  SPEED_TYPE_Wheel = 2;
+  SPEED_TYPE_Hover = 3;
+  SPEED_TYPE_Winged = 4;
+  SPEED_TYPE_Float = 5;
+  SPEED_TYPE_Amphibious = 6;
+  SPEED_TYPE_FloatBeach = 7;
+  SPEED_TYPE_None = -1;
+}
+
+enum Armor {
+  ARMOR_None = 0;
+  ARMOR_Flak = 1;
+  ARMOR_Plate = 2;
+  ARMOR_Light = 3;
+  ARMOR_Medium = 4;
+  ARMOR_Heavy = 5;
+  ARMOR_Wood = 6;
+  ARMOR_Steel = 7;
+  ARMOR_Concrete = 8;
+  ARMOR_Special_1 = 9;
+  ARMOR_Special_2 = 10;
+}
+
+message TypeClass {
+  string name = 1;
+  uint32 points = 2;
+  uint32 speed = 3;
+  string speed_name = 4;
+  uint32 build_time_multiplier = 5;
+}
+
+message PlayerInfo {}
+
+message House {
+  int32 array_index = 1;
+  string name = 2;
+  string faction = 3;
+  bool defeated = 4;
+  bool current_player = 5;
+  int32 start_credits = 6;
+  int32 money = 7;
+  uint32 self = 8;
+}
+
+message Controls {
+  bool repair_mode = 1;
+  bool sell_mode = 2;
+  bool place_beacon_mode = 3;
+  int32 current_sw_index = 4;
+}
+
+message Coordinates {
+  int32 x = 1;
+  int32 y = 2;
+  int32 z = 3;
+}
+
+message Unit {
+  string name = 1;
+  int32 health = 2;
+  Coordinates coordinates = 3;
+  int32 cost = 4;
+  int32 soylent = 5;
+  uint32 owner_id = 6;
+  Armor armor = 7;
+  SpeedType speed_type = 8;
+  int32 speed = 9;
+  int32 points = 10;
+  double speed_percentage = 11;
+  double speed_multiplier = 12;
+}

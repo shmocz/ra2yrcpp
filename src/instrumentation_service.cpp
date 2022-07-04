@@ -153,7 +153,8 @@ yrclient::Response InstrumentationService::process_request(
         yrclient::PollResults R;
         cmd.command_new().UnpackTo(&R);
         // TODO: correct check?
-        const u64 queue_id = R.args().queue_id();
+        const u64 queue_id =
+            R.args().queue_id() > 0 ? R.args().queue_id() : (u64)C->socket();
         const auto timeout = std::chrono::milliseconds(
             R.args().IsInitialized() ? (u32)R.args().timeout()
                                      : cfg::POLL_BLOCKING_TIMEOUT_MS);

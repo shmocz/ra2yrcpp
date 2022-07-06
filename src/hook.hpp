@@ -1,17 +1,21 @@
 #pragma once
 
 #include "debug_helpers.h"
+#include "errors.hpp"
 #include "process.hpp"
 #include "types.h"
 #include "util_string.hpp"
 #include "utility/container.hpp"
+#include "utility/time.hpp"
 #include "x86.hpp"
 
 #include <xbyak/xbyak.h>
 
+#include <chrono>
 #include <functional>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace hook {

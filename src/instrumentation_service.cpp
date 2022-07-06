@@ -92,6 +92,7 @@ yrclient::Response handle_cmd_ng(InstrumentationService* I,
   aa->CopyFrom(client_cmd);
   // schedule command execution
   uint64_t task_id = 0;
+  const uint64_t queue_id = C->socket();
   // Get trailing portion of protobuf type url
   auto name =
       split_string(split_string(client_cmd.type_url(), "/").back(), "\\.")
@@ -99,7 +100,7 @@ yrclient::Response handle_cmd_ng(InstrumentationService* I,
 
   try {
     auto c = I->cmd_manager().factory().make_command(name, new ISArgs{I, aa},
-                                                     C->socket());
+                                                     queue_id);
     I->cmd_manager().enqueue_command(std::shared_ptr<command::Command>(c));
     task_id = c->task_id();
   } catch (const std::exception& e) {
@@ -110,6 +111,7 @@ yrclient::Response handle_cmd_ng(InstrumentationService* I,
   presp.set_code(RESPONSE_OK);
   RunCommandAck ack;
   ack.set_id(task_id);
+  ack.set_queue_id(queue_id);
   if (!presp.mutable_body()->PackFrom(ack)) {
     return reply_error("Packing ACK message failed");
   }

@@ -60,6 +60,11 @@ static std::map<std::string, command::Command::handler_t> commands = {
            throw yrclient::general_error(std::string("No such hook: ") +
                                          target);
          }
+         if (h->second.callbacks().size() > 0) {
+           throw yrclient::general_error(
+               std::string("hook already has a callback"));
+         }
+
          h->second.add_callback(hook::Hook::HookCallback{v.p_callback, Q.I()});
        }
      }},

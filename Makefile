@@ -1,6 +1,7 @@
 BUILDDIR := build
 TESTS := $(shell find $(BUILDDIR)/tests -name 'test_*.exe')
 CPP_SOURCES := $(shell git ls-tree -r --name-only HEAD | grep -E '\.(cpp|hpp)$$')
+CMAKE_BUILD_TYPE := Debug
 
 doc:
 	doxygen Doxyfile
@@ -19,13 +20,12 @@ format:
 	echo "$(CPP_SOURCES)" | xargs -n 1 clang-format -i
 
 clean:
-	mkdir build; cd build
-	make clean
+	rm -rf build
 
 build:
 	mkdir -p $(BUILDDIR)
 	cmake -S . -B $(BUILDDIR)
-	cmake --build $(BUILDDIR) --config Debug --target all -j $(nproc)
+	cmake --build $(BUILDDIR) --config $(CMAKE_BUILD_TYPE) --target all -j $(nproc)
 
 test:
 	set -e; for f in $(TESTS); do \

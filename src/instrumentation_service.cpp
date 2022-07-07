@@ -207,7 +207,7 @@ void InstrumentationService::on_send_bytes(connection::Connection* C,
 InstrumentationService::InstrumentationService(
     const unsigned int max_clients, const unsigned int port,
     std::function<std::string(InstrumentationService*)> on_shutdown)
-    : server_(max_clients, port), on_shutdown_(on_shutdown) {
+    : on_shutdown_(on_shutdown), server_(max_clients, port) {
   server_.callbacks().receive_bytes = [this](auto* c, auto* b) {
     return this->on_receive_bytes(c, b);
   };

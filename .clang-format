@@ -12,9 +12,9 @@ IncludeCategories:
     Priority: 1
   - Regex: '^".+'
     Priority: 2
-  - Regex: '^<xbyak/.+'
+  - Regex: "^<(xbyak|argparse)/.+"
     Priority: 3
-  - Regex: '<c(stdio|stdint|string)>'
+  - Regex: "<c(stdio|stdint|string)>"
     Priority: 4
-  - Regex: '<.+>'
+  - Regex: "<.+>"
     Priority: 5

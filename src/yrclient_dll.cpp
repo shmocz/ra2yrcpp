@@ -8,9 +8,9 @@
 
 using namespace yrclient_dll;
 
-std::mutex g_lock;
-yrclient::InstrumentationService* g_service = nullptr;
-is_context::Context g_context;
+static std::mutex g_lock;
+static yrclient::InstrumentationService* g_service = nullptr;
+static is_context::Context g_context;
 
 yrclient::InstrumentationService* yrclient_dll::initialize(
     const unsigned int max_clients, const unsigned int port) {
@@ -20,6 +20,7 @@ yrclient::InstrumentationService* yrclient_dll::initialize(
     is_context::make_is_ctx(&g_context, max_clients, port);
   }
   g_lock.unlock();
+  return reinterpret_cast<yrclient::InstrumentationService*>(g_context.data());
 }
 
 void yrclient_dll::deinitialize() {

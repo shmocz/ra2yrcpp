@@ -85,6 +85,8 @@ class InstrumentationService {
   void store_value(const std::string key, void* data, deleter_t deleter);
   void* get_value(const std::string key);
   void remove_value(const std::string key);
+  // TODO: don't expose this
+  std::function<std::string(InstrumentationService*)> on_shutdown_;
 
  private:
   void add_builtin_commands();
@@ -97,7 +99,6 @@ class InstrumentationService {
   std::mutex mut_hooks_;
   storage_t storage_;
   std::mutex mut_storage_;
-  std::function<std::string(InstrumentationService*)> on_shutdown_;
 };
 
 }  // namespace yrclient

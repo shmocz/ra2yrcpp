@@ -35,10 +35,10 @@ void dll_inject::suspend_inject_resume(
     const std::chrono::milliseconds delay_pre_resume) {
   process::Process P(ex_handle);
   P.suspend_threads(-1);
-  int tid = 0;
+  int tid = -1;
   P.for_each_thread([&tid](process::Thread* T, void* ctx) {
     (void)ctx;
-    if (tid == 0) {
+    if (tid == -1) {
       tid = T->id();
     }
   });

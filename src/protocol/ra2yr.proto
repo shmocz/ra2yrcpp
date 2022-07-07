@@ -2,10 +2,6 @@ syntax = "proto3";
 
 package yrclient.ra2yr;
 
-message GameState {
-  uint32 current_frame = 1;
-}
-
 enum SpeedType {
   SPEED_TYPE_FOOT = 0;
   SPEED_TYPE_TRACK = 1;
@@ -79,4 +75,9 @@ message Unit {
   int32 points = 10;
   double speed_percentage = 11;
   double speed_multiplier = 12;
+}
+
+message GameState {
+  uint32 current_frame = 1;
+  repeated Unit units = 2;
 }

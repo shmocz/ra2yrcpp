@@ -26,8 +26,11 @@ vecu8 is_context::vecu8cstr(const std::string s) {
 
 void is_context::make_is_ctx(Context* c, const unsigned int max_clients,
                              const unsigned int port) {
-  auto* I = new yrclient::InstrumentationService(
-      max_clients, port, [c](auto* X) { return c->on_signal(); });
+  auto* I =
+      new yrclient::InstrumentationService(max_clients, port, [c](auto* X) {
+        (void)X;
+        return c->on_signal();
+      });
   c->data() = reinterpret_cast<void*>(I);
   c->deleter() = [](Context* ctx) {
     delete reinterpret_cast<decltype(I)>(ctx->data());

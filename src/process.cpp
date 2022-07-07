@@ -283,7 +283,7 @@ void Process::resume_threads(const thread_id_t main_tid) const {
 #ifdef _WIN32
   for_each_thread([main_tid](Thread* T, void* ctx) {
     (void)ctx;
-    if (T->id() != main_tid) {
+    if (T->id() != static_cast<int>(main_tid)) {
       T->resume();
     }
   });

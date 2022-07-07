@@ -64,10 +64,9 @@ class AsyncQueue : public AsyncContainer {
   // and wait up to that amount for results.
   std::vector<T> pop(const std::size_t count = 1,
                      const std::chrono::milliseconds timeout = 0ms) {
-    auto cnt = timeout.count();
     std::unique_lock<std::mutex> l(a_.get()->m);
     DPRINTF("locked=%d,asyncdata=%p,count=%u,timeout=%lld\n", l.owns_lock(),
-            a_.get(), count, cnt);
+            a_.get(), count, timeout.count());
     std::vector<T> res;
     do {
       if (timeout > 0ms) {

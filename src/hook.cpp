@@ -8,6 +8,7 @@ unsigned int num_threads_at_tgt(const process::Process& P, const u8* target,
   auto main_tid = process::get_current_tid();
   std::vector<unsigned int> ips;
   P.for_each_thread([&ips, &main_tid](process::Thread* T, void* ctx) {
+    (void)ctx;
     if (T->id() != main_tid) {
       ips.push_back(*T->get_pgpr(process::x86Reg::eip));
     }

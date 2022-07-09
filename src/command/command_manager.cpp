@@ -52,18 +52,13 @@ CommandFactory& CommandManager::factory() { return factory_; }
 results_queue_t& CommandManager::results_queue() { return results_queue_; }
 
 void CommandManager::create_queue(const uint64_t id) {
-  // auto [lk_rq, rq] = results_queue();
   std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
-  // DPRINTF("id=%d, rq=%p\n", id, rq);
-  // (*rq)[id] = std::queue<std::shared_ptr<Command>>();
   DPRINTF("queue_id=%llu\n", id);
-  results_queue_[id] = async_queue::AsyncQueue<std::shared_ptr<Command>>();
+  results_queue_[id] = std::shared_ptr<result_queue_t>(new result_queue_t());
 }
 
 void CommandManager::destroy_queue(const uint64_t id) {
-  // auto [lk_rq, rq] = results_queue();
   std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
-  // DPRINTF("id=%d,rq=%p\n", id, rq);
   DPRINTF("queue_id=%llu\n", id);
   results_queue_.erase(id);
 }
@@ -78,9 +73,9 @@ void CommandManager::invoke_user_command(std::shared_ptr<Command> cmd) {
     *cmd->result_code() = ResultCode::ERROR;
   }
   std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
-  auto& q = results_queue_.at(cmd->queue_id());
+  auto q = results_queue_.at(cmd->queue_id());
   DPRINTF("task_id=%llu\n", cmd->task_id());
-  q.push(cmd);
+  q->push(cmd);
 }
 
 void CommandManager::enqueue_builtin(const CommandType type,
@@ -134,6 +129,9 @@ void CommandManager::worker() {
   DPRINTF("exit worker\n");
 }
 
+// NB. race condition if trying to flush queue, which is being destroyed at the
+// same time (e.g. polling a queue of disconnectin connection). Hence store
+// queues as shared_ptrs.
 std::vector<std::shared_ptr<Command>> CommandManager::flush_results(
     const uint64_t id, const std::chrono::milliseconds timeout,
     const std::size_t count) {
@@ -142,9 +140,9 @@ std::vector<std::shared_ptr<Command>> CommandManager::flush_results(
   if (results_queue_.find(id) == results_queue_.end()) {
     throw std::out_of_range(std::string("no such queue ") + std::to_string(id));
   }
-  auto& q = results_queue_.at(id);
+  auto q = results_queue_.at(id);
   l.unlock();
-  auto res = q.pop(count, timeout);
+  auto res = q->pop(count, timeout);
   DPRINTF("res_size=%d\n", (int)res.size());
   return res;
 }

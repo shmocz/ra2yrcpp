@@ -66,8 +66,9 @@ class CommandFactory {
 template <typename T>
 using guarded = std::tuple<std::unique_lock<std::mutex>, T*>;
 
-using results_queue_t =
-    std::map<uint64_t, async_queue::AsyncQueue<std::shared_ptr<Command>>>;
+using result_queue_t = async_queue::AsyncQueue<std::shared_ptr<Command>>;
+
+using results_queue_t = std::map<uint64_t, std::shared_ptr<result_queue_t>>;
 
 class CommandManager {
  public:

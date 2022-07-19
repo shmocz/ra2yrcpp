@@ -25,6 +25,10 @@ target_link_libraries(proto_manager PUBLIC protocol)
 add_library(connection STATIC connection.cpp)
 target_link_libraries(connection PUBLIC network)
 add_library(
+  ra2objects STATIC ra2/game_state.cpp ra2/state_parser.cpp ra2/utility.cpp
+                    ra2/type_classes.cpp ra2/objects.cpp)
+target_link_libraries(ra2objects PUBLIC process errors fmt::fmt)
+add_library(
   instrumentation_service STATIC
   instrumentation_service.cpp
   instrumentation_client.cpp
@@ -35,8 +39,9 @@ add_library(
   commands_yr.cpp
   multi_client.cpp
   util_string.cpp)
-target_link_libraries(instrumentation_service
-                      PUBLIC protocol connection process command_manager hooks)
+target_link_libraries(
+  instrumentation_service PUBLIC protocol connection process command_manager
+                                 hooks ra2objects)
 add_library(yrclient MODULE yrclient_dll.cpp)
 target_link_libraries(yrclient PUBLIC instrumentation_service)
 add_executable(dllitool dllitool.cpp)

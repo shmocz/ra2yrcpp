@@ -28,6 +28,14 @@ enum Armor {
   ARMOR_Special_2 = 10;
 }
 
+enum BuildingState {
+  BUILDING_STATE_NONE = 0;
+  BUILDING_STATE_CONSTRUCTION = 1;
+  BUILDING_STATE_IDLE = 2;
+  BUILDING_STATE_ACTIVE = 3;
+  BUILDING_STATE_FULL = 4;
+}
+
 message TypeClass {
   string name = 1;
   uint32 points = 2;
@@ -38,6 +46,17 @@ message TypeClass {
 
 message PlayerInfo {}
 
+message BuildState {
+  string name = 1;
+  uint32 percent_done = 2;
+}
+
+message Factory {
+  int32 progress_timer = 1;
+  uint32 owner = 2;
+  uint32 object_id = 3;
+}
+
 message House {
   int32 array_index = 1;
   string name = 2;
@@ -47,6 +66,7 @@ message House {
   int32 start_credits = 6;
   int32 money = 7;
   uint32 self = 8;
+  repeated BuildState build_state = 9;
 }
 
 message Controls {
@@ -75,9 +95,15 @@ message Unit {
   int32 points = 10;
   double speed_percentage = 11;
   double speed_multiplier = 12;
+  uint32 id = 13;  // essentially a pointer
+  string unit_type = 14;
+  BuildingState building_state = 15;
+  BuildingState queue_building_state = 16;
 }
 
 message GameState {
   uint32 current_frame = 1;
   repeated Unit units = 2;
+  repeated Factory factories = 3;
+  repeated House houses = 4;
 }

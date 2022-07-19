@@ -1,3 +1,4 @@
+#include "config.hpp"
 #include "dll_inject.hpp"
 #include "is_context.hpp"
 #include "process.hpp"
@@ -19,12 +20,13 @@ void ls() {
   }
 }
 
-void inject_dll(const std::string path_dll, const u32 pid, const u32 delay_post,
+void inject_dll(const std::string path_dll, const u32 port,
+                const u32 max_clients, const u32 pid, const u32 delay_post,
                 const u32 delay_pre) {
   process::Process P(pid);
   auto addrs = is_context::get_procaddrs();
   is_context::DLLoader L(addrs.p_LoadLibrary, addrs.p_GetProcAddress, path_dll,
-                         "init_iservice");
+                         "init_iservice", max_clients, port);
   auto p = L.getCode<u8*>();
   vecu8 sc(p, p + L.getSize());
   cout << yrclient::join_string(
@@ -41,6 +43,14 @@ int main(int argc, char* argv[]) {
   A.add_argument("-l").default_value(false).implicit_value(true).help(
       "list processes");
   A.add_argument("-f", "--file").help("path to DLL file");
+  A.add_argument("-d", "--dest-port")
+      .help("server port")
+      .default_value(cfg::SERVER_PORT)
+      .scan<'u', unsigned>();
+  A.add_argument("-m", "--max-clients")
+      .help("max number of clients")
+      .default_value(cfg::MAX_CLIENTS)
+      .scan<'u', unsigned>();
   A.add_argument("-p", "--pid").help("process id").scan<'u', unsigned>();
   A.add_argument("-dl", "--delay-post")
       .help("delay after suspending threads")
@@ -55,7 +65,8 @@ int main(int argc, char* argv[]) {
   if (A.get<bool>("-l")) {
     ls();
   } else {
-    inject_dll(A.get<std::string>("--file"), A.get<unsigned>("--pid"),
+    inject_dll(A.get<std::string>("--file"), A.get<unsigned>("--dest-port"),
+               A.get<unsigned>("--max-clients"), A.get<unsigned>("--pid"),
                A.get<unsigned>("--delay-post"), A.get<unsigned>("--delay-pre"));
   }
 

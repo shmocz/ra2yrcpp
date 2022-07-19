@@ -119,6 +119,7 @@ void Hook::patch_code_safe(u8* target_address, const u8* code,
   ns.push_back(main_tid);
   P.suspend_threads(ns);
   DPRINTF("suspend done\n");
+  // FIXME: broken! completely ignores no_suspend_
   // Wait until no thread is at target region
   while (num_threads_at_tgt(P, target_address, code_length) > 0) {
     DPRINTF("waiting until thread exits target region..\n");

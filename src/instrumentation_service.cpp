@@ -246,9 +246,13 @@ void InstrumentationService::store_value(const std::string key, void* data,
   storage_[key] = storage_val(data, deleter);
 }
 
-void* InstrumentationService::get_value(const std::string key) {
-  auto [lk, s] = aq_storage();
-  return s->at(key).get();
+void* InstrumentationService::get_value(const std::string key,
+                                        const bool acquire) {
+  if (acquire) {
+    auto [lk, s] = aq_storage();
+    return s->at(key).get();
+  }
+  return storage_.at(key).get();
 }
 
 void InstrumentationService::remove_value(const std::string key) {

@@ -83,7 +83,7 @@ class InstrumentationService {
   aq_t<storage_t*> aq_storage();
   void store_value(const std::string key, vecu8* data);
   void store_value(const std::string key, void* data, deleter_t deleter);
-  void* get_value(const std::string key);
+  void* get_value(const std::string key, const bool acquire = true);
   void remove_value(const std::string key);
   // TODO: don't expose this
   std::function<std::string(InstrumentationService*)> on_shutdown_;

@@ -5,6 +5,7 @@
 #include "util_string.hpp"
 
 #include <chrono>
+#include <memoryapi.h>
 #include <thread>
 #ifdef _WIN32
 #include "utility.h"
@@ -205,12 +206,38 @@ Process::~Process() {}
 Process process::get_current_process() {
   return Process(process::get_current_process_handle());
 }
+
+static MEMORY_BASIC_INFORMATION get_mem_info(const void* address) {
+  MEMORY_BASIC_INFORMATION m;
+  if (VirtualQuery(address, &m, sizeof(m)) == 0u) {
+    throw yrclient::system_error("VirtualQuery");
+  }
+  return m;
+}
+
+static DWORD vprotect(void* address, const size_t size,
+                      const DWORD protection) {
+  DWORD prot_old;
+  if (!VirtualProtect(address, size, protection, &prot_old)) {
+    throw yrclient::system_error("VirtualProtect");
+  }
+  return prot_old;
+}
+
 unsigned long Process::get_pid() const { return GetProcessId(handle()); }
 void* Process::handle() const { return handle_; }
-void Process::write_memory(void* dest, const void* src, const size_t size) {
-  DPRINTF("dest=%p, bytes=%ld\n", dest, size);
-  if (WriteProcessMemory(handle_, dest, src, size, nullptr) == 0) {
-    throw yrclient::system_error("WriteProcessMemory");
+void Process::write_memory(void* dest, const void* src, const size_t size,
+                           const bool local) {
+  if (local) {
+    auto m = get_mem_info(dest);
+    DWORD prot_old =
+        vprotect(m.BaseAddress, m.RegionSize, PAGE_EXECUTE_READWRITE);
+    memcpy(dest, src, size);
+    (void)vprotect(m.BaseAddress, m.RegionSize, prot_old);
+  } else {
+    if (WriteProcessMemory(handle_, dest, src, size, nullptr) == 0) {
+      throw yrclient::system_error("WriteProcesMemory");
+    }
   }
 }
 

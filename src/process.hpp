@@ -80,7 +80,8 @@ class Process {
   unsigned long get_pid() const;
   void* handle() const;
   // Write size bytes from src to dest
-  void write_memory(void* dest, const void* src, const size_t size);
+  void write_memory(void* dest, const void* src, const size_t size,
+                    const bool local = false);
   void read_memory(void* dest, const void* src, const size_t size);
   // Allocate memory to process
   void* allocate_memory(const size_t size, unsigned long alloc_type,

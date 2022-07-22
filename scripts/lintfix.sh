@@ -12,10 +12,10 @@ done
 # Fix c-style cast
 echo "$I" | grep -P '\[readability/casting\].*' | while read line; do
 	# get fname, pattern and sub
-	echo $line | perl -p -e 's/([^:]+):(\d+):.+reinterpret_cast<(.+)>.+$/$1 $2 $3/g'
-done | while read fname line patt; do
+	echo $line | perl -p -e 's/([^:]+):(\d+):.+\s+(\w+)_cast<(.+)>.+$/$1 $2 $4 $3/g'
+done | while read fname line patt cast_t; do
 	patt="$(echo "$patt" | sed 's/\*/\\*/g')"
-	S='s/(.+)\(('"$patt"')\)([^;,]+)(.+)/$1reinterpret_cast<$2>($3)$4/g if $. == '"$line"
+	S='s/(.+)\(('"$patt"')\)([^;,]+)(.+)/$1'"$cast_t"'_cast<$2>($3)$4/g if $. == '"$line"
 	perl -i -pe "$S" "$fname"
 done
 

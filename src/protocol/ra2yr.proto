@@ -36,12 +36,28 @@ enum BuildingState {
   BUILDING_STATE_FULL = 4;
 }
 
+enum AbstractType {
+  ABSTRACT_TYPE_NONE = 0;
+  ABSTRACT_TYPE_BUILDING = 1;
+  ABSTRACT_TYPE_INFANTRY = 2;
+  ABSTRACT_TYPE_UNIT = 3;
+  ABSTRACT_TYPE_AIRCRAFT = 4;
+  ABSTRACT_TYPE_VEHICLE = 5;
+}
+
+message SHPPixelData {
+  uint32 width = 1;
+  uint32 height = 2;
+  repeated bytes frames = 3;
+}
+
 message TypeClass {
   string name = 1;
   uint32 points = 2;
   uint32 speed = 3;
   string speed_name = 4;
   uint32 build_time_multiplier = 5;
+  SHPPixelData cameo = 6;
 }
 
 message PlayerInfo {}
@@ -67,6 +83,9 @@ message House {
   int32 money = 7;
   uint32 self = 8;
   repeated BuildState build_state = 9;
+  bool is_game_over = 10;
+  bool is_winner = 11;
+  bool is_loser = 12;
 }
 
 message Controls {
@@ -101,9 +120,32 @@ message Unit {
   BuildingState queue_building_state = 16;
 }
 
+message ObjectTypeClass {
+  string name = 1;
+  int32 cost = 2;
+  int32 soylent = 3;
+  Armor armor_type = 4;
+  uint32 array_index = 5;
+  uint32 pointer_self = 6;
+}
+
+message Object {
+  uint32 pointer_technotypeclass = 1;
+  int32 health = 2;
+  Coordinates coordinates = 3;
+  uint32 pointer_house = 4;
+  double armor_multiplier = 5;
+  double speed_percentage = 6;
+  double speed_multiplier = 7;
+  uint32 array_index = 8;
+  AbstractType object_type = 9;  // TODO: get from ObjectTypeClass
+}
+
 message GameState {
   uint32 current_frame = 1;
   repeated Unit units = 2;
   repeated Factory factories = 3;
   repeated House houses = 4;
+  repeated ObjectTypeClass object_types = 5;
+  repeated Object objects = 6;
 }

@@ -87,8 +87,18 @@ void Hook::add_callback(HookCallback c) {
 
 void Hook::call(Hook* H, X86Regs state) {
   H->lock();
-  for (auto& c : H->callbacks()) {
+  unsigned off = 0u;
+  auto& C = H->callbacks();
+  for (auto i = 0u; i < C.size(); i++) {
+    auto ix = i - off;
+    auto& c = C.at(ix);
     c.func(H, c.user_data, &state);
+    c.calls += 1;
+    // remove callbacks whose max_calls count exceeded
+    if (c.max_calls > 0u && c.calls >= c.max_calls) {
+      C.erase(C.begin() + ix);
+      off += 1u;
+    }
   }
   H->unlock();
 }

@@ -55,6 +55,9 @@ class Hook {
   struct HookCallback {
     std::function<void(Hook*, void*, X86Regs*)> func;
     void* user_data;
+    unsigned calls{0u};
+    unsigned max_calls{0u};
+    std::string name{""};
   };
 
   // TODO: fail if code is too short

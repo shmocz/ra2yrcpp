@@ -88,7 +88,7 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
   is_context::DLLoader L(p_LoadLibrary, p_GetProcAddress, path_dll, name_init);
   auto p = L.getCode<u8*>();
   vecu8 sc(p, p + L.getSize());
-  exprocess::ExProcess P("dummy_program.exe 10 1000");
+  exprocess::ExProcess P("dummy_program.exe 10 500");
 
   util::sleep_ms(1000);
   dll_inject::suspend_inject_resume(P.handle(), sc);

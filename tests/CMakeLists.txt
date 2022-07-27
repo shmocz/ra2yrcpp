@@ -34,24 +34,24 @@ new_make_test(
 new_make_test(
   NAME test_instrumentation_service
   SRC test_instrumentation_service.cpp
-  LIB instrumentation_service)
+  LIB is_instance)
 
 new_make_test(
   NAME test_instrumentation_service_daemon
   SRC test_instrumentation_service_daemon.cpp
-  LIB instrumentation_service)
+  LIB is_instance)
 
 add_executable(dummy_program dummy_program.cpp)
 
 new_make_test(
   NAME test_dll_inject
   SRC test_dll_inject.cpp
-  LIB process dll_inject instrumentation_service)
+  LIB process dll_inject fmt::fmt is_instance)
 
 new_make_test(
   NAME test_new_commands
   SRC test_new_commands.cpp
-  LIB instrumentation_service)
+  LIB is_instance)
 
 new_make_test(
   NAME test_command_manager
@@ -61,4 +61,4 @@ new_make_test(
 new_make_test(
   NAME test_multi_client
   SRC test_multi_client.cpp
-  LIB instrumentation_service)
+  LIB is_instance)

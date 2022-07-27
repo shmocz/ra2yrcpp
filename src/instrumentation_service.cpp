@@ -1,8 +1,5 @@
 #include "instrumentation_service.hpp"
 
-#include "commands_builtin.hpp"
-#include "commands_yr.hpp"
-
 using namespace yrclient;
 
 void InstrumentationService::add_command_new(
@@ -220,19 +217,6 @@ InstrumentationService::InstrumentationService(
   };
   server_.callbacks().accept = [this](auto* c) { this->on_accept(c); };
   server_.callbacks().close = [this](auto* c) { this->on_close(c); };
-  // TODO: avoid member function calls within ctor
-  add_builtin_commands();
-}
-
-void InstrumentationService::add_builtin_commands() {
-  auto cc = commands_yr::get_commands();
-  for (auto& [name, fn] : *cc) {
-    add_command_new(name, fn, &commands_builtin::command_deleter);
-  }
-
-  for (auto& [name, fn] : *commands_builtin::get_commands()) {
-    add_command_new(name, fn, &commands_builtin::command_deleter);
-  }
 }
 
 void InstrumentationService::store_value(const std::string key, vecu8* data) {

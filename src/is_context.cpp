@@ -1,5 +1,6 @@
 #include "is_context.hpp"
 
+#include "instrumentation_service.hpp"
 #include "x86.hpp"
 
 using namespace is_context;
@@ -26,11 +27,10 @@ vecu8 is_context::vecu8cstr(const std::string s) {
 
 void is_context::make_is_ctx(Context* c, const unsigned int max_clients,
                              const unsigned int port) {
-  auto* I =
-      new yrclient::InstrumentationService(max_clients, port, [c](auto* X) {
-        (void)X;
-        return c->on_signal();
-      });
+  auto* I = is_context::make_is(max_clients, port, [c](auto* X) {
+    (void)X;
+    return c->on_signal();
+  });
   c->data() = reinterpret_cast<void*>(I);
   c->deleter() = [](Context* ctx) {
     delete reinterpret_cast<decltype(I)>(ctx->data());
@@ -95,4 +95,24 @@ void is_context::get_procaddr(Xbyak::CodeGenerator* c, HMODULE m,
   c->mov(esp, ebp);
   c->pop(ebp);
   c->ret();
+}
+
+static void add_builtin_commands(yrclient::InstrumentationService* I) {
+  auto cc = commands_yr::get_commands();
+  for (auto& [name, fn] : *cc) {
+    I->add_command_new(name, fn, &yrclient::commands_builtin::command_deleter);
+  }
+
+  for (auto& [name, fn] : *yrclient::commands_builtin::get_commands()) {
+    I->add_command_new(name, fn, &yrclient::commands_builtin::command_deleter);
+  }
+}
+
+yrclient::InstrumentationService* is_context::make_is(
+    const unsigned int max_clients, const unsigned int port,
+    std::function<std::string(yrclient::InstrumentationService*)> on_shutdown) {
+  auto* I =
+      new yrclient::InstrumentationService(max_clients, port, on_shutdown);
+  add_builtin_commands(I);
+  return I;
 }

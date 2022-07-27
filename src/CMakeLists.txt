@@ -30,19 +30,17 @@ add_library(
 target_link_libraries(ra2objects PUBLIC process errors fmt::fmt)
 add_library(
   instrumentation_service STATIC
-  instrumentation_service.cpp
-  instrumentation_client.cpp
-  is_context.cpp
-  server.cpp
-  context.cpp
-  commands_builtin.cpp
-  commands_yr.cpp
-  multi_client.cpp
-  util_string.cpp)
+  instrumentation_service.cpp instrumentation_client.cpp server.cpp context.cpp
+  multi_client.cpp util_string.cpp)
 target_link_libraries(
   instrumentation_service PUBLIC protocol connection process command_manager
                                  hooks ra2objects)
+add_library(commands STATIC commands_builtin.cpp commands_yr.cpp)
+target_link_libraries(commands PUBLIC instrumentation_service)
+add_library(is_instance STATIC is_context.cpp)
+target_link_libraries(is_instance PUBLIC commands instrumentation_service)
 add_library(yrclient MODULE yrclient_dll.cpp)
-target_link_libraries(yrclient PUBLIC instrumentation_service)
+target_link_libraries(yrclient PUBLIC is_instance commands)
 add_executable(dllitool dllitool.cpp)
 target_link_libraries(dllitool PUBLIC instrumentation_service dll_inject)
+target_link_libraries(dllitool PUBLIC is_instance dll_inject)

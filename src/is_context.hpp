@@ -1,4 +1,6 @@
 #pragma once
+#include "commands_builtin.hpp"
+#include "commands_yr.hpp"
 #include "config.hpp"
 #include "context.hpp"
 #include "instrumentation_service.hpp"
@@ -32,4 +34,10 @@ struct DLLoader : Xbyak::CodeGenerator {
            const unsigned int max_clients = cfg::MAX_CLIENTS,
            const unsigned int port = cfg::SERVER_PORT);
 };
+
+yrclient::InstrumentationService* make_is(
+    const unsigned int max_clients, const unsigned int port,
+    std::function<std::string(yrclient::InstrumentationService*)> on_shutdown =
+        nullptr);
+
 };  // namespace is_context

@@ -7,6 +7,7 @@
 #include "gtest/gtest.h"
 #include "instrumentation_client.hpp"
 #include "instrumentation_service.hpp"
+#include "is_context.hpp"
 #include "util_string.hpp"
 #include "utility/time.hpp"
 
@@ -26,8 +27,8 @@ class IServiceTest : public ::testing::Test {
  protected:
   void SetUp() override {
     network::Init();
-    I = std::make_unique<yrclient::InstrumentationService>(cfg::MAX_CLIENTS,
-                                                           cfg::SERVER_PORT);
+    I = std::unique_ptr<yrclient::InstrumentationService>(
+        is_context::make_is(cfg::MAX_CLIENTS, cfg::SERVER_PORT));
     auto& S = I->server();
     client = std::make_unique<InstrumentationClient>(S.address(), S.port(),
                                                      5000ms, 500ms);

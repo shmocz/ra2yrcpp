@@ -39,8 +39,8 @@ class NewCommandsTest : public ::testing::Test {
  protected:
   void SetUp() override {
     network::Init();
-    I = std::make_unique<yrclient::InstrumentationService>(cfg::MAX_CLIENTS,
-                                                           cfg::SERVER_PORT);
+    I = std::unique_ptr<yrclient::InstrumentationService>(
+        is_context::make_is(cfg::MAX_CLIENTS, cfg::SERVER_PORT));
     auto& S = I->server();
     client = std::make_unique<InstrumentationClient>(S.address(), S.port(),
                                                      5000ms, 10ms);

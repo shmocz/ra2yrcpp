@@ -9,6 +9,7 @@
 #include "server.hpp"
 #include "types.h"
 #include "util_string.hpp"
+#include "utility.h"
 #include "utility/sync.hpp"
 
 #include <algorithm>
@@ -89,7 +90,6 @@ class InstrumentationService {
   std::function<std::string(InstrumentationService*)> on_shutdown_;
 
  private:
-  void add_builtin_commands();
   yrclient::Response flush_results(
       const u64 queue_id, const std::chrono::milliseconds delay = 1000ms);
   yrclient::Response process_request(connection::Connection* C, vecu8* bytes);

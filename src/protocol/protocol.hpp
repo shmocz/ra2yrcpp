@@ -5,6 +5,12 @@
 #include "types.h"
 #include "util_string.hpp"
 
+#include <fmt/core.h>
+
+#include <fstream>
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/gzip_stream.h>
+#include <google/protobuf/message.h>
 #include <google/protobuf/util/json_util.h>
 #include <string>
 
@@ -39,4 +45,17 @@ T from_any(const google::protobuf::Any& a) {
   }
   return res;
 }
+
+struct CompressedOutputStream {
+  std::ofstream os;
+  google::protobuf::io::OstreamOutputStream s_f;
+  google::protobuf::io::GzipOutputStream s_g;
+  explicit CompressedOutputStream(const std::string path);
+};
+
+bool write_message(google::protobuf::Message* M,
+                   google::protobuf::io::CodedOutputStream* os);
+bool read_message(google::protobuf::Message* M,
+                  google::protobuf::io::CodedInputStream* os);
+
 }  // namespace yrclient

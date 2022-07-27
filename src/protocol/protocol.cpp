@@ -1,5 +1,7 @@
 #include "protocol.hpp"
 
+using namespace yrclient;
+
 std::string yrclient::to_json(const google::protobuf::Message& m) {
   std::string res;
   google::protobuf::util::MessageToJsonString(m, &res);
@@ -25,4 +27,28 @@ yrclient::Response yrclient::make_response(
     throw std::runtime_error("Could not pack message body");
   }
   return r;
+}
+
+CompressedOutputStream::CompressedOutputStream(const std::string path)
+    : os(path, std::ios_base::out | std::ios_base::binary),
+      s_f(&os),
+      s_g(&s_f) {}
+
+bool yrclient::write_message(google::protobuf::Message* M,
+                             google::protobuf::io::CodedOutputStream* is) {
+  auto l = M->ByteSizeLong();
+  is->WriteVarint32(l);
+  return M->SerializeToCodedStream(is) && !is->HadError();
+}
+
+bool yrclient::read_message(google::protobuf::Message* M,
+                            google::protobuf::io::CodedInputStream* is) {
+  uint32_t length;
+  if (!is->ReadVarint32(&length)) {
+    return false;
+  }
+  auto l = is->PushLimit(length);
+  bool res = M->ParseFromCodedStream(is);
+  is->PopLimit(l);
+  return res;
 }

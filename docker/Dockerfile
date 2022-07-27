@@ -12,6 +12,7 @@ RUN apt-get install -y \
 	g++-mingw-w64-i686-posix \
 	git \
 	libtool \
+	libz-mingw-w64-dev \
 	make
 
 FROM mingw as protobuf
@@ -35,3 +36,4 @@ RUN make clean && \
 	make clean
 RUN mkdir /home/user/project
 WORKDIR /home/user/project
+

@@ -1,7 +1,8 @@
 BUILDDIR := build
 TESTS := $(shell find $(BUILDDIR)/tests -name 'test_*.exe')
-CPP_SOURCES := $(shell git ls-tree -r --name-only HEAD | grep -E '\.(cpp|hpp)$$')
+export CPP_SOURCES := $(shell git ls-tree -r --name-only HEAD | grep -E '\.(cpp|hpp)$$')
 CMAKE_BUILD_TYPE := Debug
+export CM_FILES := CMakeLists.txt src/CMakeLists.txt tests/CMakeLists.txt
 
 doc:
 	doxygen Doxyfile
@@ -13,7 +14,7 @@ lint: src/ tests/
 		--filter=-build/include_order,-build/include_subdir,-build/c++11,-legal/copyright,-build/namespaces,-readability/todo,-runtime/int,-runtime/string,-runtime/printf \
 		$^
 
-cmake_format: CMakeLists.txt src/CMakeLists.txt tests/CMakeLists.txt
+cmake_format: $(CM_FILES)
 	cmake-format -c .cmake-format.yml -i $^
 
 format:
@@ -37,4 +38,7 @@ docker:
 docker_build:
 	docker-compose run --rm builder make BUILDDIR=$(BUILDDIR) build
 
-.PHONY: build doc lint format test docker docker_build
+check: cmake_format lint
+	./scripts/check.sh
+
+.PHONY: build doc lint format test docker docker_build check

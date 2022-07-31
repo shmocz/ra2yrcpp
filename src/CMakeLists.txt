@@ -44,3 +44,15 @@ target_link_libraries(dllitool PUBLIC instrumentation_service dll_inject)
 target_link_libraries(dllitool PUBLIC is_instance dll_inject)
 add_executable(recordtool recordtool.cpp)
 target_link_libraries(recordtool PUBLIC protocol fmt::fmt)
+add_executable(ra2yrcppcli ra2yrcppcli.cpp multi_client.cpp
+                           instrumentation_client.cpp)
+target_link_libraries(
+  ra2yrcppcli
+  PUBLIC protocol_o
+         fmt::fmt
+         errors
+         connection
+         process
+         dll_inject
+         network
+         is_instance)

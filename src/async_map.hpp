@@ -1,7 +1,5 @@
 #pragma once
 #include "async_queue.hpp"
-#include "errors.hpp"
-#include "utility/sync.hpp"
 
 #include <chrono>
 #include <condition_variable>
@@ -42,8 +40,7 @@ class AsyncMap : public async_queue::AsyncContainer {
       if (!wait_until(
               &l, &a->cv, [&] { return (data_.find(key) != data_.end()); },
               timeout)) {
-        throw std::runtime_error(std::string("Timeout after ") +
-                                 std::to_string(timeout.count()));
+        throw std::runtime_error("timeout");
       }
       return data_[key];
     }

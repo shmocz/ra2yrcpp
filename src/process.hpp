@@ -96,6 +96,7 @@ class Process {
                        const std::chrono::milliseconds delay = 1000ms) const;
   void resume_threads(const thread_id_t main_tid = -1) const;
   void resume_threads(const std::vector<thread_id_t> no_resume = {}) const;
+  std::vector<std::string> list_loaded_modules() const;
 
  private:
   void* handle_;

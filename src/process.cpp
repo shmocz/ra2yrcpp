@@ -329,3 +329,33 @@ void Process::resume_threads(const std::vector<thread_id_t> no_resume) const {
 #else
 #endif
 }
+
+// pretty much copypaste from
+// https://docs.microsoft.com/en-us/windows/win32/psapi/enumerating-all-modules-for-a-process
+std::vector<std::string> Process::list_loaded_modules() const {
+#ifdef _WIN32
+  HMODULE hMods[1024];
+  HANDLE hProcess;
+  DWORD cbNeeded;
+  unsigned int i;
+  std::vector<std::string> res;
+
+  if (EnumProcessModules(handle(), hMods, sizeof(hMods), &cbNeeded)) {
+    for (i = 0; i < (cbNeeded / sizeof(HMODULE)); i++) {
+      TCHAR szModName[MAX_PATH];
+
+      // Get the full path to the module's file.
+      if (GetModuleFileNameEx(handle(), hMods[i], szModName,
+                              sizeof(szModName) / sizeof(TCHAR))) {
+        res.push_back(std::string(szModName));
+      }
+    }
+  }
+  return res;
+
+  // Release the handle to the process.
+
+  CloseHandle(hProcess);
+#else
+#endif
+}

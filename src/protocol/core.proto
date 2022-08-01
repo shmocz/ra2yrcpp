@@ -45,6 +45,8 @@ message RunCommandAck {
 message CommandResult {
   int64 command_id = 1;
   google.protobuf.Any result = 2;
+  ResponseCode result_code = 3;
+  string error_message = 4;
 };
 
 message PollResults {

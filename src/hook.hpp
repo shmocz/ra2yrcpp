@@ -10,7 +10,8 @@
 #include "x86.hpp"
 
 #include <xbyak/xbyak.h>
-
+#undef ERROR
+#undef OK
 #include <chrono>
 #include <functional>
 #include <mutex>

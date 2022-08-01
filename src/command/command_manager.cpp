@@ -70,6 +70,7 @@ void CommandManager::invoke_user_command(std::shared_ptr<Command> cmd) {
     *cmd->result_code() = ResultCode::OK;
   } catch (std::exception& e) {
     DPRINTF("fail %s\n", e.what());
+    cmd->error_message()->assign(e.what());
     *cmd->result_code() = ResultCode::ERROR;
   }
   std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);

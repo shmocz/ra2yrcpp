@@ -87,6 +87,12 @@ yrclient::Response InstrumentationService::flush_results(
     auto* res = PR->add_results();
     res->set_command_id(cmd_result->command_id());
     res->mutable_result()->CopyFrom(cmd_result->result());
+    if (*item->result_code() == command::ResultCode::ERROR) {
+      res->set_result_code(yrclient::RESPONSE_ERROR);
+      res->set_error_message(*item->error_message());
+    } else {
+      res->set_result_code(yrclient::RESPONSE_OK);
+    }
     results.pop_back();
   }
 

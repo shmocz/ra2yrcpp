@@ -1,6 +1,7 @@
 #pragma once
 #include "protocol/protocol.hpp"
 
+#include "command/command.hpp"
 #include "command/command_manager.hpp"
 #include "config.hpp"
 #include "connection.hpp"

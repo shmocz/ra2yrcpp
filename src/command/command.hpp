@@ -33,6 +33,7 @@ class Command {
   Command(const CommandType type, const uint64_t queue_id);
   ~Command();
   void run();
+  // Pointer to result data.
   void* result();
   void* args();
   CommandType type() const;
@@ -43,6 +44,7 @@ class Command {
   methods_t& methods();
   // FIXME: use directly ref. in result(). this is just to not to break old code
   void set_result(void* p);
+  std::string* error_message();
 
  private:
   methods_t methods_;
@@ -57,6 +59,7 @@ class Command {
   void* args_;
   void* result_;
   ResultCode result_code_{ResultCode::NONE};
+  std::string error_message_;
 };
 
 }  // namespace command

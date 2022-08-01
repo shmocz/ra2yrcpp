@@ -52,3 +52,5 @@ ResultCode* Command::result_code() { return &result_code_; }
 
 Command::methods_t& Command::methods() { return methods_; }
 void Command::set_result(void* p) { result_ = p; }
+
+std::string* Command::error_message() { return &error_message_; }

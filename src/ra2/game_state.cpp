@@ -7,8 +7,7 @@ void GameState::add_AbstractTypeClass(std::unique_ptr<AbstractTypeClass> a,
   // FIXME: use and fix contains
   if (abstract_type_classes_.find((u32)real_address) !=
       abstract_type_classes_.end()) {
-    throw std::runtime_error(std::string("Duplicate key ") +
-                             yrclient::to_hex((u32)real_address));
+    throw std::runtime_error("duplicate key");
   }
 
   abstract_type_classes_.try_emplace((u32)real_address, std::move(a));

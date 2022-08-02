@@ -2,6 +2,7 @@
 #include "ra2/abstract_types.hpp"
 #include "ra2/general.h"
 #include "ra2/objects.hpp"
+#include "ra2/type_classes.hpp"
 #include "ra2/vectors.hpp"
 #include "util_string.hpp"
 #include "utility.h"
@@ -28,6 +29,8 @@ static constexpr std::uintptr_t p_DVC_CurrentObjects = 0xA8ECB8u;
 static constexpr std::uintptr_t p_DVC_TechnoClasses = 0xA8EC78u;
 static constexpr std::uintptr_t p_DVC_HouseClasses = 0xA80228u;
 static constexpr std::uintptr_t p_DVC_FactoryClasses = 0xA83E30u;
+static constexpr std::uintptr_t p_SHP_GetPixels = 0x69E740u;
+static constexpr std::uintptr_t current_frame = 0xA8ED84u;
 
 struct RectangleStruct {
   i32 x;
@@ -48,16 +51,6 @@ using factoryclass_vec_t = std::vector<std::unique_ptr<objects::FactoryClass>>;
 
 class GameState {
  public:
-#if 0
-  void add_ATC(const u32 p_obj, AbstractTypeClass2* A) {
-    assert(!contains(m_ATCs, p_obj));
-    m_ATCs[p_obj] = A;
-    if (A != nullptr) {
-      DPRINTF("Added ATC %s\n", A->name.c_str());
-    }
-  }
-#endif
-
   void add_AbstractTypeClass(std::unique_ptr<AbstractTypeClass> a,
                              const std::uintptr_t* real_address);
   void add_ObjectClass(std::unique_ptr<objects::ObjectClass> a);
@@ -68,27 +61,15 @@ class GameState {
   houseclass_vec_t& house_classes();
   factoryclass_vec_t& factory_classes();
   std::map<u32*, std::unique_ptr<objects::ObjectClass>> objects;
+  std::map<u32*, std::unique_ptr<type_classes::SHPStruct>> cameos;
 
  private:
-  // vectors::DynamicVectorClass<void*> abstract_type_classes_;
   atc_map_t abstract_type_classes_;
   object_vec_t object_classes_;
   houseclass_vec_t house_classes_;
   factoryclass_vec_t factory_classes_;
 };
 
-#if 0
-
-  m_Tactical = new TacticalClass(m.set_pos(paddr(0x887324u)));
-void GlobalData::read_common() {
-  read_tactical();
-  read_bounds();
-  read_AbstractClasses();
-  read_AbstractTypeClasses2();
-  read_TechnoClasses();
-}
-
-#endif
 }  // namespace game_state
 
 }  // namespace ra2

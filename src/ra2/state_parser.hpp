@@ -50,6 +50,8 @@ void parse_ObjectTypeClass(ra2::type_classes::ObjectTypeClass* dest,
 void parse_InfantryTypeClass(ra2::type_classes::InfantryTypeClass* dest,
                              void* address);
 
+void parse_AircraftClass(ra2::objects::AircraftClass* dest, void* address);
+
 void parse_AircraftTypeClass(ra2::type_classes::AircraftTypeClass* dest,
                              void* address);
 
@@ -91,10 +93,9 @@ std::unique_ptr<ra2::objects::FactoryClass> parse_FactoryClassInstance(
 
 void parse_DVC_FactoryClasses(ra2::game_state::GameState* G, void* address);
 
-// void parse_Å(ra2::objects::Å* dest, void* address);
-// void parse_Å(ra2::objects::Å* dest, void* address);
-// void parse_Å(ra2::objects::Å* dest, void* address);
-// void parse_Å(ra2::objects::Å* dest, void* address);
+void parse_SHPStruct(ra2::type_classes::SHPStruct* dest, void* address);
+
+void parse_cameos(ra2::game_state::GameState* G);
 
 }  // namespace state_parser
 }  // namespace ra2

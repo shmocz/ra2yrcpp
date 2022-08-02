@@ -3,6 +3,8 @@
 #include "ra2/general.h"
 #include "ra2/vectors.hpp"
 
+#include <vector>
+
 namespace ra2 {
 namespace type_classes {
 namespace {
@@ -12,9 +14,18 @@ using namespace ra2::general;
 struct ObjectTypeClass : ra2::abstract_types::AbstractTypeClass {
   Armor armor;
   i32 strength;
+  u32 pointer_self;
 };
 
 struct TacticalClass : ra2::abstract_types::AbstractClass {};
+
+struct SHPStruct {
+  void* ptr;
+  i16 width;
+  i16 height;
+  i16 frames;
+  std::vector<std::vector<u8>> pixel_data;
+};
 
 struct TechnoTypeClass : ObjectTypeClass {
   i32 walkrate;
@@ -33,6 +44,7 @@ struct TechnoTypeClass : ObjectTypeClass {
   i32 points;
   i32 speed;
   SpeedType speed_type;
+  void* p_cameo;
 };
 
 struct BuildingTypeClass : TechnoTypeClass {

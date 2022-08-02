@@ -24,6 +24,9 @@ struct HouseClass : AbstractClass {
   i32 start_credits;
   i32 money;
   u32 self;
+  ybool is_game_over;
+  ybool is_winner;
+  ybool is_loser;
   HouseClass();
 };
 

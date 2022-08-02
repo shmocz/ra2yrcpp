@@ -1,4 +1,7 @@
-#include "ra2/state_parser.hpp"
+#include "state_parser.hpp"
+
+// TODO: put to abi
+#include <xbyak/xbyak.h>
 
 using namespace ra2::state_parser;
 using namespace ra2::general;
@@ -59,6 +62,12 @@ void ra2::state_parser::parse_BuildingTypeClass(
   R.read_item(&dest->p_foundation_data, 0xdfc);
 }
 
+std::unique_ptr<ra2::type_classes::SHPStruct> load_SHPStruct(void* address) {
+  std::unique_ptr<ra2::type_classes::SHPStruct> p;
+  parse_SHPStruct(p.get(), address);
+  return p;
+}
+
 void ra2::state_parser::parse_TechnoTypeClass(
     ra2::type_classes::TechnoTypeClass* dest, void* address) {
   parse_ObjectTypeClass(dest, address);
@@ -76,6 +85,7 @@ void ra2::state_parser::parse_TechnoTypeClass(
   X(points, 0x670 + 1 * 0x4);
   X(speed, 0x670 + 2 * 0x4);
   X(speed_type, 0x670 + 3 * 0x4);
+  X(p_cameo, 0x6f0);
 #undef X
 }
 
@@ -85,11 +95,20 @@ void ra2::state_parser::parse_ObjectTypeClass(
   MemoryReader R(address);
   R.read_item(&dest->armor, 0x9c);
   R.read_item(&dest->strength, 0xa0);
+  dest->pointer_self = reinterpret_cast<u32>(address);
 }
 
 void ra2::state_parser::parse_InfantryTypeClass(
     ra2::type_classes::InfantryTypeClass* dest, void* address) {
   parse_TechnoTypeClass(dest, address);
+}
+
+void ra2::state_parser::parse_AircraftClass(ra2::objects::AircraftClass* dest,
+                                            void* address) {
+  parse_FootClass(dest, address);
+  MemoryReader R(address);
+  R.read_item(&dest->aircraft_type, 0x6c4);
+  R.read_item(&dest->p_type, 0x6c4);
 }
 
 void ra2::state_parser::parse_HouseClass(ra2::objects::HouseClass* dest,
@@ -101,6 +120,9 @@ void ra2::state_parser::parse_HouseClass(ra2::objects::HouseClass* dest,
   R.read_item(&dest->house_type, 0x34);
   R.read_item(&dest->defeated, 0x1f5);
   R.read_item(&dest->money, 0x30c);
+  R.read_item(&dest->is_game_over, 0x1f6);
+  R.read_item(&dest->is_winner, 0x1f7);
+  R.read_item(&dest->is_loser, 0x1f8);
   dest->self = reinterpret_cast<u32>(address);
   wchar_t buf[21];
   std::memcpy(&buf[0], static_cast<char*>(address) + 0x1602a, sizeof(buf));
@@ -162,6 +184,7 @@ ra2::state_parser::parse_AbstractTypeClassInstance(void* address) {
   }
 #undef X
 #endif
+  fmt::print(stderr, "[ERROR]: failed to parse: {}\n", at.name);
   return nullptr;
 }
 
@@ -178,16 +201,19 @@ void ra2::state_parser::parse_AbstractTypeClasses(ra2::game_state::GameState* G,
                                                   void* address) {
   auto DVC = get_DVC(reinterpret_cast<void*>(address));
   const auto count_init = DVC.Count;
-  DPRINTF("items=%d\n", DVC.Count);
   for (int i = 0; i < count_init; i++) {
-    auto p_obj =
+    auto pu_obj =
         serialize::read_obj<u32>(reinterpret_cast<u32*>(DVC.Items) + i);
+    u32* p_obj = reinterpret_cast<u32*>(pu_obj);
     auto ATC = std::unique_ptr<abstract_types::AbstractTypeClass>(
-        parse_AbstractTypeClassInstance(reinterpret_cast<void*>(p_obj)));
+        parse_AbstractTypeClassInstance(p_obj));
     if (ATC != nullptr) {
       try {
-        G->add_AbstractTypeClass(std::move(ATC), reinterpret_cast<u32*>(p_obj));
+        G->add_AbstractTypeClass(std::move(ATC), p_obj);
       } catch (const std::runtime_error& e) {
+        fmt::print(stderr,
+                   "not adding AbstractTypeClass with duplicate key {}\n",
+                   reinterpret_cast<void*>(p_obj));
       }
     } else {
     }
@@ -224,7 +250,6 @@ void ra2::state_parser::parse_TechnoClass(ra2::objects::TechnoClass* dest,
   R.read_item(&dest->firepower_multiplier, 0x160);
   R.read_item(&dest->shielded, 0x1d0);
   R.read_item(&dest->deactivated, 0x1d4);
-  R.read_item(&dest->p_type, 0x1d4);
 }
 
 void ra2::state_parser::parse_FootClass(ra2::objects::FootClass* dest,
@@ -288,6 +313,7 @@ ra2::objects::ObjectClass* ra2::state_parser::parse_ObjectClassInstance(
     X(Building);
     X(Unit);
     X(Infantry);
+    X(Aircraft);
     default:
       break;
   }
@@ -324,15 +350,17 @@ static ra2::objects::ObjectClass* parse_ObjectClassFromVtable(
     case AbstractType::Infantry:
       return get_obj(address, reinterpret_cast<ra2::objects::InfantryClass*>(O),
                      &ra2::state_parser::parse_InfantryClass);
+    case AbstractType::Aircraft:
+      return get_obj(address, reinterpret_cast<ra2::objects::AircraftClass*>(O),
+                     &ra2::state_parser::parse_AircraftClass);
     default:
-      return nullptr;
+      throw yrclient::general_error("Unknown AbstractType");
   }
 }
 
 void ra2::state_parser::parse_DVC_Objects(ra2::game_state::GameState* G,
                                           void* address) {
   auto DVC = get_DVC(address);
-  // DPRINTF("dvc p=%p items=%d\n", address, DVC.Count);
 
   // 1. for each DVC item
   // 2. if item not in GameState, allocate new object
@@ -432,4 +460,49 @@ void ra2::state_parser::parse_FactoryClass(ra2::objects::FactoryClass* dest,
   R.read_item(&dest->object, 0x58);
   parse_ProgressTimer(&dest->production,
                       reinterpret_cast<u8*>(address) + offset_AbstractClass);
+}
+
+struct GetSHPPixelData : Xbyak::CodeGenerator {
+  GetSHPPixelData() {
+    mov(ecx, ptr[esp + 0x4]);
+    mov(eax, ptr[esp + 0x8]);  // object index
+    push(eax);
+    mov(eax, 0x69E740u);
+    call(eax);
+    ret();
+  }
+};
+
+void ra2::state_parser::parse_SHPStruct(ra2::type_classes::SHPStruct* dest,
+                                        void* address) {
+  MemoryReader R(address);
+  R.read_item(&dest->width, 0x2 + 0 * 2);
+  R.read_item(&dest->height, 0x2 + 1 * 2);
+  R.read_item(&dest->frames, 0x2 + 2 * 2);
+  typedef u8* __cdecl (*fn_SHP_GetPixels_t)(int, int);
+  static GetSHPPixelData C;
+  auto* fn = C.getCode<fn_SHP_GetPixels_t>();
+  for (int i = 0; i < static_cast<int>(dest->frames); i++) {
+    auto* buf = fn(reinterpret_cast<u32>(address), i);
+    if (buf != nullptr) {
+      dest->pixel_data.emplace_back(buf, buf + dest->width * dest->height);
+    }
+  }
+}
+
+void ra2::state_parser::parse_cameos(ra2::game_state::GameState* G) {
+  for (const auto& [k, v] : G->abstract_type_classes()) {
+    if (utility::is_technotypeclass(reinterpret_cast<void*>(v->p_vtable))) {
+      auto* ttc =
+          reinterpret_cast<ra2::type_classes::TechnoTypeClass*>(v.get());
+      auto* key = reinterpret_cast<u32*>(ttc->p_cameo);
+      if (key != nullptr) {
+        if (G->cameos.find(key) == G->cameos.end()) {
+          auto* SHP = new type_classes::SHPStruct();
+          parse_SHPStruct(SHP, key);
+          G->cameos.try_emplace(key, SHP);
+        }
+      }
+    }
+  }
 }

@@ -33,8 +33,9 @@ void InstrumentationService::create_hook(std::string name, u8* target,
                                          const size_t code_length) {
   std::unique_lock<std::mutex> lk(mut_hooks_);
   if (hooks_.find(target) != hooks_.end()) {
-    throw yrclient::general_error(yrclient::join_string(
-        {"can't overwrite with hook name=", name, "addr=", to_hex(target)}));
+    throw yrclient::general_error(
+        fmt::format("Can't overwrite existing hook (name={} address={})", name,
+                    reinterpret_cast<void*>(target)));
   }
   auto tids = get_connection_threads();
   hooks_.try_emplace(target, reinterpret_cast<addr_t>(target), code_length,

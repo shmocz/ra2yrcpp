@@ -56,3 +56,6 @@ target_link_libraries(
          dll_inject
          network
          is_instance)
+
+add_custom_target(ra2yrcpp)
+add_dependencies(ra2yrcpp yrclient dllitool recordtool ra2yrcppcli)

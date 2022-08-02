@@ -39,9 +39,6 @@ add_library(is_instance STATIC is_context.cpp)
 target_link_libraries(is_instance PUBLIC commands instrumentation_service)
 add_library(yrclient MODULE yrclient_dll.cpp)
 target_link_libraries(yrclient PUBLIC is_instance commands)
-add_executable(dllitool dllitool.cpp)
-target_link_libraries(dllitool PUBLIC instrumentation_service dll_inject)
-target_link_libraries(dllitool PUBLIC is_instance dll_inject)
 add_executable(recordtool recordtool.cpp)
 target_link_libraries(recordtool PUBLIC protocol fmt::fmt)
 add_executable(ra2yrcppcli ra2yrcppcli.cpp multi_client.cpp
@@ -58,4 +55,4 @@ target_link_libraries(
          is_instance)
 
 add_custom_target(ra2yrcpp)
-add_dependencies(ra2yrcpp yrclient dllitool recordtool ra2yrcppcli)
+add_dependencies(ra2yrcpp yrclient recordtool ra2yrcppcli)

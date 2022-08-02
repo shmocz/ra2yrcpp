@@ -12,6 +12,7 @@
 
 #include <cstdint>
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -55,13 +56,13 @@ class AutoPollClient {
   std::string port_;
   const std::chrono::milliseconds poll_timeout_;
   const std::chrono::milliseconds command_timeout_;
+  std::atomic_bool active_;
 
   std::map<ClientType, std::unique_ptr<connection::Connection>> conns_;
   std::map<ClientType, std::unique_ptr<InstrumentationClient>> is_clients_;
   std::map<ClientType, u64> queue_ids_;
   std::thread poll_thread_;
   ResultMap results_;
-  std::atomic_bool active_;
   const u64 queue_id_{(u64)-1};
 };
 }  // namespace multi_client

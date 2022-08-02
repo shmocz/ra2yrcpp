@@ -25,7 +25,7 @@ InstrumentationService::get_connection_threads() {
   std::vector<process::thread_id_t> res;
   auto& C = server().connections();
   std::transform(C.begin(), C.end(), std::back_inserter(res),
-                 [](auto& ctx) { return ctx->thread_id; });
+                 [](const auto& ctx) { return ctx->thread_id; });
   return res;
 }
 
@@ -153,7 +153,6 @@ yrclient::Response InstrumentationService::process_request(
   }
 
   // execute parsed command & write result
-  vecu8 result;
   switch (cmd.command_type()) {
     case yrclient::CLIENT_COMMAND_OLD: {
       return reply_error("Deprecated");

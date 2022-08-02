@@ -27,6 +27,7 @@ struct AsyncData {
 class AsyncContainer {
  public:
   AsyncContainer() : a_(std::make_unique<AsyncData>()) {}
+  AsyncContainer(AsyncContainer& o) : a_(o.a_) {}
 
   void notify_all() { a_.get()->cv.notify_all(); }
 
@@ -40,14 +41,8 @@ template <typename T>
 class AsyncQueue : public AsyncContainer {
  public:
   AsyncQueue() : AsyncContainer() {}
-  AsyncQueue(AsyncQueue& o) {
-    a_ = o.a_;
-    q_ = o.q_;
-  }
-  AsyncQueue(AsyncQueue&& o) {
-    a_ = o.a_;
-    q_ = o.q_;
-  }
+  AsyncQueue(const AsyncQueue& o) : AsyncContainer(o), q_(o.q_) {}
+  AsyncQueue(AsyncQueue&& o) : AsyncContainer(o), q_(o.q_) {}
   AsyncQueue& operator=(const AsyncQueue& o) {
     a_ = o.a_;
     q_ = o.q_;
@@ -57,7 +52,7 @@ class AsyncQueue : public AsyncContainer {
   void push(T t) {
     std::unique_lock<std::mutex> l(a_.get()->m);
     q_.push(t);
-    DPRINTF("notifying, a=%p,sz=%u\n", a_.get(), size());
+    DPRINTF("notifying, a=%p,sz=%llu\n", a_.get(), static_cast<u64>(size()));
     notify_all();
   }
   // Pop items from queue. If count < 1, pop all items. If timeout > 0, block
@@ -65,8 +60,8 @@ class AsyncQueue : public AsyncContainer {
   std::vector<T> pop(const std::size_t count = 1,
                      const std::chrono::milliseconds timeout = 0ms) {
     std::unique_lock<std::mutex> l(a_.get()->m);
-    DPRINTF("locked=%d,asyncdata=%p,count=%u,timeout=%lld\n", l.owns_lock(),
-            a_.get(), count, timeout.count());
+    DPRINTF("locked=%d,asyncdata=%p,count=%llu,timeout=%lld\n", l.owns_lock(),
+            a_.get(), static_cast<u64>(count), timeout.count());
     std::vector<T> res;
     do {
       if (timeout > 0ms) {

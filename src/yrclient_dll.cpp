@@ -23,6 +23,7 @@ yrclient::InstrumentationService* yrclient_dll::initialize(
   return reinterpret_cast<yrclient::InstrumentationService*>(g_context.data());
 }
 
+// cppcheck-suppress unusedFunction
 void yrclient_dll::deinitialize() {
   g_lock.lock();
   if (g_service != nullptr) {
@@ -31,6 +32,7 @@ void yrclient_dll::deinitialize() {
   g_lock.unlock();
 }
 
+// cppcheck-suppress unusedFunction
 void init_iservice(const unsigned int max_clients, const unsigned int port) {
   yrclient_dll::initialize(max_clients, port);
 }

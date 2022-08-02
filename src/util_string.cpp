@@ -23,11 +23,3 @@ std::string yrclient::join_string(const std::vector<std::string> v,
   ss << v.back();
   return ss.str();
 }
-
-u32 yrclient::parse_address(const std::string s) {
-  std::regex re("0x[0-9a-fA-F]+");
-  if (!std::regex_match(s, re)) {
-    throw std::runtime_error("invalid address");
-  }
-  return std::stoul(s, nullptr, 16);
-}

@@ -48,6 +48,7 @@ T read_obj(ReaderFn reader) {
 ///
 class ChunkReaderWriter {
  public:
+  ChunkReaderWriter();
   u8* buf();
   unsigned int buflen() const;
   virtual vecu8 read_chunk(const size_t bytes) = 0;

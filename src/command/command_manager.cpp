@@ -131,7 +131,6 @@ std::vector<std::shared_ptr<Command>> CommandManager::flush_results(
     const uint64_t id, const std::chrono::milliseconds timeout,
     const std::size_t count) {
   std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
-  std::vector<cmd_entry_t> r;
   if (results_queue_.find(id) == results_queue_.end()) {
     throw std::out_of_range(std::string("no such queue ") + std::to_string(id));
   }

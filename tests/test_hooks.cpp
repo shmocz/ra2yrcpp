@@ -123,7 +123,7 @@ TEST(HookTest, TestJumpLocationExampleCode) {
       T->set_gpr(x86Reg::ecx, 0);
     }
   });
-  util::sleep_ms(5000ms);
+  util::sleep_ms(5000);
   // Resume threads
   P.resume_threads(main_tid);
   DPRINTF("JOINING\n");

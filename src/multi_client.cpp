@@ -8,8 +8,8 @@ AutoPollClient::AutoPollClient(const std::string host, const std::string port,
     : host_(host),
       port_(port),
       poll_timeout_(poll_timeout),
-      command_timeout_(command_timeout) {
-  active_ = true;
+      command_timeout_(command_timeout),
+      active_(true) {
   static constexpr std::array<ClientType, 2> t = {ClientType::COMMAND,
                                                   ClientType::POLL};
   for (auto i : t) {
@@ -46,9 +46,9 @@ yrclient::Response AutoPollClient::send_command(
 static std::vector<u64> get_queue_ids(InstrumentationClient* I) {
   std::vector<u64> r;
   auto res = client_utils::run(yrclient::commands::GetSystemState(), I);
-  for (auto& q : res.state().queues()) {
-    r.push_back(q.queue_id());
-  }
+  auto& Q = res.state().queues();
+  std::transform(Q.begin(), Q.end(), std::back_inserter(r),
+                 [](const auto& a) { return a.queue_id(); });
   return r;
 }
 

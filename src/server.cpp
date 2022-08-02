@@ -23,7 +23,7 @@ void Server::connection_thread(connection::Connection* C) {
   if (callbacks().accept) {
     callbacks().accept(C);
   }
-  DPRINTF("accepted, sock=%d\n", C->socket());
+  DPRINTF("accepted, sock=%u\n", static_cast<u32>(C->socket()));
   network::set_io_timeout(C->socket(), cfg::SOCKET_SR_TIMEOUT);
   do {
     try {
@@ -36,12 +36,12 @@ void Server::connection_thread(connection::Connection* C) {
       // broken connection
       break;
     } catch (const std::runtime_error& E) {
-      DPRINTF("error: %s, sock=%d\n", E.what(), C->socket());
+      DPRINTF("error: %s, sock=%u\n", E.what(), static_cast<u32>(C->socket()));
       // fatal error
       break;
     }
   } while (!is_closing());
-  DPRINTF("exiting, sock=%d\n", C->socket());
+  DPRINTF("exiting, sock=%u\n", static_cast<u32>(C->socket()));
   if (callbacks().close) {
     callbacks().close(C);
   }
@@ -122,6 +122,7 @@ std::string Server::address() const { return address_; }
 std::string Server::port() const { return port_; }
 bool Server::is_closing() const { return is_closing_; }
 server::Callbacks& Server::callbacks() { return callbacks_; }
+// cppcheck-suppress unusedFunction
 void Server::signal_close() { is_closing_ = true; }
 size_t Server::num_clients() {
   std::unique_lock<std::mutex> lk(connections_mut_);

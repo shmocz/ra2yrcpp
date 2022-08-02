@@ -2,6 +2,9 @@
 
 using namespace connection;
 
+ChunkReaderWriter::ChunkReaderWriter() {
+  std::memset(&buf_[0], 0, sizeof(buf_));
+}
 u8* ChunkReaderWriter::buf() { return buf_; }
 unsigned int ChunkReaderWriter::buflen() const { return sizeof(buf_); }
 
@@ -72,9 +75,6 @@ vecu8 connection::read_bytes(ChunkReaderWriter* rw, const size_t chunk_size) {
       throw std::runtime_error("Broken connection");
     }
   }
-  if (bytes != 0) {
-    throw std::runtime_error("Remaining bytes should be zero");
-  }
   return res;
 }
 
@@ -118,14 +118,13 @@ Connection::Connection(std::string host, std::string port)
   socket_ = network::BAD_SOCKET;
   {
     network::addrinfo* result;
-    network::getaddrinfo(host.c_str(), port.c_str(), &hints_, &result);
+    network::getaddrinfo(host, port, &hints_, &result);
     utility::scope_guard guard = [&result]() { network::freeaddrinfo(result); };
-    int res;
     // Connect until success/fail
     for (auto* ptr = result; ptr != nullptr; ptr = ptr->ai_next) {
       socket_ = network::socket(ptr);
-      res = network::connect(socket_, ptr->ai_addr,
-                             static_cast<int>(ptr->ai_addrlen));
+      int res = network::connect(socket_, ptr->ai_addr,
+                                 static_cast<int>(ptr->ai_addrlen));
       if (res == -1) {
         network::closesocket(socket_);
         socket_ = network::BAD_SOCKET;
@@ -134,7 +133,7 @@ Connection::Connection(std::string host, std::string port)
       break;
     }
   }
-  DPRINTF("init_sock=%d\n", socket_);
+  DPRINTF("init_sock=%u\n", static_cast<u32>(socket_));
 }
 
 Connection::Connection(std::string port) : port_(port) {
@@ -144,7 +143,7 @@ Connection::Connection(std::string port) : port_(port) {
   hints_.ai_protocol = IPPROTO_TCP;
   hints_.ai_flags = AI_PASSIVE;
   network::addrinfo* result;
-  network::getaddrinfo("", port_.c_str(), &hints_, &result);
+  network::getaddrinfo("", port_, &hints_, &result);
   socket_ = network::socket(result);
   int s = 1;
   network::setsockopt(socket_, network::SOL_SOCKET, network::SO_REUSEADDR,
@@ -158,14 +157,16 @@ Connection::Connection(std::string port) : port_(port) {
   }
 }
 
-Connection::Connection(network::socket_t s) : socket_(s) {}
+Connection::Connection(network::socket_t s) : socket_(s) {
+  memset(&hints_, 0, sizeof(hints_));
+}
 Connection::~Connection() {
   try {
     network::closesocket(socket_);
   } catch (const yrclient::system_error& e) {
     DPRINTF("closesocket() failed, something's messed up\n");
   }
-  DPRINTF("sock=%d\n", socket_);
+  DPRINTF("sock=%u\n", static_cast<unsigned int>(socket_));
 }
 // TODO: pass by pointer
 int Connection::send_bytes(const vecu8& bytes) {

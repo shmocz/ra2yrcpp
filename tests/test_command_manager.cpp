@@ -13,7 +13,6 @@ using namespace std::chrono_literals;
 
 class CommandManagerTest : public ::testing::Test {
  protected:
-  void SetUp() override {}
   command::CommandManager M;
 };
 

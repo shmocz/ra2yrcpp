@@ -30,7 +30,6 @@ constexpr std::ptrdiff_t offset_AbstractClass = 0x24;
 
 ra2::vectors::DynamicVectorClass<void*> get_DVC(void* address);
 void parse_AbstractClass(ra2::abstract_types::AbstractClass* dest, void* src);
-void parse_AbstractClasses(ra2::game_state::GameState* G);
 void parse_AbstractTypeClasses(ra2::game_state::GameState* G, void* address);
 
 ra2::abstract_types::AbstractTypeClass* parse_AbstractTypeClassInstance(
@@ -79,8 +78,6 @@ std::unique_ptr<ra2::objects::HouseClass> parse_HouseClassInstance(
     void* address);
 
 void parse_DVC_Objects(ra2::game_state::GameState* G, void* address);
-
-ra2::objects::ObjectClass* parse_ObjectClassInstance(void* address);
 
 void parse_DVC_HouseClasses(ra2::game_state::GameState* G, void* address);
 

@@ -26,7 +26,7 @@ struct IServiceOptions {
   unsigned max_clients;
   unsigned port;
   std::string host;
-  IServiceOptions() {}
+  IServiceOptions() : max_clients(0u), port(0u) {}
 };
 
 struct DLLInjectOptions {
@@ -34,8 +34,13 @@ struct DLLInjectOptions {
   unsigned delay_post;
   unsigned wait_process;
   std::string process_name;
-  float force;
-  DLLInjectOptions() {}
+  bool force;
+  DLLInjectOptions()
+      : delay_pre(0u),
+        delay_post(0u),
+        wait_process(0u),
+        process_name(""),
+        force(false) {}
 };
 
 };  // namespace ra2yrcppcli

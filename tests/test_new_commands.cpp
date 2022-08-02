@@ -59,7 +59,6 @@ class NewCommandsTest : public ::testing::Test {
   void do_store(const std::string k, const std::string v) {
     auto s = ::get_storeval(k, v);
     auto r = client->run_one(s);
-    std::string vv;
     decltype(s) aa;
     r.result().UnpackTo(&aa);
     ASSERT_EQ(aa.result(), v);
@@ -68,7 +67,6 @@ class NewCommandsTest : public ::testing::Test {
   void do_get(const std::string k, const std::string v) {
     auto g = ::get_getval(k);
     auto r = client->run_one(g);
-    std::string vv;
     decltype(g) aa;
     r.result().UnpackTo(&aa);
     ASSERT_EQ(aa.result(), v);

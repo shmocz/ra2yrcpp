@@ -12,8 +12,11 @@ struct ISCommand {
   explicit ISCommand(command::Command* c)
       : c(c), a((yrclient::ISArgs*)c->args()) {
     result_q_ = new yrclient::CommandResult();
+    res = nullptr;
     a->M->UnpackTo(&command_data_);
   }
+  ISCommand(const ISCommand&) = delete;
+  ISCommand& operator=(const ISCommand&) = delete;
 
   ~ISCommand() { save_command_result(); }
 

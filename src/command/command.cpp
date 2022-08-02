@@ -12,9 +12,10 @@ Command::Command(const std::string name, handler_t handler, deleter_t deleter)
       result_(nullptr) {}
 
 Command::Command(const std::string name, methods_t methods,
-                 std::uint64_t queue_id, std::uint64_t task_id, void* args)
+                 std::uint64_t queue_id, std::uint64_t task_id, void* args,
+                 CommandType cmd_type)
     : methods_({.handler = methods.handler, .deleter = methods.deleter}),
-      type_(CommandType::USER),
+      type_(cmd_type),
       queue_id_(queue_id),
       task_id_(task_id),
       name_(name),
@@ -22,7 +23,7 @@ Command::Command(const std::string name, methods_t methods,
       result_(nullptr) {}
 
 Command::Command(const CommandType type, const uint64_t queue_id)
-    : type_(type), queue_id_(queue_id) {
+    : Command("", {nullptr, nullptr}, queue_id, 0u, nullptr, type) {
   if (!(type_ == CommandType::DESTROY_QUEUE ||
         type_ == CommandType::CREATE_QUEUE || type_ == CommandType::SHUTDOWN)) {
     throw std::invalid_argument("Invalid command type");

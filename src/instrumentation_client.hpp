@@ -18,9 +18,10 @@ using namespace std::chrono_literals;
 
 class InstrumentationClient {
  public:
-  InstrumentationClient(std::shared_ptr<connection::Connection> conn,
-                        const std::chrono::milliseconds poll_timeout = 5000ms,
-                        const std::chrono::milliseconds poll_rate = 250ms);
+  explicit InstrumentationClient(
+      std::shared_ptr<connection::Connection> conn,
+      const std::chrono::milliseconds poll_timeout = 5000ms,
+      const std::chrono::milliseconds poll_rate = 250ms);
   InstrumentationClient(const std::string host, const std::string port,
                         const std::chrono::milliseconds poll_timeout = 5000ms,
                         const std::chrono::milliseconds poll_rate = 250ms);

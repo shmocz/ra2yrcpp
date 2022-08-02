@@ -16,7 +16,7 @@ using instrumentation_client::InstrumentationClient;
 class IClient {
  public:
   explicit IClient(InstrumentationService* I) {
-    auto& S = I->server();
+    const auto& S = I->server();
     client = std::make_unique<InstrumentationClient>(S.address(), S.port());
   }
   template <typename T>
@@ -36,7 +36,6 @@ TEST_F(IServiceDaemonTest, BasicSetup) {
   {
     std::string key = "test_key";
     std::string flag1 = "0xdeadbeef";
-    std::string flag2 = "0xbeefdead";
     Context ctx;
     is_context::make_is_ctx(&ctx);
     IClient C(reinterpret_cast<InstrumentationService*>(ctx.data()));

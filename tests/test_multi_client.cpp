@@ -54,9 +54,7 @@ TEST_F(MultiClientTest, RunRegularCommand) {
   const unsigned count = 5u;
   yrclient::commands::HookableCommand cmd;
   for (auto i = 0u; i < count; i++) {
-    DPRINTF("number=%d\n", i);
     auto res0 = run_async<decltype(cmd)>(cmd);
-    DPRINTF("res=%s\n", to_json(res0).c_str());
   }
 }
 

@@ -229,6 +229,7 @@ void Process::write_memory(void* dest, const void* src, const size_t size,
   }
 }
 
+// cppcheck-suppress unusedFunction
 void Process::read_memory(void* dest, const void* src, const size_t size) {
   if (ReadProcessMemory(handle_, src, dest, size, nullptr) == 0) {
     throw yrclient::system_error("ReadProcessMemory src=" +
@@ -239,7 +240,6 @@ void Process::read_memory(void* dest, const void* src, const size_t size) {
 
 void* Process::allocate_memory(const size_t size, unsigned long alloc_type,
                                unsigned long alloc_protect) {
-  DPRINTF("handle=%p, bytes=%ld\n", handle_, size);
   return VirtualAllocEx(handle_, NULL, size, alloc_type, alloc_protect);
 }
 
@@ -325,11 +325,10 @@ std::vector<std::string> Process::list_loaded_modules() const {
   HMODULE hMods[1024];
   HANDLE hProcess;
   DWORD cbNeeded;
-  unsigned int i;
   std::vector<std::string> res;
 
   if (EnumProcessModules(handle(), hMods, sizeof(hMods), &cbNeeded)) {
-    for (i = 0; i < (cbNeeded / sizeof(HMODULE)); i++) {
+    for (unsigned i = 0; i < (cbNeeded / sizeof(HMODULE)); i++) {
       TCHAR szModName[MAX_PATH];
 
       // Get the full path to the module's file.

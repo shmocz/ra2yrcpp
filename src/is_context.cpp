@@ -17,8 +17,8 @@ ProcAddrs is_context::get_procaddrs() {
 }
 
 vecu8 is_context::vecu8cstr(const std::string s) {
-  auto c = s.c_str();
-  vecu8 r(c, c + s.size() + 1);
+  vecu8 r(s.begin(), s.end());
+  r.push_back('\0');
   return r;
 }
 

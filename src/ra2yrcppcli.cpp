@@ -12,13 +12,6 @@ auto get_client(const std::string host, const std::string port) {
   return uptr(new multi_client::AutoPollClient(host, port, 250ms, 40000ms));
 }
 
-void show_fields(const google::protobuf::Descriptor* d) {
-  for (int i = 0; i < d->field_count(); i++) {
-    auto* F = d->field(i);
-    fmt::print("i={}, cpp_name={}\n", i, F->cpp_type_name());
-  }
-}
-
 std::vector<const google::protobuf::Descriptor*> get_messages(
     const google::protobuf::FileDescriptor* d) {
   std::vector<const google::protobuf::Descriptor*> res;
@@ -26,21 +19,6 @@ std::vector<const google::protobuf::Descriptor*> get_messages(
     res.push_back(d->message_type(i));
   }
   return res;
-}
-
-void show_messages(const google::protobuf::FileDescriptor* d) {
-  auto msgs = get_messages(d);
-  for (int i = 0; i < static_cast<int>(msgs.size()); i++) {
-    auto* m = msgs[i];
-    fmt::print("i={}, msg={}, fields={}\n", i, m->name(), m->field_count());
-    show_fields(m);
-  }
-}
-
-void desc_info(const google::protobuf::FileDescriptor* d) {
-  fmt::print("ptr={}, name={},num messages={}\n", (const void*)d, d->name(),
-             d->message_type_count());
-  show_messages(d);
 }
 
 void set_field(const google::protobuf::Reflection* refl,
@@ -215,8 +193,8 @@ void easy_setup(const std::string path_dll, IServiceOptions iservice,
         fmt::print(stderr, "send cmd ok\n");
         break;
       } catch (const std::exception& e) {
-        if (tries <= 0) {
-          throw e;
+        if (tries <= 1) {
+          throw;
         }
         fmt::print(stderr, "error: {}, tries={}\n", e.what(), tries);
         tries--;

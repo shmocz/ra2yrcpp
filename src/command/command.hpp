@@ -30,7 +30,8 @@ class Command {
           deleter_t deleter = nullptr);
   // For command instantiation
   Command(const std::string name, methods_t methods, std::uint64_t queue_id,
-          std::uint64_t task_id, void* args);
+          std::uint64_t task_id, void* args,
+          CommandType cmd_type = CommandType::USER);
   // For built-in commands
   Command(const CommandType type, const uint64_t queue_id);
   ~Command();

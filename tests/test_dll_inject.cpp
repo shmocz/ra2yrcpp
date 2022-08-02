@@ -55,10 +55,8 @@ struct B2STest : Xbyak::CodeGenerator {
 
 TEST_F(DLLInjectTest, BytesToStackTest) {
   const std::string sm = "this is a test asd lol";
-  std::string s = "";
-  vecu8 dest(320, 0x0);
   for (size_t i = 1; i < sm.size(); i++) {
-    dest.clear();
+    vecu8 dest(320, 0x0);
     std::string s = sm.substr(0, i);
     B2STest T(s, dest.data());
     auto p = T.getCode<void __cdecl (*)()>();
@@ -96,10 +94,11 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
   network::Init();
   auto client = InstrumentationClient("", std::to_string(cfg::SERVER_PORT));
   // run some commands
-  std::string f1 = "flag1";
-  std::string key = "key1";
 
   {
+    std::string f1 = "flag1";
+    std::string key = "key1";
+
     yrclient::commands::StoreValue s;
     s.mutable_args()->set_key(key);
     s.mutable_args()->set_value(f1);
@@ -111,8 +110,6 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
     auto r2 = client_utils::run(g, &client);
     ASSERT_EQ(r2, f1);
   }
-
-  auto s = client.shutdown();
 
   // NB. gotta wait explicitly, cuz WaitFoSingleObject could fail and we cant
   // throw from dtors

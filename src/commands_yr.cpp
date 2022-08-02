@@ -202,7 +202,8 @@ struct CBExitGameLoop : public yrclient::ISCallback {
     // Loop through all callbacks
     std::vector<std::string> keys;
     std::transform(callbacks->begin(), callbacks->end(),
-                   std::back_inserter(keys), [](auto& v) { return v.first; });
+                   std::back_inserter(keys),
+                   [](const auto& v) { return v.first; });
     for (const auto& k : keys) {
       if (k != name()) {
         // Get corresponding hook

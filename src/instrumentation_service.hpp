@@ -38,6 +38,9 @@ class InstrumentationService;
 struct ISCallback {
   void call(hook::Hook* h, void* data, X86Regs* state);
   virtual void do_call(yrclient::InstrumentationService* I) = 0;
+  ISCallback() = default;
+  ISCallback(const ISCallback&) = delete;
+  ISCallback& operator=(const ISCallback&) = delete;
   virtual ~ISCallback() = default;
   virtual std::string name();
   virtual std::string target();

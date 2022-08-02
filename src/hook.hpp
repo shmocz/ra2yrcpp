@@ -124,7 +124,6 @@ class Hook {
   unsigned int* count_enter();
   /// Pointer to counter for exits from Hook::call.
   unsigned int* count_exit();
-  HookCallback& get_callback(const std::string name);
   /// Check if hook has a callback identified by name
   void remove_callback(const std::string name);
 

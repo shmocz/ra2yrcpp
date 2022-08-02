@@ -32,11 +32,6 @@ ra2::vectors::DynamicVectorClass<void*> ra2::state_parser::get_DVC(
   return res;
 }
 
-void ra2::state_parser::parse_AbstractClasses(ra2::game_state::GameState* G) {
-  (void)G;
-  throw std::runtime_error("Not implemented");
-}
-
 void ra2::state_parser::parse_AbstractClass(
     ra2::abstract_types::AbstractClass* dest, void* src) {
   MemoryReader R(src);
@@ -62,6 +57,7 @@ void ra2::state_parser::parse_BuildingTypeClass(
   R.read_item(&dest->p_foundation_data, 0xdfc);
 }
 
+// cppcheck-suppress unusedFunction
 std::unique_ptr<ra2::type_classes::SHPStruct> load_SHPStruct(void* address) {
   std::unique_ptr<ra2::type_classes::SHPStruct> p;
   parse_SHPStruct(p.get(), address);
@@ -283,44 +279,6 @@ void ra2::state_parser::parse_InfantryClass(ra2::objects::InfantryClass* dest,
   parse_FootClass(dest, address);
   MemoryReader R(address);
   R.read_item(&dest->p_type, 0x6c0);
-}
-
-// TODO: don't use macros
-ra2::objects::ObjectClass* ra2::state_parser::parse_ObjectClassInstance(
-    void* address) {
-  using ra2::abstract_types::AbstractTypeClass;
-  using namespace ra2::type_classes;
-  using namespace ra2::objects;
-  MemoryReader R(address);
-  // Reader R(address);
-  u32 p_vtable;
-  try {
-    R.read_item(&p_vtable, 0x0);
-  } catch (const yrclient::system_error& e) {
-    DPRINTF("ERROR: %p %s\n", address, e.what());
-    return nullptr;
-  }
-  auto at = ra2::utility::get_AbstractType(reinterpret_cast<void*>(p_vtable));
-
-#if 1
-#define X(T)                      \
-  case AbstractType::T: {         \
-    auto* p = new T##Class();     \
-    parse_##T##Class(p, address); \
-    return p;                     \
-  }
-  switch (at.t) {
-    X(Building);
-    X(Unit);
-    X(Infantry);
-    X(Aircraft);
-    default:
-      break;
-  }
-#undef X
-#endif
-  DPRINTF("NULL!!\n");
-  return nullptr;
 }
 
 template <typename T, typename ParseT>

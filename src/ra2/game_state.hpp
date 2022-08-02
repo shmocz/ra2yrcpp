@@ -53,11 +53,9 @@ class GameState {
  public:
   void add_AbstractTypeClass(std::unique_ptr<AbstractTypeClass> a,
                              const std::uintptr_t* real_address);
-  void add_ObjectClass(std::unique_ptr<objects::ObjectClass> a);
   void add_HouseClass(std::unique_ptr<objects::HouseClass> h);
   void add_FactoryClass(std::unique_ptr<objects::FactoryClass> f);
   atc_map_t& abstract_type_classes();
-  object_vec_t& object_classes();
   houseclass_vec_t& house_classes();
   factoryclass_vec_t& factory_classes();
   std::map<u32*, std::unique_ptr<objects::ObjectClass>> objects;

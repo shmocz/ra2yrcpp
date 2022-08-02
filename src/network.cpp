@@ -57,7 +57,7 @@ void network::set_io_timeout(socket_t s, const unsigned long timeout) {
   auto* pt = reinterpret_cast<const char*>(&timeout);
   setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, pt, sizeof(timeout));
   setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, pt, sizeof(timeout));
-  DPRINTF("sock=%d,timeout=%d\n", s, timeout);
+  DPRINTF("sock=%u,timeout=%lu\n", s, timeout);
 }
 
 // TODO: don't throw exceptions inside these
@@ -78,11 +78,9 @@ socket_t network::socket(addrinfo* ptr, const unsigned long timeout) {
 
 void network::getaddrinfo(const std::string host, std::string port,
                           addrinfo* hints, addrinfo** result) {
-  int res;
   const char* p = (host.size() > 0) ? host.c_str() : NULL;
-  if ((res =
-           ::getaddrinfo(p, port.c_str(), reinterpret_cast<::addrinfo*>(hints),
-                         reinterpret_cast<::addrinfo**>(result))) != 0) {
+  if (::getaddrinfo(p, port.c_str(), reinterpret_cast<::addrinfo*>(hints),
+                    reinterpret_cast<::addrinfo**>(result)) != 0) {
     throw yrclient::system_error("getaddrinfo()");
   }
 }
@@ -92,7 +90,7 @@ void network::freeaddrinfo(addrinfo* info) {
 }
 
 void network::closesocket(socket_t s) {
-  DPRINTF("closing %d\n", s);
+  DPRINTF("closing %u\n", static_cast<u32>(d));
   if (::closesocket(s) == SOCK_ERR) {
     throw yrclient::system_error("closesocket()");
   }

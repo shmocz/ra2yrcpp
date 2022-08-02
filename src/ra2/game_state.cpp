@@ -13,10 +13,6 @@ void GameState::add_AbstractTypeClass(std::unique_ptr<AbstractTypeClass> a,
   abstract_type_classes_.try_emplace((u32)real_address, std::move(a));
 }
 
-void GameState::add_ObjectClass(std::unique_ptr<objects::ObjectClass> a) {
-  object_classes_.emplace_back(std::move(a));
-}
-
 void GameState::add_HouseClass(std::unique_ptr<objects::HouseClass> h) {
   house_classes_.emplace_back(std::move(h));
 }
@@ -26,8 +22,6 @@ void GameState::add_FactoryClass(std::unique_ptr<objects::FactoryClass> f) {
 }
 
 atc_map_t& GameState::abstract_type_classes() { return abstract_type_classes_; }
-
-object_vec_t& GameState::object_classes() { return object_classes_; }
 
 houseclass_vec_t& GameState::house_classes() { return house_classes_; }
 

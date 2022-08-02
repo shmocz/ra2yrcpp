@@ -20,8 +20,6 @@ target_link_libraries(protocol_o ${Protobuf_LIBRARIES} ZLIB::ZLIB fmt::fmt)
 target_link_libraries(protocol PUBLIC protocol_o)
 target_include_directories(protocol PUBLIC ${Protobuf_INCLUDE_DIRS})
 add_custom_target(protocol_py ALL DEPENDS ${PROTO_PY})
-add_library(proto_manager SHARED proto_manager.cpp)
-target_link_libraries(proto_manager PUBLIC protocol)
 add_library(connection STATIC connection.cpp)
 target_link_libraries(connection PUBLIC network)
 add_library(

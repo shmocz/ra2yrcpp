@@ -1,4 +1,6 @@
 #pragma once
+#include "debug_helpers.h"
+
 #include <functional>
 #include <map>
 #include <memory>
@@ -39,9 +41,7 @@ class Command {
   CommandType type() const;
   std::uint64_t queue_id() const;
   std::uint64_t task_id() const;
-  const std::string& name() const;
   ResultCode* result_code();
-  methods_t& methods();
   // FIXME: use directly ref. in result(). this is just to not to break old code
   void set_result(void* p);
   std::string* error_message();

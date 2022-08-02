@@ -6,7 +6,6 @@
 #include "connection.hpp"
 #include "errors.hpp"
 #include "instrumentation_client.hpp"
-#include "instrumentation_service.hpp"
 #include "network.hpp"
 
 #include <cstdint>

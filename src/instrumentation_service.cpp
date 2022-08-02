@@ -14,9 +14,9 @@ std::string yrclient::ISCallback::target() {
   throw yrclient::not_implemented();
 }
 
-void InstrumentationService::add_command_new(
-    std::string name, command::Command::handler_t fn,
-    command::Command::deleter_t deleter) {
+void InstrumentationService::add_command(std::string name,
+                                         command::Command::handler_t fn,
+                                         command::Command::deleter_t deleter) {
   cmd_manager_.factory().add_entry(name, fn, deleter);
 }
 
@@ -256,11 +256,6 @@ void* InstrumentationService::get_value(const std::string key,
     return s->at(key).get();
   }
   return storage_.at(key).get();
-}
-
-void InstrumentationService::remove_value(const std::string key) {
-  auto [lk, s] = aq_storage();
-  s->erase(key);
 }
 
 // TODO: remove?

@@ -3,8 +3,6 @@
 
 #include "instrumentation_client.hpp"
 
-#include <type_traits>
-
 namespace client_utils {
 template <typename T>
 inline auto run(const T& cmd,

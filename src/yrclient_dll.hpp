@@ -1,6 +1,5 @@
 #pragma once
 #include "instrumentation_service.hpp"
-#include "is_context.hpp"
 
 namespace yrclient_dll {
 yrclient::InstrumentationService* initialize(const unsigned int max_clients,

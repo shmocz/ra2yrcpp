@@ -1,4 +1,4 @@
-#include "command_manager.hpp"
+#include "command/command_manager.hpp"
 
 using namespace command;
 
@@ -94,12 +94,6 @@ void CommandManager::enqueue_command(std::shared_ptr<Command> cmd) {
   // FIXME: use uptr
   work_queue_.push(cmd);
   work_queue_cv_.notify_all();
-// work_queue_cv_.wait(k, [this] { return work_queue_.size() > 0u; });
-#if 0
-  std::unique_lock<std::mutex> k(work_queue_mut_);
-  work_queue_.push(command);
-  return command.task_id;
-#endif
 }
 
 void CommandManager::worker() {

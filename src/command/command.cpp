@@ -1,8 +1,4 @@
-#include "command.hpp"
-
-#include "debug_helpers.h"
-
-#include <stdexcept>
+#include "command/command.hpp"
 
 using namespace command;
 
@@ -47,10 +43,8 @@ void Command::run() { methods_.handler(this); }
 
 std::uint64_t Command::queue_id() const { return queue_id_; }
 std::uint64_t Command::task_id() const { return task_id_; }
-const std::string& Command::name() const { return name_; }
 ResultCode* Command::result_code() { return &result_code_; }
 
-Command::methods_t& Command::methods() { return methods_; }
 void Command::set_result(void* p) { result_ = p; }
 
 std::string* Command::error_message() { return &error_message_; }

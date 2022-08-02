@@ -1,5 +1,6 @@
 #pragma once
 #include "config.hpp"
+#include "errors.hpp"
 #ifdef _WIN32
 #include <_bsd_types.h>
 #include <psdk_inc/_ip_types.h>

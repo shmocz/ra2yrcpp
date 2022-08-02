@@ -1,7 +1,5 @@
 #include "server.hpp"
 
-#include "debug_helpers.h"
-
 using namespace server;
 
 Server::Server(unsigned int num_clients, unsigned int port, Callbacks callbacks,

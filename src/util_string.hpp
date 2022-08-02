@@ -2,6 +2,7 @@
 #include "types.h"
 
 #include <iomanip>
+#include <regex>
 #include <string>
 #include <vector>
 

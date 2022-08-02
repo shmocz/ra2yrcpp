@@ -1,18 +1,10 @@
 #include "process.hpp"
 
-#include "debug_helpers.h"
-#include "errors.hpp"
-#include "util_string.hpp"
+using namespace process;
+using yrclient::not_implemented;
 
-#include <chrono>
-#include <memoryapi.h>
-#include <thread>
 #ifdef _WIN32
-#include "utility.h"
-#include "utility/scope_guard.hpp"
-#include "utility/time.hpp"
-
-#include <cstdlib>
+#include <memoryapi.h>
 #include <processthreadsapi.h>
 #include <psapi.h>
 #include <tlhelp32.h>
@@ -48,10 +40,6 @@ void process::save_context(process::Thread* T) {
   }
 }
 #endif
-
-using namespace std::chrono_literals;
-using namespace process;
-using yrclient::not_implemented;
 
 std::vector<u32> process::get_process_list() {
   std::vector<u32> res(1024, 0u);

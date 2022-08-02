@@ -1,17 +1,27 @@
 #pragma once
 
+#include "debug_helpers.h"
+#include "errors.hpp"
 #include "types.h"
+#include "util_string.hpp"
+#include "utility.h"
+#include "utility/scope_guard.hpp"
+#include "utility/time.hpp"
 
 #include <chrono>
+#include <cstdlib>
 #include <functional>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace process {
 
 using thread_id_t = u32;
 using std::size_t;
+namespace {
 using namespace std::chrono_literals;
+}
 
 enum class x86Reg : int {
   eax = 0,

@@ -4,6 +4,7 @@
 #include "config.hpp"
 #include "context.hpp"
 #include "instrumentation_service.hpp"
+#include "x86.hpp"
 
 #include <xbyak/xbyak.h>
 

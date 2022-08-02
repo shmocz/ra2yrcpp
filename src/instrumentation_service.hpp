@@ -33,6 +33,15 @@ using namespace std::chrono_literals;
 // Forward declaration
 class InstrumentationService;
 
+// Hook callback that provides access to InstrumentationService.
+struct ISCallback {
+  void call(hook::Hook* h, void* data, X86Regs* state);
+  virtual void do_call(yrclient::InstrumentationService* I) = 0;
+  virtual ~ISCallback() = default;
+  virtual std::string name();
+  virtual std::string target();
+};
+
 struct IServiceArgs {
   InstrumentationService* I;
   // currently it's a space separated string, but it could be a protobuf

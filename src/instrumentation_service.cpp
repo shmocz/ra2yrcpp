@@ -2,6 +2,18 @@
 
 using namespace yrclient;
 
+void yrclient::ISCallback::call(hook::Hook* h, void* data, X86Regs* state) {
+  (void)h;
+  (void)state;
+  auto* I = static_cast<yrclient::InstrumentationService*>(data);
+  do_call(I);
+}
+
+std::string yrclient::ISCallback::name() { throw yrclient::not_implemented(); }
+std::string yrclient::ISCallback::target() {
+  throw yrclient::not_implemented();
+}
+
 void InstrumentationService::add_command_new(
     std::string name, command::Command::handler_t fn,
     command::Command::deleter_t deleter) {

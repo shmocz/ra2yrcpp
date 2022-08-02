@@ -1,6 +1,6 @@
 BUILDDIR := build
 TESTS := $(shell find $(BUILDDIR)/tests -name 'test_*.exe')
-CMAKE_BUILD_TYPE := Debug
+CMAKE_BUILD_TYPE := Release
 export CPP_SOURCES = $(shell git ls-tree -r --name-only HEAD | grep -E '\.(cpp|hpp)$$')
 export CM_FILES = $(shell git ls-tree -r --name-only HEAD | grep -E 'CMakeLists\.txt$$')
 export W32_FILES := process.cpp state_parser.cpp dll_inject.cpp network.cpp
@@ -22,7 +22,7 @@ format:
 	echo "$(CPP_SOURCES)" | xargs -n 1 clang-format -i
 
 clean:
-	rm -rf build/*
+	rm -rf $(BUILDDIR)/*
 
 build:
 	mkdir -p $(BUILDDIR)
@@ -40,7 +40,7 @@ docker_build:
 	docker-compose run --rm builder make BUILDDIR=$(BUILDDIR) build
 
 cppcheck:
-	@mkdir -p .cppcheck
+	mkdir -p .cppcheck
 	cppcheck --platform=win32W --enable=all \
 		--cppcheck-build-dir=./.cppcheck \
 		-I src/ \

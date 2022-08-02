@@ -7,8 +7,13 @@ Library for providing core functionality for interaction with Red Alert 2 Yuri's
 Set up a suitable toolchain for building WIN32 executables, then run:
 
 ```
-$ mkdir build
 $ make build
+```
+
+This performs the build under `build` folder with `Release` profile. Adjust the settings to your likings, e.g.:
+
+```
+$ make BUILDDIR=build_debug CMAKE_BUILD_TYPE=Debug build
 ```
 
 ## Building (Docker)

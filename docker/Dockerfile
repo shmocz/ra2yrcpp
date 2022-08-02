@@ -7,6 +7,7 @@ RUN apt-get install -y \
 	automake \
 	bash \
 	cmake \
+	cppcheck \
 	g++ \
 	g++-mingw-w64-i686 \
 	g++-mingw-w64-i686-posix \

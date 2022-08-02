@@ -39,7 +39,20 @@ docker:
 docker_build:
 	docker-compose run --rm builder make BUILDDIR=$(BUILDDIR) build
 
+cppcheck:
+	@mkdir -p .cppcheck
+	cppcheck --platform=win32W --enable=all \
+		--cppcheck-build-dir=./.cppcheck \
+		-I src/ \
+		--inline-suppr \
+		--suppress=passedByValue \
+		--suppress=noExplicitConstructor:src/utility/scope_guard.hpp \
+		--suppress=unusedStructMember:src/commands_yr.cpp \
+		--suppress=unusedFunction:tests/*.cpp \
+		--suppress=uninitMemberVar:src/ra2/objects.cpp \
+		src/ tests/
+
 check: cmake_format lint
 	./scripts/check.sh
 
-.PHONY: build doc lint format test docker docker_build check
+.PHONY: build doc lint format test docker docker_build check cppcheck

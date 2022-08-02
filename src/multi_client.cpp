@@ -34,8 +34,13 @@ yrclient::Response AutoPollClient::send_command(
   auto ack = yrclient::from_any<yrclient::RunCommandAck>(resp.body());
   // Wait until item found from polled messages
   DPRINTF("ack=%lld\n", ack.id());
-  auto poll_res = results().get(ack.id(), command_timeout_);
-  return make_response(yrclient::RESPONSE_OK, poll_res);
+  try {
+    auto poll_res = results().get(ack.id(), command_timeout_);
+    return make_response(yrclient::RESPONSE_OK, poll_res);
+  } catch (const std::runtime_error& e) {
+    throw yrclient::general_error(fmt::format(
+        "timeout after {}ms, key={}", command_timeout_.count(), ack.id()));
+  }
 }
 
 static std::vector<u64> get_queue_ids(InstrumentationClient* I) {

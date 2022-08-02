@@ -8,6 +8,8 @@
 #include "instrumentation_client.hpp"
 #include "network.hpp"
 
+#include <fmt/core.h>
+
 #include <cstdint>
 
 #include <array>
@@ -15,6 +17,7 @@
 #include <chrono>
 #include <map>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 

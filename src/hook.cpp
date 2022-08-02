@@ -32,10 +32,6 @@ Hook::Hook(addr_t src_address, const size_t code_length, const std::string name,
       no_suspend_(no_suspend),
       count_enter_(0u),
       count_exit_(0u) {
-  auto s = yrclient::join_string(utility::vmap(
-      no_suspend_, [](auto a) -> std::string { return yrclient::to_hex(a); }));
-  DPRINTF("src_address=%p, length=%d, name=%s, masked_tids=%s\n", src_address,
-          code_length, name.c_str(), s.c_str());
   // Create detour
   auto p = dm_.getCode<u8*>();
 
@@ -64,10 +60,8 @@ Hook::~Hook() {
 
   // Patch back original code
   auto p = dm_.getCode<u8*>();
-  DPRINTF("Restoring original code\n");
   patch_code_safe(reinterpret_cast<u8*>(detour().src_address), p,
                   detour().code_length);
-  DPRINTF("Restored original code\n");
   auto P = process::get_current_process();
   // Wait until all threads have exited the hook
   const auto main_tid = process::get_current_tid();
@@ -109,8 +103,6 @@ void Hook::unlock() { mu_.unlock(); }
 Detour& Hook::detour() { return d_; }
 const std::string& Hook::name() const { return name_; }
 
-u8* Hook::codebuf() { return codebuf_; }
-
 void Hook::patch_code(u8* target_address, const u8* code,
                       const size_t code_length) {
   DPRINTF("patch at %p, bytes=%d\n", target_address, code_length);
@@ -141,3 +133,23 @@ void Hook::patch_code_safe(u8* target_address, const u8* code,
 
 unsigned int* Hook::count_enter() { return &count_enter_; }
 unsigned int* Hook::count_exit() { return &count_exit_; }
+
+template <typename T>
+static auto get_callback_(T* h, const std::string name) {
+  return std::find_if(h->begin(), h->end(),
+                      [&name](auto& j) { return j.name == name; });
+}
+
+Hook::HookCallback& Hook::get_callback(const std::string name) {
+  auto it = get_callback_(&callbacks_, name);
+  return *it;
+}
+
+void Hook::remove_callback(const std::string name) {
+  auto it = std::find_if(callbacks_.begin(), callbacks_.end(),
+                         [&name](auto& j) { return j.name == name; });
+  if (it == callbacks_.end()) {
+    throw yrclient::general_error("remove_callback");
+  }
+  callbacks_.erase(it);
+}

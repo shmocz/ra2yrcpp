@@ -4,8 +4,6 @@
 #include "errors.hpp"
 #include "process.hpp"
 #include "types.h"
-#include "util_string.hpp"
-#include "utility/container.hpp"
 #include "utility/time.hpp"
 #include "x86.hpp"
 
@@ -31,8 +29,6 @@ struct Detour {
   addr_t detour_address;
   size_t code_length;
 };
-
-using CodeBuf = u8[8192];
 
 ///
 /// Install a hook into memory location. This is implementented as a
@@ -119,8 +115,6 @@ class Hook {
   void unlock();
   Detour& detour();
   const std::string& name() const;
-  u8* codebuf();
-  constexpr size_t codebuf_length() { return sizeof(codebuf_); }
   void patch_code(u8* target_address, const u8* code, const size_t code_length);
 
   /// Wait until no thread is in target region, then patch code.
@@ -130,13 +124,15 @@ class Hook {
   unsigned int* count_enter();
   /// Pointer to counter for exits from Hook::call.
   unsigned int* count_exit();
+  HookCallback& get_callback(const std::string name);
+  /// Check if hook has a callback identified by name
+  void remove_callback(const std::string name);
 
  private:
   Detour d_;
   const std::string name_;
   std::vector<HookCallback> callbacks_;
   std::mutex mu_;
-  CodeBuf codebuf_;
   DetourMain dm_;
   std::vector<thread_id_t> no_suspend_;
   unsigned int count_enter_;

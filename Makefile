@@ -1,8 +1,9 @@
 BUILDDIR := build
 TESTS := $(shell find $(BUILDDIR)/tests -name 'test_*.exe')
-export CPP_SOURCES := $(shell git ls-tree -r --name-only HEAD | grep -E '\.(cpp|hpp)$$')
 CMAKE_BUILD_TYPE := Debug
-export CM_FILES := CMakeLists.txt src/CMakeLists.txt tests/CMakeLists.txt
+export CPP_SOURCES = $(shell git ls-tree -r --name-only HEAD | grep -E '\.(cpp|hpp)$$')
+export CM_FILES = $(shell git ls-tree -r --name-only HEAD | grep -E 'CMakeLists\.txt$$')
+export W32_FILES := process.cpp state_parser.cpp dll_inject.cpp network.cpp
 
 doc:
 	doxygen Doxyfile
@@ -21,7 +22,7 @@ format:
 	echo "$(CPP_SOURCES)" | xargs -n 1 clang-format -i
 
 clean:
-	rm -rf build
+	rm -rf build/*
 
 build:
 	mkdir -p $(BUILDDIR)

@@ -1,6 +1,6 @@
 # ra2yrcpp
 
-Library for providing core functionality for interaction with Red Alert 2 Yuri's Revenge game process using a protobuf defined protocol sent through TCP socket. Inspired by [s2client-api](https://github.com/Blizzard/s2client-api).
+Library for interacting with Red Alert 2 Yuri's Revenge game process with protobuf based protocol over TCP. Inspired by [s2client-api](https://github.com/Blizzard/s2client-api).
 
 ## Building 
 

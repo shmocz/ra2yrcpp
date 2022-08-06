@@ -41,18 +41,8 @@ add_library(yrclient MODULE yrclient_dll.cpp)
 target_link_libraries(yrclient PUBLIC is_instance commands)
 add_executable(recordtool recordtool.cpp)
 target_link_libraries(recordtool PUBLIC protocol fmt::fmt)
-add_executable(ra2yrcppcli ra2yrcppcli.cpp multi_client.cpp
-                           instrumentation_client.cpp)
-target_link_libraries(
-  ra2yrcppcli
-  PUBLIC protocol_o
-         fmt::fmt
-         errors
-         connection
-         process
-         dll_inject
-         network
-         is_instance)
+
+add_subdirectory(ra2yrcppcli)
 
 add_custom_target(ra2yrcpp)
 add_dependencies(ra2yrcpp yrclient recordtool ra2yrcppcli)

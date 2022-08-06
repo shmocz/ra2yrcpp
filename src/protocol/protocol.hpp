@@ -5,13 +5,13 @@
 #include "types.h"
 #include "util_string.hpp"
 
-#include <fmt/core.h>
-
 #include <fstream>
+#include <google/protobuf/dynamic_message.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/message.h>
 #include <google/protobuf/util/json_util.h>
+#include <map>
 #include <string>
 
 namespace yrclient {
@@ -57,5 +57,17 @@ bool write_message(google::protobuf::Message* M,
                    google::protobuf::io::CodedOutputStream* os);
 bool read_message(google::protobuf::Message* M,
                   google::protobuf::io::CodedInputStream* os);
+
+void set_field(const google::protobuf::Reflection* refl,
+               google::protobuf::Message* msg,
+               const google::protobuf::FieldDescriptor* field,
+               const std::string value);
+
+void set_message_field(google::protobuf::Message* m, const std::string key,
+                       const std::string value);
+
+google::protobuf::Message* create_command_message(
+    const std::string name, google::protobuf::DynamicMessageFactory* F,
+    const std::map<std::string, std::string> args = {});
 
 }  // namespace yrclient

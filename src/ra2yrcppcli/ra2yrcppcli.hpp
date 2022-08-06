@@ -22,6 +22,7 @@
 #include <vector>
 
 namespace ra2yrcppcli {
+
 struct IServiceOptions {
   unsigned max_clients;
   unsigned port;
@@ -42,5 +43,18 @@ struct DLLInjectOptions {
         process_name(""),
         force(false) {}
 };
+
+constexpr std::array<const char*, 2> INIT_COMMANDS{"CreateHooks",
+                                                   "CreateCallbacks"};
+
+void inject_dll(unsigned pid, const std::string path_dll,
+                IServiceOptions options, DLLInjectOptions dll);
+
+yrclient::Response send_command(const std::string name,
+                                multi_client::AutoPollClient* A,
+                                std::vector<std::string> args = {});
+
+std::map<std::string, std::string> parse_kwargs(
+    std::vector<std::string> tokens);
 
 };  // namespace ra2yrcppcli

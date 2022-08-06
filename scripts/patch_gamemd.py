@@ -26,8 +26,13 @@ def main():
         ("3bc7891584eda8006887de5500c3", 0xDEADBEEF),
         ("68ace6b700c39090", 0xDEADBEEF),
         ("68bce6b700c3", 0xDEADBEEF),
+        ("6768cce6b700c39090", 0xDEADBEEF),
         ("a0e0fbb000536768b6df7200c3", 0xDEADBEEF),
+        ("8a0de0d4810083c4106768d3cd4800c3", 0xDEADBEEF),
+        ("68dce6b700c39090909090", 0xDEADBEEF),
+        ("a06beda80081ecdc010000689bae6900c3", 0xDEADBEEF),
     ]
+
     with open(sys.argv[1], "rb") as f:
         b = bytearray(f.read())
         l0 = len(b)

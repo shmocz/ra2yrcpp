@@ -1,6 +1,7 @@
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-set(PROTO_FILES protocol/core.proto protocol/ra2yr.proto
-                protocol/commands_builtin.proto protocol/commands_yr.proto)
+set(PROTO_FILES
+    protocol/core.proto protocol/ra2yr.proto protocol/commands_builtin.proto
+    protocol/commands_yr.proto protocol/game.proto)
 protobuf_generate_python(PROTO_PY ${PROTO_FILES})
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
 add_library(errors OBJECT errors.cpp)

@@ -2,6 +2,7 @@
 #include "commands_builtin.pb.h"
 #include "commands_yr.pb.h"
 #include "core.pb.h"
+#include "game.pb.h"
 #include "types.h"
 #include "util_string.hpp"
 

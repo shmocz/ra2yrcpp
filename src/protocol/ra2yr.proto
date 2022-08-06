@@ -141,6 +141,17 @@ message Object {
   AbstractType object_type = 9;  // TODO: get from ObjectTypeClass
 }
 
+enum LoadStage {
+  // Initial empty stage
+  STAGE_NONE = 0;
+  // Game is being loaded
+  STAGE_LOADING = 1;
+  // Game is loaded and main game loop has been entered
+  STAGE_INGAME = 2;
+  // Game has exited main game loop
+  STAGE_EXIT_GAME = 3;
+}
+
 message GameState {
   uint32 current_frame = 1;
   repeated Unit units = 2;
@@ -148,4 +159,5 @@ message GameState {
   repeated House houses = 4;
   repeated ObjectTypeClass object_types = 5;
   repeated Object objects = 6;
+  LoadStage stage = 7;
 }

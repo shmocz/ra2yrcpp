@@ -1,6 +1,7 @@
 #pragma once
 #include "protocol/protocol.hpp"
 
+#include "async_queue.hpp"
 #include "command/command.hpp"
 #include "errors.hpp"
 #include "google/protobuf/io/coded_stream.h"

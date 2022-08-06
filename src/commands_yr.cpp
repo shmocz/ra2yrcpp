@@ -1,6 +1,7 @@
 #include "commands_yr.hpp"
 
 using namespace commands_yr;
+using namespace std::chrono_literals;
 using util_command::ISCommand;
 using yrclient::as;
 using yrclient::asptr;
@@ -245,10 +246,43 @@ struct CBBeginLoad : public yrclient::ISCallback {
 struct CBSaveState : public yrclient::ISCallback {
   const std::string record_path;
   yrclient::CompressedOutputStream* out;
+  std::thread worker_thread;
+  async_queue::AsyncQueue<yrclient::ra2yr::GameState*> work;
+
   explicit CBSaveState(const std::string record_path)
       : record_path(record_path),
-        out(new yrclient::CompressedOutputStream(record_path)) {}
-  ~CBSaveState() override { delete out; }
+        out(new yrclient::CompressedOutputStream(record_path)),
+        worker_thread([&]() { this->worker(); }) {}
+
+  ~CBSaveState() override {
+    // NB. exit worker before closing the handle.
+    work.push(nullptr);
+    worker_thread.join();
+    delete out;
+  }
+
+  void serialize_state(yrclient::ra2yr::GameState* G) {
+    if (out != nullptr) {
+      google::protobuf::io::CodedOutputStream co(&out->s_g);
+
+      if (!yrclient::write_message(G, &co)) {
+        throw std::runtime_error("write_message");
+      }
+    }
+  }
+
+  void worker() {
+    while (true) {
+      auto V = work.pop(1, 1000ms * (3600));
+      auto w = V.back();
+      if (w == nullptr) {
+        break;
+      }
+      serialize_state(w);
+      delete w;
+    }
+  }
+
   std::string name() override { return key_save_state; }
   std::string target() override { return key_on_frame_update; }
   void do_call(yrclient::InstrumentationService* I) override {
@@ -280,17 +314,12 @@ struct CBSaveState : public yrclient::ISCallback {
         r_game_state,
         reinterpret_cast<void*>(ra2::game_state::p_DVC_FactoryClasses));
 
+    // At this point we're free to leave the callback
     gbuf->set_stage(yrclient::ra2yr::LoadStage::STAGE_INGAME);
-
     raw_state_to_protobuf(r_game_state, gbuf, has_typeclasses);
-
-    if (out != nullptr) {
-      google::protobuf::io::CodedOutputStream co(&out->s_g);
-
-      if (!yrclient::write_message(gbuf, &co)) {
-        throw std::runtime_error("write_message");
-      }
-    }
+    auto* gnew = new yrclient::ra2yr::GameState();
+    gnew->CopyFrom(*gbuf);
+    work.push(gnew);
   }
 };
 

@@ -235,8 +235,9 @@ struct CBSaveState : public yrclient::ISCallback {
     using namespace std::literals::chrono_literals;
 
     auto [mut, s] = I->aq_storage();
-    (void)ensure_storage_value<yrclient::ra2yr::GameState>(I, s,
-                                                           key_game_state);
+    auto* gbuf =
+        ensure_storage_value<yrclient::ra2yr::GameState>(I, s, key_game_state);
+    gbuf->Clear();
     auto* r_game_state = ensure_raw_gamestate(I, s);
 
     // Parse type classes only once
@@ -261,12 +262,12 @@ struct CBSaveState : public yrclient::ISCallback {
 
     yrclient::ra2yr::GameState gbuf;
 
-    raw_state_to_protobuf(r_game_state, &gbuf, has_typeclasses);
+    raw_state_to_protobuf(r_game_state, gbuf, has_typeclasses);
 
     if (out != nullptr) {
       google::protobuf::io::CodedOutputStream co(&out->s_g);
 
-      if (!yrclient::write_message(&gbuf, &co)) {
+      if (!yrclient::write_message(gbuf, &co)) {
         throw std::runtime_error("write_message");
       }
     }
@@ -337,10 +338,9 @@ static std::map<std::string, command::Command::handler_t> commands = {
        // Copy saved game state
        auto [mut, s] = Q.I()->aq_storage();
        auto res = Q.command_data().mutable_result();
-       auto* state = res->mutable_state();
-       // state->CopyFrom(*val);
-       auto* G = ensure_raw_gamestate(Q.I(), s);
-       raw_state_to_protobuf(G, state);
+       auto* state = ensure_storage_value<yrclient::ra2yr::GameState>(
+           Q.I(), s, key_game_state);
+       res->mutable_state()->CopyFrom(*state);
      }},
     {"GetTypeClasses",
      [](command::Command* c) {

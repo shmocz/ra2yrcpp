@@ -16,7 +16,9 @@ constexpr char key_state_rb[] = "state_rb";
 constexpr char key_exit_gameloop[] = "cb_exit_gameloop";
 constexpr char key_gameloop[] = "cb_gameloop";
 constexpr char key_on_gameloop_exit[] = "on_gameloop_exit";
+constexpr char key_on_load_game[] = "on_load_game";
 constexpr char key_on_frame_update[] = "on_frame_update";
+constexpr char key_load_game[] = "load_game";
 constexpr char key_save_state[] = "save_state";
 
 struct hook_entry {
@@ -32,6 +34,7 @@ struct cb_entry {
 static std::map<std::string, hook_entry> g_hooks = {
     {key_on_frame_update, {0xb7e6ac, 8}},
     {key_on_gameloop_exit, {0xb7e6bc, 6}},
+    {key_on_load_game, {0xb7e6dc, 11}},
 };
 
 template <typename T>
@@ -222,6 +225,23 @@ struct CBExitGameLoop : public yrclient::ISCallback {
   }
 };
 
+struct CBBeginLoad : public yrclient::ISCallback {
+  CBBeginLoad() {}
+
+  std::string name() override { return key_load_game; }
+
+  std::string target() override { return key_on_load_game; }
+
+  void do_call(yrclient::InstrumentationService* I) override {
+    using namespace std::literals::chrono_literals;
+
+    auto [mut, s] = I->aq_storage();
+    auto* state =
+        ensure_storage_value<yrclient::ra2yr::GameState>(I, s, key_game_state);
+    state->set_stage(yrclient::ra2yr::LoadStage::STAGE_LOADING);
+  }
+};
+
 struct CBSaveState : public yrclient::ISCallback {
   const std::string record_path;
   yrclient::CompressedOutputStream* out;
@@ -260,7 +280,7 @@ struct CBSaveState : public yrclient::ISCallback {
         r_game_state,
         reinterpret_cast<void*>(ra2::game_state::p_DVC_FactoryClasses));
 
-    yrclient::ra2yr::GameState gbuf;
+    gbuf->set_stage(yrclient::ra2yr::LoadStage::STAGE_INGAME);
 
     raw_state_to_protobuf(r_game_state, gbuf, has_typeclasses);
 
@@ -285,8 +305,8 @@ static void init_callbacks(yrclient::InstrumentationService* I) {
   std::string record_out = yrclient::join_string({"record", t, "pb.gz"}, ".");
   fmt::print(stderr, "save to {}\n", record_out);
   auto* v = asptr<cb_map_t>(I->get_value(key_callbacks_yr, false));
-  std::vector<yrclient::ISCallback*> cbs{new CBSaveState(record_out),
-                                         new CBExitGameLoop()};
+  std::vector<yrclient::ISCallback*> cbs{
+      new CBBeginLoad(), new CBSaveState(record_out), new CBExitGameLoop()};
   for (auto* cb : cbs) {
     v->try_emplace(cb->name(), cb);
   }

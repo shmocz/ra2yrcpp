@@ -1,4 +1,4 @@
 #!/bin/bash
 
-W="${WINE_CMD:-wine}"
-$W build/tests/${1}.exe --gtest_color=disable ${@:2}
+: ${WINE_CMD:="wine"}
+$WINE_CMD build/tests/${1}.exe --gtest_color=disable ${@:2}

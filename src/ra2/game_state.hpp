@@ -31,6 +31,11 @@ static constexpr std::uintptr_t p_DVC_HouseClasses = 0xA80228u;
 static constexpr std::uintptr_t p_DVC_FactoryClasses = 0xA83E30u;
 static constexpr std::uintptr_t p_SHP_GetPixels = 0x69E740u;
 static constexpr std::uintptr_t current_frame = 0xA8ED84u;
+static constexpr std::uintptr_t p_SelectUnit = 0x6FBFA0u;
+static constexpr std::uintptr_t p_SellObject = 0x4D9F70u;
+static constexpr std::uintptr_t p_SellBuilding = 0x447110u;
+static constexpr std::uintptr_t p_DeployObject = 0x7393C0u;
+static constexpr std::uintptr_t p_CanBuildingBeSold = 0x4494C0u;
 
 struct RectangleStruct {
   i32 x;
@@ -67,6 +72,12 @@ class GameState {
   houseclass_vec_t house_classes_;
   factoryclass_vec_t factory_classes_;
 };
+
+bool SelectObject(const std::uint32_t address);
+
+void SellBuilding(const std::uint32_t address);
+
+void DeployObject(const std::uint32_t address);
 
 }  // namespace game_state
 

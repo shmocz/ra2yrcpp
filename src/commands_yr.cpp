@@ -469,20 +469,7 @@ static std::map<std::string, command::Command::handler_t> commands = {
        auto [mut, s] = Q.I()->aq_storage();
        auto G = ensure_raw_gamestate(Q.I(), s);
        auto res = Q.command_data().mutable_result();
-       for (auto& [k, v] : G->abstract_type_classes()) {
-         auto* tc = res->add_classes();
-         tc->set_name(v->name);
-         if (ra2::utility::is_technotypeclass(
-                 reinterpret_cast<void*>(v->p_vtable))) {
-           auto* ttc = (ra2::type_classes::TechnoTypeClass*)v.get();
-           if (ttc->p_cameo != nullptr) {
-             auto& cameo = G->cameos.at(reinterpret_cast<u32*>(ttc->p_cameo));
-             auto* f = tc->mutable_cameo()->add_frames();
-             auto& pd = cameo->pixel_data[0];
-             f->assign(pd.begin(), pd.end());
-           }
-         }
-       }
+       get_object_type_classes(G, res->mutable_classes());
      }},
     {"GetObjects",
      [](command::Command* c) {

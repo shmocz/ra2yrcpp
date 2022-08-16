@@ -49,7 +49,11 @@ target_link_libraries(
          fmt::fmt)
 add_library(commands STATIC commands_builtin.cpp commands_yr.cpp)
 target_link_libraries(commands PUBLIC instrumentation_service)
-add_library(is_instance STATIC is_context.cpp)
+add_library(instrumentation_client STATIC instrumentation_client.cpp
+                                          multi_client.cpp)
+target_link_libraries(instrumentation_client PUBLIC protocol errors connection
+                                                    fmt::fmt)
+add_library(is_instance STATIC is_context.cpp manager.cpp)
 target_link_libraries(is_instance PUBLIC commands instrumentation_service)
 add_library(yrclient MODULE yrclient_dll.cpp)
 target_link_libraries(yrclient PUBLIC is_instance commands)
@@ -60,3 +64,6 @@ add_subdirectory(ra2yrcppcli)
 
 add_custom_target(ra2yrcpp)
 add_dependencies(ra2yrcpp yrclient recordtool ra2yrcppcli)
+
+add_library(manager STATIC manager.cpp)
+target_link_libraries(manager PUBLIC instrumentation_client)

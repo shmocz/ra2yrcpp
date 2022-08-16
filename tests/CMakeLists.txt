@@ -62,3 +62,8 @@ new_make_test(
   NAME test_multi_client
   SRC test_multi_client.cpp
   LIB is_instance)
+
+new_make_test(
+  NAME test_integration_basic_communication
+  SRC test_integration_basic_communication.cpp
+  LIB network instrumentation_client process ra2yrcppcli manager)

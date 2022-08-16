@@ -68,6 +68,8 @@ Invoke:
 $ make test
 ```
 
+To enable integration tests, store a path to a working game installation folder into environment variable `RA2YRCPP_TMP`.
+
 ## Acknowledgements
 
 [Phobos](https://github.com/Phobos-developers/Phobos) project for providing resources and general help about the game internals.

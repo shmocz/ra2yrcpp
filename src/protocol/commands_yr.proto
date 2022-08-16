@@ -4,6 +4,15 @@ package yrclient.commands;
 
 import "ra2yr.proto";
 
+enum UnitAction {
+  ACTION_NONE = 0;
+  ACTION_DEPLOY = 1;
+  ACTION_SELECT = 2;
+  ACTION_UNSELECT = 3;
+  ACTION_TRY_TO_DEPLOY = 4;
+  ACTION_SELL = 5;
+}
+
 message CreateHooks {
   message Args {}
   message Result {}
@@ -30,7 +39,7 @@ message GetGameState {
 message GetTypeClasses {
   message Args {}
   message Result {
-    repeated yrclient.ra2yr.TypeClass classes = 1;
+    repeated yrclient.ra2yr.ObjectTypeClass classes = 1;
   }
   Args args = 1;
   Result result = 2;
@@ -50,6 +59,25 @@ message GetHouses {
   message Result {
     repeated yrclient.ra2yr.House houses = 1;
   }
+  Args args = 1;
+  Result result = 2;
+}
+
+message DeployUnits {
+  message Args {
+    repeated uint32 object_addresses = 1;
+  }
+  message Result {}
+  Args args = 1;
+  Result result = 2;
+}
+
+message UnitCommand {
+  message Args {
+    repeated uint32 object_addresses = 1;
+    UnitAction action = 2;
+  }
+  message Result {}
   Args args = 1;
   Result result = 2;
 }

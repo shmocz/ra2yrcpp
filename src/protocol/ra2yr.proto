@@ -139,6 +139,7 @@ message Object {
   double speed_multiplier = 7;
   uint32 array_index = 8;
   AbstractType object_type = 9;  // TODO: get from ObjectTypeClass
+  uint32 pointer_self = 10;
 }
 
 enum LoadStage {

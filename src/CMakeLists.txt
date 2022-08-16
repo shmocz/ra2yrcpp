@@ -4,13 +4,15 @@ set(PROTO_FILES
     protocol/commands_yr.proto protocol/game.proto)
 protobuf_generate_python(PROTO_PY ${PROTO_FILES})
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
+
 add_library(errors OBJECT errors.cpp)
 add_library(process STATIC process.cpp exprocess.cpp $<TARGET_OBJECTS:errors>)
-target_link_libraries(process PUBLIC psapi)
+target_link_libraries(process PUBLIC psapi fmt::fmt)
 add_library(network STATIC network.cpp $<TARGET_OBJECTS:errors>)
 add_library(hooks STATIC hook.cpp x86.cpp)
 add_library(command_manager STATIC command/command_manager.cpp
                                    command/command.cpp errors.cpp)
+target_link_libraries(command_manager PUBLIC fmt::fmt)
 target_link_libraries(network ${LIB_WSOCK})
 add_library(dll_inject STATIC dll_inject.cpp)
 target_link_libraries(dll_inject process)
@@ -29,11 +31,22 @@ add_library(
 target_link_libraries(ra2objects PUBLIC process errors fmt::fmt)
 add_library(
   instrumentation_service STATIC
-  instrumentation_service.cpp instrumentation_client.cpp server.cpp context.cpp
-  multi_client.cpp util_string.cpp)
+  instrumentation_service.cpp
+  instrumentation_client.cpp
+  server.cpp
+  context.cpp
+  multi_client.cpp
+  util_string.cpp
+  logging.hpp)
 target_link_libraries(
-  instrumentation_service PUBLIC protocol connection process command_manager
-                                 hooks ra2objects)
+  instrumentation_service
+  PUBLIC protocol
+         connection
+         process
+         command_manager
+         hooks
+         ra2objects
+         fmt::fmt)
 add_library(commands STATIC commands_builtin.cpp commands_yr.cpp)
 target_link_libraries(commands PUBLIC instrumentation_service)
 add_library(is_instance STATIC is_context.cpp)

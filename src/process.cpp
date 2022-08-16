@@ -125,7 +125,7 @@ int process::get_current_tid() {
 }
 
 void Thread::suspend() {
-  DPRINTF("tid,handle=%x,%p\n", id(), handle());
+  dprintf("tid,handle={},{}", id(), handle());
   if (suspend_thread(handle()) == (DWORD)-1) {
     throw yrclient::system_error("suspend_thread");
   }
@@ -133,7 +133,7 @@ void Thread::suspend() {
 
 void Thread::resume() {
 #ifdef _WIN32
-  DPRINTF("tid,handle=%x,%p\n", id(), handle());
+  dprintf("tid,handle={},{}", id(), handle());
   ResumeThread(handle());
 #else
 #error Not implemented
@@ -306,7 +306,7 @@ void Process::suspend_threads(const std::vector<thread_id_t> no_suspend,
     if (!yrclient::contains(no_suspend, T->id())) {
       T->suspend();
     } else {
-      DPRINTF("not suspending masked thread %x\n", T->id());
+      dprintf("not suspending masked thread {}", T->id());
     }
   });
 #else

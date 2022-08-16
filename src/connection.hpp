@@ -1,7 +1,6 @@
 #pragma once
-#include "config.hpp"
-#include "debug_helpers.h"
 #include "errors.hpp"
+#include "logging.hpp"
 #include "network.hpp"
 #include "types.h"
 #include "utility/scope_guard.hpp"

@@ -1,5 +1,6 @@
 #pragma once
 #include "async_queue.hpp"
+#include "logging.hpp"
 
 #include <chrono>
 #include <condition_variable>
@@ -26,7 +27,7 @@ class AsyncMap : public async_queue::AsyncContainer {
   AsyncMap() {}
   void put(const KeyT key, T item) {
     std::unique_lock<std::mutex> l(a_.get()->m);
-    DPRINTF("key=%d\n", (int)key);
+    dprintf("key={}", key);
     data_[key] = item;
     notify_all();
   }
@@ -36,7 +37,7 @@ class AsyncMap : public async_queue::AsyncContainer {
     auto* a = a_.get();
     std::unique_lock<decltype(a->m)> l(a->m);
     if (timeout > 0ms) {
-      DPRINTF("key=%d\n", (int)key);
+      dprintf("key={}", key);
       if (!wait_until(
               &l, &a->cv, [&] { return (data_.find(key) != data_.end()); },
               timeout)) {

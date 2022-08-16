@@ -1,7 +1,7 @@
 #pragma once
 
-#include "debug_helpers.h"
 #include "errors.hpp"
+#include "logging.hpp"
 #include "process.hpp"
 #include "types.h"
 #include "utility/time.hpp"
@@ -65,7 +65,7 @@ class Hook {
       if (pad_length > 0) {
         nop(pad_length, false);
       }
-      DPRINTF("Trampoline size=%d\n", getSize());
+      dprintf("Trampoline size={}", getSize());
     }
   };
 

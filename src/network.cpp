@@ -1,6 +1,5 @@
 #include "network.hpp"
 
-#include "debug_helpers.h"
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -57,7 +56,6 @@ void network::set_io_timeout(socket_t s, const unsigned long timeout) {
   auto* pt = reinterpret_cast<const char*>(&timeout);
   setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, pt, sizeof(timeout));
   setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, pt, sizeof(timeout));
-  DPRINTF("sock=%u,timeout=%lu\n", s, timeout);
 }
 
 // TODO: don't throw exceptions inside these
@@ -90,7 +88,6 @@ void network::freeaddrinfo(addrinfo* info) {
 }
 
 void network::closesocket(socket_t s) {
-  DPRINTF("closing %u\n", static_cast<u32>(d));
   if (::closesocket(s) == SOCK_ERR) {
     throw yrclient::system_error("closesocket()");
   }

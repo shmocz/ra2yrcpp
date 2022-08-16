@@ -7,8 +7,8 @@ yrclient::ISCallback::ISCallback() : I(nullptr) {}
 void yrclient::ISCallback::call(hook::Hook* h, void* data, X86Regs* state) {
   (void)h;
   (void)state;
-  auto* I = static_cast<yrclient::InstrumentationService*>(data);
-  do_call(I);
+  this->I = static_cast<yrclient::InstrumentationService*>(data);
+  do_call(this->I);
 }
 
 std::string yrclient::ISCallback::name() { throw yrclient::not_implemented(); }
@@ -178,7 +178,7 @@ yrclient::Response InstrumentationService::process_request(
         const auto timeout = std::chrono::milliseconds(
             R.args().IsInitialized() ? (u32)R.args().timeout()
                                      : cfg::POLL_BLOCKING_TIMEOUT_MS);
-        DPRINTF("queue_id=%llu,timeout=%llu\n", queue_id, (u64)timeout.count());
+        dprintf("queue_id={},timeout={}", queue_id, (u64)timeout.count());
         // TODO: race condition? what if flush occurs after destroying cmd
         // manager? server should've been shut down before command manager, so
         // shouldnt be possible
@@ -189,7 +189,7 @@ yrclient::Response InstrumentationService::process_request(
     }
     case yrclient::SHUTDOWN: {
       try {
-        DPRINTF("shutdown signal");
+        dprintf("shutdown signal");
         return reply_ok(on_shutdown_(this));
       } catch (std::bad_function_call& e) {
         return reply_error(e.what());
@@ -198,7 +198,7 @@ yrclient::Response InstrumentationService::process_request(
     default:
       break;
   }
-  DPRINTF("something is wrong\n");
+  dprintf("something is wrong");
   return reply_error("Unknown command: " + std::to_string(cmd.command_type()));
 }
 
@@ -246,7 +246,7 @@ void InstrumentationService::store_value(const std::string key, vecu8* data) {
 
 void InstrumentationService::store_value(const std::string key, void* data,
                                          deleter_t deleter) {
-  DPRINTF("key=%s,val=%p\n", key.c_str(), data);
+  dprintf("key={},val={}", key.c_str(), data);
   storage_[key] = storage_val(data, deleter);
 }
 

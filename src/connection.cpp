@@ -13,14 +13,14 @@ vecu8 SocketIO::read_chunk(const size_t bytes) {
   size_t to_read = std::min(buflen(), bytes);
   ssize_t res;
 #ifdef DEBUG_SOCKETIO
-  DPRINTF("recv sock=%d,bytes=%d\n", *socket_, bytes);
+  dprintf("recv sock={},bytes={}", *socket_, bytes);
 #endif
   if ((res = network::recv(*socket_, buf_, bytes, 0)) < 0) {
     auto e = network::get_last_network_error();
     if (e == network::ETIMEOUT) {
       throw yrclient::timeout();
     }
-    DPRINTF("neterr=%d\n", e);
+    dprintf("neterr={}", e);
     throw yrclient::system_error(std::string("recv() ") + std::to_string(res),
                                  e);
   }
@@ -34,7 +34,7 @@ size_t SocketIO::write_chunk(const vecu8& message) {
   size_t to_send = std::min(buflen(), message.size());
   ssize_t res;
 #ifdef DEBUG_SOCKETIO
-  DPRINTF("writing, sock=%d,bytes=%d\n", *socket_, to_send);
+  dprintf("writing, sock={},bytes={}", *socket_, to_send);
 #endif
   if ((res = network::send(*socket_, message.data(), to_send, 0)) < 0) {
     throw yrclient::system_error("send()");
@@ -133,7 +133,7 @@ Connection::Connection(std::string host, std::string port)
       break;
     }
   }
-  DPRINTF("init_sock=%u\n", static_cast<u32>(socket_));
+  dprintf("init_sock={}", socket_);
 }
 
 Connection::Connection(std::string port) : port_(port) {
@@ -162,13 +162,15 @@ Connection::Connection(network::socket_t s) : socket_(s) {
 }
 Connection::~Connection() {
   try {
+    dprintf("closing {}", socket_);
     network::closesocket(socket_);
   } catch (const yrclient::system_error& e) {
-    DPRINTF("closesocket() failed, something's messed up\n");
+    dprintf("closesocket() failed, something's messed up");
   }
-  DPRINTF("sock=%u\n", static_cast<unsigned int>(socket_));
+  dprintf("sock={}", socket_);
 }
 // TODO: pass by pointer
+
 int Connection::send_bytes(const vecu8& bytes) {
   connection::SocketIO S(&socket_);
   return write_bytes(bytes, &S);

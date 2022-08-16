@@ -1,6 +1,6 @@
 #pragma once
-#include "debug_helpers.h"
 #include "errors.hpp"
+#include "logging.hpp"
 #include "ra2/abstract_types.hpp"
 #include "ra2/game_state.hpp"
 #include "ra2/general.h"

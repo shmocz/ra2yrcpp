@@ -22,7 +22,7 @@ void Server::connection_thread(connection::Connection* C) {
   if (callbacks().accept) {
     callbacks().accept(C);
   }
-  DPRINTF("accepted, sock=%u\n", static_cast<u32>(C->socket()));
+  dprintf("accepted, sock={}", C->socket());
   network::set_io_timeout(C->socket(), cfg::SOCKET_SR_TIMEOUT);
   do {
     try {
@@ -31,16 +31,16 @@ void Server::connection_thread(connection::Connection* C) {
       on_send_bytes(C, &response);
     } catch (const yrclient::timeout& E) {
     } catch (const yrclient::system_error& E) {
-      DPRINTF("system error: %s\n", E.what());
+      eprintf("system error: {}", E.what());
       // broken connection
       break;
     } catch (const std::runtime_error& E) {
-      DPRINTF("error: %s, sock=%u\n", E.what(), static_cast<u32>(C->socket()));
+      eprintf("{}, sock={}", E.what(), C->socket());
       // fatal error
       break;
     }
   } while (!is_closing());
-  DPRINTF("exiting, sock=%u\n", static_cast<u32>(C->socket()));
+  dprintf("exiting, sock={}", C->socket());
   if (callbacks().close) {
     callbacks().close(C);
   }
@@ -79,7 +79,7 @@ void Server::clear_closed() {
 }
 
 void Server::listener_thread() {
-  DPRINTF("listening on port %s\n", port().c_str());
+  dprintf("listening on port {}", port().c_str());
   do {
     socket_t client = 0;
     // Clear up closed connections
@@ -90,13 +90,13 @@ void Server::listener_thread() {
       auto conn = std::make_unique<connection::Connection>(client);
       if (connections_.size() >= max_clients_) {
       } else {
-        DPRINTF("new conn, sock=%d\n", conn.get()->socket());
+        dprintf("new conn, sock={}", conn.get()->socket());
         connections_.emplace_back(std::make_unique<ConnectionCTX>(
             std::move(conn), [this](ConnectionCTX* ctx) -> void {
               ctx->thread_id = process::get_current_tid();
               auto c = &ctx->c();
               this->connection_thread(c);
-              DPRINTF("closing\n");
+              dprintf("closing");
               this->close_queue_.push(c);
             }));
       }
@@ -105,7 +105,7 @@ void Server::listener_thread() {
       throw yrclient::system_error("Unknown error");
     }
   } while (!is_closing());
-  DPRINTF("Exit listener\n");
+  dprintf("Exit listener");
 }
 
 vecu8 Server::on_receive_bytes(connection::Connection* C, vecu8* bytes) {

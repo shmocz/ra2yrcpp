@@ -154,7 +154,7 @@ ra2::state_parser::parse_AbstractTypeClassInstance(void* address) {
   try {
     R.read_item(&p_vtable, 0x0);
   } catch (const yrclient::system_error& e) {
-    DPRINTF("ERROR: %p %s\n", address, e.what());
+    dprintf("ERROR: {} {}", address, e.what());
     return nullptr;
   }
   auto at = ra2::utility::get_AbstractType(reinterpret_cast<void*>(p_vtable));
@@ -369,7 +369,7 @@ void ra2::state_parser::parse_DVC_HouseClasses(ra2::game_state::GameState* G,
       try {
         G->add_HouseClass(std::move(H));
       } catch (const std::runtime_error& e) {
-        DPRINTF("fail!\n");
+        eprintf("couldn't add HouseClass");
       }
     } else {
     }
@@ -396,7 +396,7 @@ void ra2::state_parser::parse_DVC_FactoryClasses(ra2::game_state::GameState* G,
       try {
         G->add_FactoryClass(std::move(H));
       } catch (const std::runtime_error& e) {
-        DPRINTF("fail!\n");
+        eprintf("couldn't add FactoryClass");
       }
     }
   }

@@ -16,7 +16,7 @@ unsigned int num_threads_at_tgt(const process::Process& P, const u8* target,
   unsigned int res = 0;
   const auto t = reinterpret_cast<unsigned int>(target);
   for (auto eip : ips) {
-    DPRINTF("eip,beg,end=%x,%x,%x\n", eip, t,
+    dprintf("eip,beg,end={},{},{}", eip, t,
             t + static_cast<unsigned int>(length));
     if (eip >= t && (eip < t + length)) {
       ++res;
@@ -106,8 +106,8 @@ const std::string& Hook::name() const { return name_; }
 
 void Hook::patch_code(u8* target_address, const u8* code,
                       const size_t code_length) {
-  DPRINTF("patch at %p, bytes=%lu\n", target_address,
-          static_cast<unsigned long>(code_length));
+  dprintf("address={}, bytes={}", reinterpret_cast<void*>(target_address),
+          code_length);
   auto P = process::get_current_process();
   P.write_memory(target_address, code, code_length);
 }
@@ -117,16 +117,17 @@ void Hook::patch_code_safe(u8* target_address, const u8* code,
   auto P = process::get_current_process();
   auto main_tid = process::get_current_tid();
 
-  DPRINTF("suspending, tgt=%p, code=%p, len=%lu, main tid=%x\n", target_address,
-          code, static_cast<unsigned long>(code_length), main_tid);
+  dprintf("suspending, tgt={}, code={}, len={}, main tid={}",
+          reinterpret_cast<void*>(target_address),
+          reinterpret_cast<const void*>(code), code_length, main_tid);
   auto ns = std::vector<thread_id_t>(no_suspend_);
   ns.push_back(main_tid);
   P.suspend_threads(ns);
-  DPRINTF("suspend done\n");
+  dprintf("suspend done");
   // FIXME: broken! completely ignores no_suspend_
   // Wait until no thread is at target region
   while (num_threads_at_tgt(P, target_address, code_length) > 0) {
-    DPRINTF("waiting until thread exits target region..\n");
+    dprintf("waiting until thread exits target region..");
     threads_resume_wait_pause(P);
   }
   patch_code(target_address, code, code_length);

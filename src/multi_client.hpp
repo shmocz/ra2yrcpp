@@ -6,6 +6,7 @@
 #include "connection.hpp"
 #include "errors.hpp"
 #include "instrumentation_client.hpp"
+#include "logging.hpp"
 #include "network.hpp"
 
 #include <fmt/core.h>

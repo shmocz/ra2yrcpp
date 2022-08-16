@@ -2,8 +2,8 @@
 
 #include "async_queue.hpp"
 #include "command.hpp"
-#include "debug_helpers.h"
 #include "errors.hpp"
+#include "logging.hpp"
 #include "utility/sync.hpp"
 #include "utility/time.hpp"
 

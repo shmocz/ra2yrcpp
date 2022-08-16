@@ -24,7 +24,7 @@ new_make_test(
 new_make_test(
   NAME test_hooks
   SRC test_hooks.cpp $<TARGET_OBJECTS:errors> ../src/util_string.cpp
-  LIB hooks process)
+  LIB hooks process fmt::fmt)
 
 new_make_test(
   NAME test_server

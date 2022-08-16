@@ -33,7 +33,7 @@ yrclient::Response AutoPollClient::send_command(
                   ->send_command(cmd, yrclient::CommandType::CLIENT_COMMAND);
   auto ack = yrclient::from_any<yrclient::RunCommandAck>(resp.body());
   // Wait until item found from polled messages
-  DPRINTF("ack=%lld\n", ack.id());
+  dprintf("ack={}", ack.id());
   try {
     auto poll_res = results().get(ack.id(), command_timeout_);
     return make_response(yrclient::RESPONSE_OK, poll_res);
@@ -67,11 +67,11 @@ void AutoPollClient::poll_thread() {
       }
     } catch (const yrclient::timeout& e) {
     } catch (const yrclient::system_error& e) {
-      DPRINTF("internal error, likely cmd connection exit: %s\n", e.what());
+      eprintf("internal error, likely cmd connection exit: {}", e.what());
       active_ = false;
     }
   }
-  DPRINTF("exiting\n");
+  dprintf("exiting");
 }
 
 ResultMap& AutoPollClient::results() { return results_; }

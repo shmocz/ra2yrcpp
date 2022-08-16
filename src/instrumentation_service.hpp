@@ -7,6 +7,7 @@
 #include "connection.hpp"
 #include "errors.hpp"
 #include "hook.hpp"
+#include "logging.hpp"
 #include "server.hpp"
 #include "types.h"
 #include "util_string.hpp"

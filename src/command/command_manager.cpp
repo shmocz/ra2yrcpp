@@ -15,7 +15,7 @@ CommandFactory::CommandFactory() {}
 void CommandFactory::add_entry(const std::string name,
                                Command::handler_t handler,
                                Command::deleter_t deleter) {
-  DPRINTF("add cmd %s\n", name.c_str());
+  dprintf("add cmd {}", name.c_str());
   entries_.try_emplace(name, name, handler, deleter);
 }
 
@@ -41,9 +41,9 @@ CommandManager::CommandManager()
 
 CommandManager::~CommandManager() {
   enqueue_builtin(CommandType::SHUTDOWN, 0);
-  DPRINTF("joining\n");
+  dprintf("joining");
   worker_thread_.join();
-  DPRINTF("joined\n");
+  dprintf("joined");
 }
 
 CommandFactory& CommandManager::factory() { return factory_; }
@@ -52,13 +52,13 @@ results_queue_t& CommandManager::results_queue() { return results_queue_; }
 
 void CommandManager::create_queue(const uint64_t id) {
   std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
-  DPRINTF("queue_id=%llu\n", id);
+  dprintf("queue_id={}", id);
   results_queue_[id] = std::shared_ptr<result_queue_t>(new result_queue_t());
 }
 
 void CommandManager::destroy_queue(const uint64_t id) {
   std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
-  DPRINTF("queue_id=%llu\n", id);
+  dprintf("queue_id={}", id);
   results_queue_.erase(id);
 }
 
@@ -68,13 +68,13 @@ void CommandManager::invoke_user_command(std::shared_ptr<Command> cmd) {
     cmd->run();
     *cmd->result_code() = ResultCode::OK;
   } catch (std::exception& e) {
-    DPRINTF("fail %s\n", e.what());
+    dprintf("fail {}", e.what());
     cmd->error_message()->assign(e.what());
     *cmd->result_code() = ResultCode::ERROR;
   }
   std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
   auto q = results_queue_.at(cmd->queue_id());
-  DPRINTF("task_id=%llu\n", cmd->task_id());
+  dprintf("task_id={}", cmd->task_id());
   q->push(cmd);
 }
 
@@ -96,7 +96,7 @@ void CommandManager::enqueue_command(std::shared_ptr<Command> cmd) {
 }
 
 void CommandManager::worker() {
-  DPRINTF("Spawn worker\n");
+  dprintf("Spawn worker");
   while (active_) {
     // Wait for work
     std::unique_lock<std::mutex> k(work_queue_mut_);
@@ -120,7 +120,7 @@ void CommandManager::worker() {
         throw yrclient::general_error("Unknown command type");
     }
   }
-  DPRINTF("exit worker\n");
+  dprintf("exit worker");
 }
 
 // NB. race condition if trying to flush queue, which is being destroyed at the
@@ -136,6 +136,6 @@ std::vector<std::shared_ptr<Command>> CommandManager::flush_results(
   auto q = results_queue_.at(id);
   l.unlock();
   auto res = q->pop(count, timeout);
-  DPRINTF("res_size=%d\n", (int)res.size());
+  dprintf("res_size={}", static_cast<int>(res.size()));
   return res;
 }

@@ -1,5 +1,5 @@
 #pragma once
-#include "debug_helpers.h"
+#include "logging.hpp"
 #include "utility/time.hpp"
 
 #include <cstdint>
@@ -52,7 +52,9 @@ class AsyncQueue : public AsyncContainer {
   void push(T t) {
     std::unique_lock<std::mutex> l(a_.get()->m);
     q_.push(t);
-    DPRINTF("notifying, a=%p,sz=%llu\n", a_.get(), static_cast<u64>(size()));
+#ifdef LOG_TRACE
+    dprintf("notifying, a={},sz={}", reinterpret_cast<void*>(a_.get()), size());
+#endif
     notify_all();
   }
   // Pop items from queue. If count < 1, pop all items. If timeout > 0, block
@@ -60,8 +62,10 @@ class AsyncQueue : public AsyncContainer {
   std::vector<T> pop(const std::size_t count = 1,
                      const std::chrono::milliseconds timeout = 0ms) {
     std::unique_lock<std::mutex> l(a_.get()->m);
-    DPRINTF("locked=%d,asyncdata=%p,count=%llu,timeout=%lld\n", l.owns_lock(),
-            a_.get(), static_cast<u64>(count), timeout.count());
+#ifdef LOG_TRACE
+    dprintf("locked={},asyncdata={},count={},timeout={}", l.owns_lock(),
+            reinterpret_cast<void*>(a_.get()), count, timeout.count());
+#endif
     std::vector<T> res;
     do {
       if (timeout > 0ms) {

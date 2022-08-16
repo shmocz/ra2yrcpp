@@ -111,8 +111,6 @@ google::protobuf::Message* yrclient::create_command_message(
   auto* args_field = desc->FindFieldByName("args");
   auto* cmd_args = reflection->MutableMessage(n, args_field);
   for (const auto& [k, v] : args) {
-    fmt::print(stderr, "set field, cmd_args={}\n",
-               reinterpret_cast<void*>(cmd_args));
     set_message_field(cmd_args, k, v);
   }
   return n;

@@ -2,6 +2,7 @@
 #include "config.hpp"
 #include "connection.hpp"
 #include "errors.hpp"
+#include "logging.hpp"
 #include "network.hpp"
 #include "process.hpp"
 #include "utility/time.hpp"

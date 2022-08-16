@@ -119,14 +119,12 @@ TEST(HookTest, TestJumpLocationExampleCode) {
   P.for_each_thread([&main_tid](Thread* T, void* ctx) {
     (void)ctx;
     if (T->id() != main_tid) {
-      DPRINTF("Set GPR\n");
       T->set_gpr(x86Reg::ecx, 0);
     }
   });
   util::sleep_ms(5000);
   // Resume threads
   P.resume_threads(main_tid);
-  DPRINTF("JOINING\n");
   t.join();
 }
 

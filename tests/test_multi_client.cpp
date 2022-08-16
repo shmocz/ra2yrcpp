@@ -3,11 +3,11 @@
 #include "client_utils.hpp"
 #include "config.hpp"
 #include "connection.hpp"
-#include "debug_helpers.h"
 #include "gtest/gtest.h"
 #include "instrumentation_client.hpp"
 #include "instrumentation_service.hpp"
 #include "is_context.hpp"
+#include "logging.hpp"
 #include "multi_client.hpp"
 #include "utility/time.hpp"
 
@@ -44,7 +44,7 @@ class MultiClientTest : public ::testing::Test {
   template <typename T>
   auto run_async(const T& cmd) {
     auto r = client->send_command(cmd);
-    DPRINTF("body=%s\n", to_json(r.body()).c_str());
+    dprintf("body={}\n", to_json(r.body()).c_str());
     auto cmd_res = yrclient::from_any<yrclient::CommandResult>(r.body());
     return yrclient::from_any<T>(cmd_res.result()).result();
   }

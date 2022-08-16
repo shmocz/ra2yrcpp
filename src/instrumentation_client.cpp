@@ -43,10 +43,10 @@ yrclient::PollResults InstrumentationClient::poll_blocking(
   auto resp = send_command(C, yrclient::POLL_BLOCKING);
   if (resp.code() == yrclient::RESPONSE_ERROR) {
     auto msg = yrclient::from_any<yrclient::TextResponse>(resp.body());
-    DPRINTF("%s\n", to_json(msg).c_str());
+    dprintf("{}", to_json(msg).c_str());
     throw yrclient::system_error(msg.message());
   }
-  DPRINTF("resp=%s\n", to_json(resp).c_str());
+  dprintf("resp={}", to_json(resp).c_str());
   return yrclient::from_any<yrclient::PollResults>(resp.body());
 }
 
@@ -106,7 +106,7 @@ yrclient::PollResults InstrumentationClient::poll_until(
     return P.result().results().size() < 1;
   };
   util::call_until(timeout, rate, f);
-  DPRINTF("size=%d\n", P.result().results().size());
+  dprintf("size={}", P.result().results().size());
   return P;
 }
 
@@ -123,7 +123,7 @@ yrclient::CommandResult InstrumentationClient::run_one(
     }
     return res.result().results()[0];
   } catch (const std::runtime_error& e) {
-    DPRINTF("broken connection %s\n", e.what());
+    dprintf("broken connection {}", e.what());
     return yrclient::CommandResult();
   }
 }

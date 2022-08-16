@@ -190,6 +190,35 @@ static void raw_state_to_protobuf(GameT* raw_state,
   get_objects(raw_state, state->mutable_objects());
 }
 
+struct CBYR : public yrclient::ISCallback {
+  yrclient::storage_t* storage;
+  GameT* raw_game_state_;
+
+  CBYR() : storage(nullptr), raw_game_state_(nullptr) {}
+
+  void do_call(yrclient::InstrumentationService* I) override {
+    auto [mut, s] = I->aq_storage();
+    storage = s;
+    main();
+    storage = nullptr;
+    raw_game_state_ = nullptr;
+  }
+
+  template <typename T>
+  auto* storage_value(const std::string key) {
+    return ensure_storage_value<T>(this->I, this->storage, key);
+  }
+
+  GameT* raw_game_state() {
+    if (raw_game_state_ == nullptr) {
+      raw_game_state_ = storage_value<GameT>(key_raw_game_state);
+    }
+    return raw_game_state_;
+  }
+
+  virtual void main() { throw std::runtime_error("Not implemented"); }
+};
+
 struct CBExitGameLoop : public yrclient::ISCallback {
   std::string name() override { return key_exit_gameloop; }
   std::string target() override { return key_on_gameloop_exit; }
@@ -226,24 +255,20 @@ struct CBExitGameLoop : public yrclient::ISCallback {
   }
 };
 
-struct CBBeginLoad : public yrclient::ISCallback {
+struct CBBeginLoad : public CBYR {
   CBBeginLoad() {}
 
   std::string name() override { return key_load_game; }
 
   std::string target() override { return key_on_load_game; }
 
-  void do_call(yrclient::InstrumentationService* I) override {
-    using namespace std::literals::chrono_literals;
-
-    auto [mut, s] = I->aq_storage();
-    auto* state =
-        ensure_storage_value<yrclient::ra2yr::GameState>(I, s, key_game_state);
+  void main() override {
+    auto* state = storage_value<yrclient::ra2yr::GameState>(key_game_state);
     state->set_stage(yrclient::ra2yr::LoadStage::STAGE_LOADING);
   }
 };
 
-struct CBSaveState : public yrclient::ISCallback {
+struct CBSaveState : public CBYR {
   const std::string record_path;
   yrclient::CompressedOutputStream* out;
   std::thread worker_thread;
@@ -284,43 +309,46 @@ struct CBSaveState : public yrclient::ISCallback {
   }
 
   std::string name() override { return key_save_state; }
-  std::string target() override { return key_on_frame_update; }
-  void do_call(yrclient::InstrumentationService* I) override {
-    using namespace std::literals::chrono_literals;
 
-    auto [mut, s] = I->aq_storage();
-    auto* gbuf =
-        ensure_storage_value<yrclient::ra2yr::GameState>(I, s, key_game_state);
+  std::string target() override { return key_on_frame_update; }
+
+  bool has_typeclasses() {
+    return !this->raw_game_state()->abstract_type_classes().empty();
+  }
+
+  yrclient::ra2yr::GameState* state_to_protobuf(
+      const bool do_type_classes = false) {
+    auto* gbuf = storage_value<yrclient::ra2yr::GameState>(key_game_state);
     gbuf->Clear();
-    auto* r_game_state = ensure_raw_gamestate(I, s);
 
     // Parse type classes only once
-    bool has_typeclasses = r_game_state->abstract_type_classes().empty();
-    if (has_typeclasses) {
+    if (do_type_classes) {
       ra2::state_parser::parse_AbstractTypeClasses(
-          r_game_state,
+          raw_game_state(),
           reinterpret_cast<void*>(ra2::game_state::p_DVC_AbstractTypeClasses));
-      ra2::state_parser::parse_cameos(r_game_state);
+      ra2::state_parser::parse_cameos(raw_game_state());
     }
 
     // Save raw objects
     ra2::state_parser::parse_DVC_HouseClasses(
-        r_game_state,
+        raw_game_state(),
         reinterpret_cast<void*>(ra2::game_state::p_DVC_HouseClasses));
     ra2::state_parser::parse_DVC_Objects(
-        r_game_state,
+        raw_game_state(),
         reinterpret_cast<void*>(ra2::game_state::p_DVC_TechnoClasses));
     ra2::state_parser::parse_DVC_FactoryClasses(
-        r_game_state,
+        raw_game_state(),
         reinterpret_cast<void*>(ra2::game_state::p_DVC_FactoryClasses));
 
     // At this point we're free to leave the callback
     gbuf->set_stage(yrclient::ra2yr::LoadStage::STAGE_INGAME);
-    raw_state_to_protobuf(r_game_state, gbuf, has_typeclasses);
+    raw_state_to_protobuf(raw_game_state(), gbuf, do_type_classes);
     auto* gnew = new yrclient::ra2yr::GameState();
     gnew->CopyFrom(*gbuf);
-    work.push(gnew);
+    return gnew;
   }
+
+  void main() override { work.push(state_to_protobuf(!has_typeclasses())); }
 };
 
 // TODO: customizable output path
@@ -369,11 +397,18 @@ static std::map<std::string, command::Command::handler_t> commands = {
            throw yrclient::general_error(
                fmt::format("No such hook {}", target));
          }
-         if (h->second.callbacks().size() > 0) {
-           throw yrclient::general_error(
-               fmt::format("Hook {} already has a callback", target));
+
+         const std::string hook_name = k;
+         auto& tmp_cbs = h->second.callbacks();
+         if (std::find_if(tmp_cbs.begin(), tmp_cbs.end(),
+                          [&hook_name](auto& a) {
+                            return a.name == hook_name;
+                          }) != tmp_cbs.end()) {
+           throw yrclient::general_error(fmt::format(
+               "Hook {} already has a callback {}", target, hook_name));
          }
 
+         dprintf("add hook, target={} cb={}", target, hook_name);
          h->second.add_callback(hook::Hook::HookCallback{
              [cb](hook::Hook* h, void* user_data, X86Regs* state) {
                cb->call(h, user_data, state);

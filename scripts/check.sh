@@ -8,6 +8,7 @@ function check_include_headers() {
 	grep -En "#include" $f |
 		grep -Ev "$pt_win" |
 		grep -Ev 'errors.cpp.+windows|yrclient_dll|process\.cpp' | # windows sources are allowed to have some windows-specific includes
+		grep -Ev 'ra2yrcppcli/main.cpp|ra2/game_state.cpp' | # other exceptions
 		perl -ne \
 			'my ($f, $l, $s) = ($_ =~ m/src\/([^:]+\.cpp):(\d+):.*#include\s+[<"]([^">]+)[>"].*/);
 			my $d = $s =~ s/.hpp/.cpp/gr;

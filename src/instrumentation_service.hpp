@@ -38,12 +38,13 @@ class InstrumentationService;
 struct ISCallback {
   void call(hook::Hook* h, void* data, X86Regs* state);
   virtual void do_call(yrclient::InstrumentationService* I) = 0;
-  ISCallback() = default;
+  ISCallback();
   ISCallback(const ISCallback&) = delete;
   ISCallback& operator=(const ISCallback&) = delete;
   virtual ~ISCallback() = default;
   virtual std::string name();
   virtual std::string target();
+  yrclient::InstrumentationService* I;
 };
 
 struct ISArgs {
@@ -51,7 +52,6 @@ struct ISArgs {
   google::protobuf::Any* M;
 };
 
-/// Command to be executed in IService context
 template <typename T>
 using aq_t = std::tuple<std::unique_lock<std::mutex>, T>;
 using deleter_t = std::function<void(void*)>;

@@ -2,6 +2,8 @@
 
 using namespace yrclient;
 
+yrclient::ISCallback::ISCallback() : I(nullptr) {}
+
 void yrclient::ISCallback::call(hook::Hook* h, void* data, X86Regs* state) {
   (void)h;
   (void)state;

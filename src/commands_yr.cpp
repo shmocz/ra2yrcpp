@@ -481,16 +481,6 @@ static std::map<std::string, command::Command::handler_t> commands = {
        raw_state_to_protobuf(G, &state);
        res->mutable_units()->CopyFrom(state.units());
      }},
-    {"GetHouses", [](command::Command* c) {
-       ISCommand<yrclient::commands::GetHouses> Q(c);
-       auto [mut, s] = Q.I()->aq_storage();
-       auto G = ensure_raw_gamestate(Q.I(), s);
-       auto res = Q.command_data().mutable_result();
-       ra2::state_parser::parse_DVC_HouseClasses(
-           G, reinterpret_cast<void*>(ra2::game_state::p_DVC_HouseClasses));
-       // WIP: typeclass and superweapons
-       get_houses(G, res->mutable_houses());
-     }},
     {"UnitCommand", [](command::Command* c) {
        ISCommand<yrclient::commands::UnitCommand> Q(c);
        auto [mut, s] = Q.I()->aq_storage();

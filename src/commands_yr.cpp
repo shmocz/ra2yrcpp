@@ -21,6 +21,7 @@ constexpr char key_on_load_game[] = "on_load_game";
 constexpr char key_on_frame_update[] = "on_frame_update";
 constexpr char key_load_game[] = "load_game";
 constexpr char key_save_state[] = "save_state";
+constexpr char key_execute_gameloop_command[] = "cb_execute_gameloop_command";
 
 struct hook_entry {
   u32 p_target;
@@ -96,6 +97,7 @@ static void get_object(yrclient::ra2yr::Object* u,
   if (v->id == 0u) {
     fmt::print("[ERROR] object has NULL id\n");
   }
+  u->set_pointer_self(v->id);
   u->set_pointer_technotypeclass(ttc->pointer_self);
   u->set_health(v->health);
   u->set_pointer_house(reinterpret_cast<u32>(tc->owner));
@@ -268,6 +270,23 @@ struct CBBeginLoad : public CBYR {
   }
 };
 
+struct CBExecuteGameLoopCommand : public CBYR {
+  async_queue::AsyncQueue<std::function<void(CBYR*)>> work;
+
+  CBExecuteGameLoopCommand() {}
+
+  std::string name() override { return key_execute_gameloop_command; }
+
+  std::string target() override { return key_on_frame_update; }
+
+  void main() override {
+    auto items = work.pop(0, 0ms);
+    for (auto& it : items) {
+      it(this);
+    }
+  }
+};
+
 struct CBSaveState : public CBYR {
   const std::string record_path;
   yrclient::CompressedOutputStream* out;
@@ -363,9 +382,27 @@ static void init_callbacks(yrclient::InstrumentationService* I) {
   fmt::print(stderr, "save to {}\n", record_out);
   auto* v = asptr<cb_map_t>(I->get_value(key_callbacks_yr, false));
   std::vector<yrclient::ISCallback*> cbs{
-      new CBBeginLoad(), new CBSaveState(record_out), new CBExitGameLoop()};
+      new CBBeginLoad(), new CBSaveState(record_out), new CBExitGameLoop(),
+      new CBExecuteGameLoopCommand()};
   for (auto* cb : cbs) {
     v->try_emplace(cb->name(), cb);
+  }
+}
+
+void unit_action(const u32 p_object, const yrclient::commands::UnitAction a) {
+  using namespace yrclient::commands;
+  switch (a) {
+    case UnitAction::ACTION_DEPLOY:
+      ra2::game_state::DeployObject(p_object);
+      break;
+    case UnitAction::ACTION_SELL:
+      ra2::game_state::SellBuilding(p_object);
+      break;
+    case UnitAction::ACTION_SELECT:
+      ra2::game_state::SelectObject(p_object);
+      break;
+    default:
+      break;
   }
 }
 
@@ -466,6 +503,31 @@ static std::map<std::string, command::Command::handler_t> commands = {
            G, reinterpret_cast<void*>(ra2::game_state::p_DVC_HouseClasses));
        // WIP: typeclass and superweapons
        get_houses(G, res->mutable_houses());
+     }},
+    {"UnitCommand", [](command::Command* c) {
+       ISCommand<yrclient::commands::UnitCommand> Q(c);
+       auto [mut, s] = Q.I()->aq_storage();
+
+       auto* v = asptr<cb_map_t>(Q.I()->get_value(key_callbacks_yr, false));
+       auto CB = asptr<CBExecuteGameLoopCommand>(
+           v->at(key_execute_gameloop_command).get());
+       auto a = Q.args();
+       const auto action = a.action();
+       auto* addrs = new std::vector<uint32_t>();
+       addrs->insert(addrs->begin(), a.object_addresses().begin(),
+                     a.object_addresses().end());
+       CB->work.push([addrs, action](CBYR* C) {
+         auto G = ensure_raw_gamestate(C->I, C->storage);
+         for (auto k : *addrs) {
+           auto it = G->objects.find(reinterpret_cast<std::uint32_t*>(k));
+           if (it != G->objects.end()) {
+             unit_action(k, action);
+           } else {
+             throw yrclient::general_error(fmt::format("not found={}", k));
+           }
+         }
+         delete addrs;
+       });
      }}};
 
 std::map<std::string, command::Command::handler_t>*

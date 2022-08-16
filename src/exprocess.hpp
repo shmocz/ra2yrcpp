@@ -1,4 +1,6 @@
 #pragma once
+#include "logging.hpp"
+
 #include <processthreadsapi.h>
 #include <string>
 
@@ -7,6 +9,7 @@ namespace exprocess {
 class ExProcess {
  private:
   const std::string cmdline_;
+  const std::string directory_;
 
 #ifdef _WIN32
   STARTUPINFO si_;
@@ -14,9 +17,11 @@ class ExProcess {
 #endif
 
  public:
-  explicit ExProcess(const std::string cmdline);
+  explicit ExProcess(const std::string cmdline,
+                     const std::string directory = "");
   void* handle();
   void join();
+  unsigned long pid() const;
   ~ExProcess();
 };
 

@@ -80,6 +80,13 @@ class Thread {
 
 void save_context(Thread* T);
 
+std::string proc_basename(const std::string name);
+
+unsigned long get_pid(void* handle);
+
+/// Get process id by name. If not found, return 0.
+unsigned long get_pid(const std::string name);
+
 class Process {
  public:
   // Construct from existing process handle

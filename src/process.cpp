@@ -212,7 +212,26 @@ static DWORD vprotect(void* address, const size_t size,
   return prot_old;
 }
 
-unsigned long Process::get_pid() const { return GetProcessId(handle()); }
+std::string process::proc_basename(const std::string name) {
+  auto pos = name.rfind("\\");
+  pos = pos == std::string::npos ? 0u : pos;
+  return name.substr(pos + 1);
+}
+
+unsigned long process::get_pid(void* handle) { return GetProcessId(handle); }
+
+unsigned long process::get_pid(const std::string name) {
+  auto plist = process::get_process_list();
+  for (auto pid : plist) {
+    auto n = proc_basename(process::get_process_name(pid));
+    if (n == name) {
+      return pid;
+    }
+  }
+  return 0;
+}
+
+unsigned long Process::get_pid() const { return process::get_pid(handle()); }
 void* Process::handle() const { return handle_; }
 void Process::write_memory(void* dest, const void* src, const size_t size,
                            const bool local) {

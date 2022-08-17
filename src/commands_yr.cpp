@@ -389,17 +389,18 @@ static void init_callbacks(yrclient::InstrumentationService* I) {
   }
 }
 
-void unit_action(const u32 p_object, const yrclient::commands::UnitAction a) {
+void unit_action(const u32 p_object, const yrclient::commands::UnitAction a,
+                 const ra2::abi::ABIGameMD* abi) {
   using namespace yrclient::commands;
   switch (a) {
     case UnitAction::ACTION_DEPLOY:
-      ra2::game_state::DeployObject(p_object);
+      abi->DeployObject(p_object);
       break;
     case UnitAction::ACTION_SELL:
-      ra2::game_state::SellBuilding(p_object);
+      abi->SellBuilding(p_object);
       break;
     case UnitAction::ACTION_SELECT:
-      ra2::game_state::SelectObject(p_object);
+      (void)abi->SelectObject(p_object);
       break;
     default:
       break;
@@ -418,6 +419,9 @@ static std::map<std::string, command::Command::handler_t> commands = {
      [](command::Command* c) {
        ISCommand<yrclient::commands::CreateCallbacks> Q(c);
        auto [lk_s, s] = Q.I()->aq_storage();
+       // Create ABI
+       (void)ensure_storage_value<ra2::abi::ABIGameMD>(Q.I(), s, "abi");
+
        if (s->find(key_callbacks_yr) == s->end()) {
          init_callbacks(Q.I());
        }
@@ -494,11 +498,13 @@ static std::map<std::string, command::Command::handler_t> commands = {
        addrs->insert(addrs->begin(), a.object_addresses().begin(),
                      a.object_addresses().end());
        CB->work.push([addrs, action](CBYR* C) {
-         auto G = ensure_raw_gamestate(C->I, C->storage);
+         auto G = C->raw_game_state();
          for (auto k : *addrs) {
            auto it = G->objects.find(reinterpret_cast<std::uint32_t*>(k));
            if (it != G->objects.end()) {
-             unit_action(k, action);
+             auto* abi = ensure_storage_value<ra2::abi::ABIGameMD>(
+                 C->I, C->storage, "abi");
+             unit_action(k, action, abi);
            } else {
              throw yrclient::general_error(fmt::format("not found={}", k));
            }

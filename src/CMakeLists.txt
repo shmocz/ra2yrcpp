@@ -27,7 +27,7 @@ add_library(connection STATIC connection.cpp)
 target_link_libraries(connection PUBLIC network)
 add_library(
   ra2objects STATIC ra2/game_state.cpp ra2/state_parser.cpp ra2/utility.cpp
-                    ra2/type_classes.cpp ra2/objects.cpp)
+                    ra2/type_classes.cpp ra2/objects.cpp ra2/abi.cpp)
 target_link_libraries(ra2objects PUBLIC process errors fmt::fmt)
 add_library(
   instrumentation_service STATIC

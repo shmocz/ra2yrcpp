@@ -4,10 +4,9 @@
 #include "async_queue.hpp"
 #include "command/command.hpp"
 #include "errors.hpp"
-#include "google/protobuf/io/coded_stream.h"
-#include "google/protobuf/repeated_ptr_field.h"
 #include "hook.hpp"
 #include "instrumentation_service.hpp"
+#include "ra2/abi.hpp"
 #include "ra2/abstract_types.hpp"
 #include "ra2/game_state.hpp"
 #include "ra2/general.h"
@@ -20,6 +19,8 @@
 #include "utility.h"
 
 #include <algorithm>
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/repeated_ptr_field.h>
 #include <map>
 #include <memory>
 #include <string>

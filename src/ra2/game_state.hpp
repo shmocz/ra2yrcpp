@@ -73,12 +73,6 @@ class GameState {
   factoryclass_vec_t factory_classes_;
 };
 
-bool SelectObject(const std::uint32_t address);
-
-void SellBuilding(const std::uint32_t address);
-
-void DeployObject(const std::uint32_t address);
-
 }  // namespace game_state
 
 }  // namespace ra2

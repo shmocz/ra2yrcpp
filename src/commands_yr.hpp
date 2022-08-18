@@ -6,6 +6,7 @@
 #include "errors.hpp"
 #include "hook.hpp"
 #include "instrumentation_service.hpp"
+#include "logging.hpp"
 #include "ra2/abi.hpp"
 #include "ra2/abstract_types.hpp"
 #include "ra2/game_state.hpp"

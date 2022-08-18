@@ -95,7 +95,7 @@ static void get_object(yrclient::ra2yr::Object* u,
   auto* tc = (ra2::objects::TechnoClass*)(v);
   const auto* ttc = (ra2::type_classes::TechnoTypeClass*)atc;
   if (v->id == 0u) {
-    fmt::print("[ERROR] object has NULL id\n");
+    eprintf("object has NULL id");
   }
   u->set_pointer_self(v->id);
   u->set_pointer_technotypeclass(ttc->pointer_self);
@@ -124,7 +124,7 @@ static void get_object(yrclient::ra2yr::Object* u,
       u->set_object_type(yrclient::ra2yr::ABSTRACT_TYPE_AIRCRAFT);
       break;
     default:
-      fmt::print("NO MATCH {}\n", at.name);
+      eprintf("no match for type {}", at.name);
       break;
   }
 
@@ -170,9 +170,8 @@ static void get_objects(GameT* G,
       auto* u = res->Add();
       get_object(u, atc, v.get());
     } catch (const std::exception& e) {
-      fmt::print(stderr, "[ERROR] atc fail tc={}, p_type_class={}, what={}\n",
-                 static_cast<void*>(tc), static_cast<void*>(tc->p_type),
-                 e.what());
+      eprintf("tc={}, p_type_class={}, what={}", static_cast<void*>(tc),
+              static_cast<void*>(tc->p_type), e.what());
       continue;
     }
   }
@@ -379,7 +378,6 @@ static void init_callbacks(yrclient::InstrumentationService* I) {
       std::chrono::high_resolution_clock::now().time_since_epoch().count()));
 
   std::string record_out = yrclient::join_string({"record", t, "pb.gz"}, ".");
-  fmt::print(stderr, "save to {}\n", record_out);
   auto* v = asptr<cb_map_t>(I->get_value(key_callbacks_yr, false));
   std::vector<yrclient::ISCallback*> cbs{
       new CBBeginLoad(), new CBSaveState(record_out), new CBExitGameLoop(),

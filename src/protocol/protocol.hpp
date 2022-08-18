@@ -7,6 +7,7 @@
 #include "util_string.hpp"
 
 #include <fstream>
+#include <google/protobuf/descriptor.h>
 #include <google/protobuf/dynamic_message.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/gzip_stream.h>
@@ -54,21 +55,23 @@ struct CompressedOutputStream {
   explicit CompressedOutputStream(const std::string path);
 };
 
+struct MessageBuilder {
+  google::protobuf::DynamicMessageFactory F;
+  const google::protobuf::DescriptorPool* pool;
+  const google::protobuf::Descriptor* desc;
+  google::protobuf::Message* m;
+  const google::protobuf::Reflection* refl;
+  explicit MessageBuilder(const std::string name);
+};
+
 bool write_message(google::protobuf::Message* M,
                    google::protobuf::io::CodedOutputStream* os);
 bool read_message(google::protobuf::Message* M,
                   google::protobuf::io::CodedInputStream* os);
 
-void set_field(const google::protobuf::Reflection* refl,
-               google::protobuf::Message* msg,
-               const google::protobuf::FieldDescriptor* field,
-               const std::string value);
-
-void set_message_field(google::protobuf::Message* m, const std::string key,
-                       const std::string value);
-
-google::protobuf::Message* create_command_message(
-    const std::string name, google::protobuf::DynamicMessageFactory* F,
-    const std::map<std::string, std::string> args = {});
+/// Dynamically set the field "args" of B's Message by parsing the JSON string
+/// in args. If args is empty, field is not set.
+google::protobuf::Message* create_command_message(MessageBuilder* B,
+                                                  const std::string args);
 
 }  // namespace yrclient

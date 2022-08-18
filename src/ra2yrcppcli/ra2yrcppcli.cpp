@@ -36,25 +36,10 @@ void ra2yrcppcli::inject_dll(unsigned pid, const std::string path_dll,
       std::chrono::milliseconds(dll.delay_pre));
 }
 
-yrclient::Response ra2yrcppcli::send_command(const std::string name,
-                                             multi_client::AutoPollClient* A,
-                                             std::vector<std::string> args) {
-  auto kw = parse_kwargs(args);
-  // NB. factory owns the messages it produces
-  google::protobuf::DynamicMessageFactory F;
-  auto* msg = yrclient::create_command_message(
-      std::string("yrclient.commands.") + name, &F, kw);
-
-  auto r = A->send_command(*msg);
-  return r;
-}
-
-std::map<std::string, std::string> ra2yrcppcli::parse_kwargs(
-    std::vector<std::string> tokens) {
-  std::map<std::string, std::string> res;
-  for (const auto& s : tokens) {
-    auto pos = s.find("=");
-    res[s.substr(0, pos)] = s.substr(pos + 1);
-  }
-  return res;
+yrclient::Response ra2yrcppcli::send_command(multi_client::AutoPollClient* A,
+                                             const std::string name,
+                                             const std::string args) {
+  yrclient::MessageBuilder B(name);
+  auto* msg = yrclient::create_command_message(&B, args);
+  return A->send_command(*msg);
 }

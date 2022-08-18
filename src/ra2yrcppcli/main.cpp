@@ -1,4 +1,8 @@
+#include "protocol/protocol.hpp"
+
 #include "ra2yrcppcli.hpp"
+
+#include <google/protobuf/descriptor.h>
 
 using namespace ra2yrcppcli;
 using namespace std::chrono_literals;
@@ -33,7 +37,7 @@ void list_commands() {
     auto* fd = p->file();
     auto msgs = get_messages(fd);
     for (auto* m : msgs) {
-      fmt::print("{}\n", m->name());
+      fmt::print("{}\n", m->full_name());
     }
   }
 }
@@ -52,7 +56,7 @@ void easy_setup(const std::string path_dll, IServiceOptions iservice,
     while (tries > 0) {
       try {
         fmt::print(stderr, "sending  {}\n", s);
-        send_and_print(ra2yrcppcli::send_command(s, client.get()));
+        send_and_print(ra2yrcppcli::send_command(client.get(), s));
         fmt::print(stderr, "send cmd ok\n");
         break;
       } catch (const std::exception& e) {
@@ -83,8 +87,8 @@ int main(int argc, char* argv[]) {
       .implicit_value(true);
   A.add_argument("-n", "--name").help("command to execute on the server");
   A.add_argument("-a", "--args")
-      .nargs(argparse::nargs_pattern::any)
-      .help("command args");
+      .default_value(std::string(""))
+      .help("command args in json");
   A.add_argument("-g", "--game-pid")
       .help(
           "Inject DLL into gamemd-spawn.exe process with the given PID. Set 0 "
@@ -152,8 +156,8 @@ int main(int argc, char* argv[]) {
 
   if (A.is_used("--name")) {
     auto client = get_client(opts.host, std::to_string(opts.port));
-    send_and_print(ra2yrcppcli::send_command(
-        A.get("name"), client.get(), A.get<std::vector<std::string>>("args")));
+    send_and_print(
+        ra2yrcppcli::send_command(client.get(), A.get("name"), A.get("args")));
     return 0;
   }
 

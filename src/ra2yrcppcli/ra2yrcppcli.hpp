@@ -14,8 +14,6 @@
 #include <fmt/core.h>
 
 #include <cstdlib>
-#include <google/protobuf/descriptor.h>
-#include <google/protobuf/dynamic_message.h>
 #include <map>
 #include <memory>
 #include <string>
@@ -44,15 +42,15 @@ struct DLLInjectOptions {
         force(false) {}
 };
 
-constexpr std::array<const char*, 2> INIT_COMMANDS{"CreateHooks",
-                                                   "CreateCallbacks"};
+constexpr std::array<const char*, 2> INIT_COMMANDS{
+    "yrclient.commands.CreateHooks", "yrclient.commands.CreateCallbacks"};
 
 void inject_dll(unsigned pid, const std::string path_dll,
                 IServiceOptions options, DLLInjectOptions dll);
 
-yrclient::Response send_command(const std::string name,
-                                multi_client::AutoPollClient* A,
-                                std::vector<std::string> args = {});
+yrclient::Response send_command(multi_client::AutoPollClient* A,
+                                const std::string name,
+                                const std::string args = "");
 
 std::map<std::string, std::string> parse_kwargs(
     std::vector<std::string> tokens);

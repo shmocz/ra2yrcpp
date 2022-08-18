@@ -149,7 +149,7 @@ TEST_F(IntegrationTest, BasicTest) {
 
   // Create hooks and callbacks
   for (auto& s : ra2yrcppcli::INIT_COMMANDS) {
-    (void)ra2yrcppcli::send_command(s, client);
+    (void)ra2yrcppcli::send_command(client, s);
   }
 
   auto state = get_state();

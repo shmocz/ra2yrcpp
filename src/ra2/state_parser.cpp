@@ -119,6 +119,8 @@ void ra2::state_parser::parse_HouseClass(ra2::objects::HouseClass* dest,
   R.read_item(&dest->is_game_over, 0x1f6);
   R.read_item(&dest->is_winner, 0x1f7);
   R.read_item(&dest->is_loser, 0x1f8);
+  R.read_item(&dest->power_output, 0x53a4);
+  R.read_item(&dest->power_drain, 0x53a8);
   dest->self = reinterpret_cast<u32>(address);
   wchar_t buf[21];
   std::memcpy(&buf[0], static_cast<char*>(address) + 0x1602a, sizeof(buf));
@@ -242,6 +244,7 @@ void ra2::state_parser::parse_TechnoClass(ra2::objects::TechnoClass* dest,
   MemoryReader R(address);
   R.read_item(&dest->owner, 0x21c);
   R.read_item(&dest->mind_controlled_by, 0x2c0);
+  R.read_item(&dest->originally_owned_by, 0x14c);
   R.read_item(&dest->armor_multiplier, 0x158);
   R.read_item(&dest->firepower_multiplier, 0x160);
   R.read_item(&dest->shielded, 0x1d0);
@@ -272,6 +275,7 @@ void ra2::state_parser::parse_BuildingClass(ra2::objects::BuildingClass* dest,
   R.read_item(&dest->p_type, 0x520);
   R.read_item(&dest->build_state_type, 0x540);
   R.read_item(&dest->queue_build_state, 0x544);
+  R.read_item(&dest->owner_country_index, 0x548);
 }
 
 void ra2::state_parser::parse_InfantryClass(ra2::objects::InfantryClass* dest,

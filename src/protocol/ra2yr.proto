@@ -86,6 +86,8 @@ message House {
   bool is_game_over = 10;
   bool is_winner = 11;
   bool is_loser = 12;
+  int32 power_output = 13;
+  int32 power_drain = 14;
 }
 
 message Controls {
@@ -127,6 +129,7 @@ message ObjectTypeClass {
   Armor armor_type = 4;
   uint32 array_index = 5;
   uint32 pointer_self = 6;
+  uint32 pointer_shp_struct = 7;
 }
 
 message Object {
@@ -140,6 +143,8 @@ message Object {
   uint32 array_index = 8;
   AbstractType object_type = 9;  // TODO: get from ObjectTypeClass
   uint32 pointer_self = 10;
+  uint32 pointer_initial_owner = 11;
+  int32 owner_country_index = 12;  // only for buildings
 }
 
 enum LoadStage {

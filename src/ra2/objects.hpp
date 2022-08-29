@@ -27,6 +27,8 @@ struct HouseClass : AbstractClass {
   ybool is_game_over;
   ybool is_winner;
   ybool is_loser;
+  i32 power_output;
+  i32 power_drain;
   HouseClass();
 };
 
@@ -49,6 +51,8 @@ struct RadioClass : public MissionClass {
 struct TechnoClass : public RadioClass {
   HouseClass* owner;
   TechnoClass* mind_controlled_by;
+  HouseClass* originally_owned_by;
+  i32 owner_country_index;
   ra2::type_classes::TechnoTypeClass* p_type;
   double armor_multiplier;
   double firepower_multiplier;

@@ -85,6 +85,8 @@ static void get_houses(GameT* G,
     h->set_is_game_over(v->is_game_over);
     h->set_is_loser(v->is_loser);
     h->set_is_winner(v->is_winner);
+    h->set_power_output(v->power_output);
+    h->set_power_drain(v->power_drain);
   }
 }
 
@@ -101,6 +103,7 @@ static void get_object(yrclient::ra2yr::Object* u,
   u->set_pointer_technotypeclass(ttc->pointer_self);
   u->set_health(v->health);
   u->set_pointer_house(reinterpret_cast<u32>(tc->owner));
+  u->set_pointer_initial_owner(reinterpret_cast<u32>(tc->originally_owned_by));
 
   if (yrclient::band<i32>(v->flags, ra2::general::AbstractFlags::Techno)) {
     auto* t = (ra2::objects::TechnoClass*)v;
@@ -113,6 +116,7 @@ static void get_object(yrclient::ra2yr::Object* u,
   switch (at.t) {
     case AbstractType::BuildingType:
       u->set_object_type(yrclient::ra2yr::ABSTRACT_TYPE_BUILDING);
+      u->set_owner_country_index(tc->owner_country_index);
       break;
     case AbstractType::InfantryType:
       u->set_object_type(yrclient::ra2yr::ABSTRACT_TYPE_INFANTRY);
@@ -148,6 +152,7 @@ static void get_object_type_class(yrclient::ra2yr::ObjectTypeClass* t,
     t->set_cost(ttc->cost);
     t->set_soylent(ttc->soylent);
     t->set_armor_type((yrclient::ra2yr::Armor)ttc->armor);
+    t->set_pointer_shp_struct(reinterpret_cast<u32>(ttc->p_cameo));
   }
 }
 

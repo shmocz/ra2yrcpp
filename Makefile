@@ -1,5 +1,5 @@
 BUILDDIR := build
-TESTS := $(shell find $(BUILDDIR)/tests -name 'test_*.exe')
+TESTS = $(shell find $(BUILDDIR)/tests -name 'test_*.exe')
 CMAKE_BUILD_TYPE := Release
 export CPP_SOURCES = $(shell git ls-tree -r --name-only HEAD | grep -E '\.(cpp|hpp)$$')
 export CM_FILES = $(shell git ls-tree -r --name-only HEAD | grep -E 'CMakeLists\.txt$$')
@@ -22,7 +22,7 @@ format:
 	echo "$(CPP_SOURCES)" | xargs -n 1 clang-format -i
 
 clean:
-	rm -rf $(BUILDDIR)/*
+	rm -rf $(BUILDDIR); mkdir -p $(BUILDDIR)
 
 build:
 	mkdir -p $(BUILDDIR)

@@ -36,9 +36,8 @@ Command* CommandFactory::make_builtin(const CommandType type,
 }
 #endif
 
-CommandManager::CommandManager() {
-  worker_thread_ = std::thread([this]() { this->worker(); });
-}
+CommandManager::CommandManager()
+    : worker_thread_([this]() { this->worker(); }) {}
 
 CommandManager::~CommandManager() {
   enqueue_builtin(CommandType::SHUTDOWN, 0);

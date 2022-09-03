@@ -11,6 +11,7 @@
 
 #include <xbyak/xbyak.h>
 
+#include <iostream>
 #include <libloaderapi.h>
 #include <thread>
 #include <vector>
@@ -103,7 +104,7 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
     s.mutable_args()->set_key(key);
     s.mutable_args()->set_value(f1);
     auto r1 = client_utils::run(s, &client);
-    // DPRINTF("RES %s\n", yrclient::commandsto_json(r1).c_str());
+    std::cerr << r1 << std::endl;
 
     yrclient::commands::GetValue g;
     g.mutable_args()->set_key(key);

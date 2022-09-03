@@ -41,16 +41,7 @@ docker_build:
 
 cppcheck:
 	mkdir -p .cppcheck
-	cppcheck --platform=win32W --enable=all \
-		--cppcheck-build-dir=./.cppcheck \
-		-I src/ \
-		--inline-suppr \
-		--suppress=passedByValue \
-		--suppress=noExplicitConstructor:src/utility/scope_guard.hpp \
-		--suppress=unusedStructMember:src/commands_yr.cpp \
-		--suppress=unusedFunction:tests/*.cpp \
-		--suppress=uninitMemberVar:src/ra2/objects.cpp \
-		src/ tests/
+	./scripts/cppcheck.sh
 
 check: cmake_format lint
 	./scripts/check.sh

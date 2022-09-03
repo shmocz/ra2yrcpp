@@ -86,6 +86,8 @@ class Process {
   explicit Process(void* handle);
   // Open process handle to specified pid
   explicit Process(const u32 pid, const u32 perm = 0u);
+  Process(const Process&) = delete;
+  Process& operator=(const Process&) = delete;
   ~Process();
   unsigned long get_pid() const;
   void* handle() const;

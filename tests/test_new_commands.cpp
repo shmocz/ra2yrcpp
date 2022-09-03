@@ -90,6 +90,7 @@ TEST_F(NewCommandsTest, FetchAlot) {
 
 TEST_F(NewCommandsTest, FetchOne) {
   auto s = get_storeval();
+  // cppcheck-suppress unreadVariable
   auto res1 = client->run_one(s);
   auto g = get_getval();
   auto res2 = client->run_one(g);
@@ -104,6 +105,7 @@ TEST_F(NewCommandsTest, BasicCommandTest) {
     // schedule cmd, get ACK
     auto resp = client->send_command(cmd_store, yrclient::CLIENT_COMMAND);
     ASSERT_EQ(resp.code(), yrclient::OK);
+    // cppcheck-suppress unreadVariable
     auto cmds = client->poll();
   }
 }

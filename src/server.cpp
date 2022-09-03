@@ -8,10 +8,9 @@ Server::Server(unsigned int num_clients, unsigned int port, Callbacks callbacks,
       port_(std::to_string(port)),
       callbacks_(callbacks),
       accept_timeout_ms_(accept_timeout_ms),
-      listen_connection_(port_),
-      is_closing_(false) {
-  listen_thread_ = std::thread([this]() { this->listener_thread(); });
-}
+      is_closing_(false),
+      listen_thread_([this]() { this->listener_thread(); }),
+      listen_connection_(port_) {}
 
 Server::~Server() {
   // Tell all worker threads to shut down

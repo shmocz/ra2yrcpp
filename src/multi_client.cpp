@@ -58,6 +58,12 @@ void AutoPollClient::poll_thread() {
     queue_ids = get_queue_ids(get_client(ClientType::POLL));
     return queue_ids.size() < 2;
   });
+
+  if (queue_ids.empty()) {
+    eprintf("empty queue, client wont work");
+    return;
+  }
+
   while (active_) {
     try {
       auto R = get_client(ClientType::POLL)

@@ -92,7 +92,8 @@ ssize_t recv(socket_t s, void* buffer, const size_t length, int flags);
 ssize_t send(socket_t s, const void* buffer, const size_t length, int flags);
 int setsockopt(socket_t s, int level, int optname, const char* optval,
                int optlen);
-void set_io_timeout(socket_t s, const unsigned long timeout);
+void set_io_timeout(socket_t s, const unsigned long timeout,
+                    const bool nodelay = true);
 ///
 /// Create socket from given addrinfo. If timeout is greater than zero, then it
 /// will be set as send/recv timeout (milliseconds).

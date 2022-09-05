@@ -52,10 +52,16 @@ socket_error network::connect(socket_t s, const network::sockaddr* name,
   return ERR_UNKNOWN;
 }
 
-void network::set_io_timeout(socket_t s, const unsigned long timeout) {
+void network::set_io_timeout(socket_t s, const unsigned long timeout,
+                             const bool nodelay) {
   auto* pt = reinterpret_cast<const char*>(&timeout);
   setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, pt, sizeof(timeout));
   setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, pt, sizeof(timeout));
+  if (nodelay) {
+    DWORD e = 1;
+    setsockopt(s, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&e),
+               sizeof(e));
+  }
 }
 
 // TODO: don't throw exceptions inside these

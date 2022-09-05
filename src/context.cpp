@@ -2,8 +2,8 @@
 
 using namespace context;
 
-Context::Context() {
-  data_ = nullptr, t_ = std::thread(&Context::wait_signal, this);
+Context::Context() : data_(nullptr), signaled(false) {
+  t_ = std::thread(&Context::wait_signal, this);
   deleter_ = nullptr;
   t_.detach();
 }

@@ -78,10 +78,10 @@ class Server {
   Callbacks callbacks_;
   const unsigned int accept_timeout_ms_;
   std::atomic_bool is_closing_;
-  std::thread listen_thread_;
-  connection::Connection listen_connection_;
-  std::vector<uptr<ConnectionCTX>> connections_;
   std::queue<connection::Connection*> close_queue_;
+  connection::Connection listen_connection_;
+  std::thread listen_thread_;
+  std::vector<uptr<ConnectionCTX>> connections_;
   /// Remove Connections that have been marked as closed from the connections
   /// vector
   void clear_closed();

@@ -9,8 +9,8 @@ Server::Server(unsigned int num_clients, unsigned int port, Callbacks callbacks,
       callbacks_(callbacks),
       accept_timeout_ms_(accept_timeout_ms),
       is_closing_(false),
-      listen_thread_([this]() { this->listener_thread(); }),
-      listen_connection_(port_) {}
+      listen_connection_(port_),
+      listen_thread_([this]() { this->listener_thread(); }) {}
 
 Server::~Server() {
   // Tell all worker threads to shut down
@@ -102,7 +102,8 @@ void Server::listener_thread() {
       }
     } else if (err == network::ERR_TIMEOUT) {
     } else {
-      throw yrclient::system_error("Unknown error");
+      eprintf("unknown error ({})", network::get_last_network_error());
+      break;
     }
   } while (!is_closing());
   dprintf("Exit listener");

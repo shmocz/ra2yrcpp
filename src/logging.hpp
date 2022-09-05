@@ -53,10 +53,14 @@ inline void eerror(Args... args) {
 #define VA_ARGS(...) , ##__VA_ARGS__
 #define LOCATION_INFO() __FILE__, __func__, __LINE__
 
+#ifdef NDEBUG
 #define dprintf(fmt, ...)                                                \
   do {                                                                   \
     ra2yrcpp::logging::debug(fmt, LOCATION_INFO() VA_ARGS(__VA_ARGS__)); \
   } while (0)
+#else
+#define dprintf(...)
+#endif
 
 #define eprintf(fmt, ...)                                                 \
   do {                                                                    \

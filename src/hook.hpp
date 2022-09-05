@@ -51,7 +51,10 @@ class Hook {
   struct HookCallback {
     std::function<void(Hook*, void*, X86Regs*)> func;
     void* user_data;
+
+    // How many times the callback has been invoked.
     unsigned calls{0u};
+    // How many times to invoke the callback before removal. 0 = never.
     unsigned max_calls{0u};
     std::string name{""};
   };
@@ -107,6 +110,11 @@ class Hook {
        const std::vector<thread_id_t> no_suspend = {});
   ~Hook();
   void add_callback(HookCallback c);
+  ///
+  void add_callback(std::function<void(Hook*, void*, X86Regs*)> func,
+                    void* user_data, const std::string name,
+                    const unsigned max_calls = 0u);
+
   /// Invoke all registered hook functions. This function is thread safe.
   static void __cdecl call(Hook* H, X86Regs state);
   std::vector<HookCallback>& callbacks();

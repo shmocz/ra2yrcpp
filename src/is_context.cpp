@@ -95,12 +95,11 @@ void is_context::get_procaddr(Xbyak::CodeGenerator* c, HMODULE m,
 }
 
 static void add_builtin_commands(yrclient::InstrumentationService* I) {
-  auto cc = commands_yr::get_commands();
-  for (auto& [name, fn] : *cc) {
+  for (auto& [name, fn] : commands_yr::get_commands()) {
     I->add_command(name, fn, &yrclient::commands_builtin::command_deleter);
   }
 
-  for (auto& [name, fn] : *yrclient::commands_builtin::get_commands()) {
+  for (auto& [name, fn] : yrclient::commands_builtin::get_commands()) {
     I->add_command(name, fn, &yrclient::commands_builtin::command_deleter);
   }
 }

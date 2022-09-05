@@ -31,6 +31,6 @@ namespace commands_yr {
 
 using yrclient::InstrumentationService;
 
-std::map<std::string, command::Command::handler_t>* get_commands();
+std::map<std::string, command::Command::handler_t> get_commands();
 
 }  // namespace commands_yr

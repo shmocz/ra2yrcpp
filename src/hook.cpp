@@ -80,6 +80,12 @@ void Hook::add_callback(HookCallback c) {
   unlock();
 }
 
+void Hook::add_callback(std::function<void(Hook*, void*, X86Regs*)> func,
+                        void* user_data, const std::string name,
+                        const unsigned max_calls) {
+  add_callback(HookCallback{func, user_data, 0u, max_calls, name});
+}
+
 void Hook::call(Hook* H, X86Regs state) {
   H->lock();
   unsigned off = 0u;

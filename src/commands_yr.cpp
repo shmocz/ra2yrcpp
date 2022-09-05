@@ -2,6 +2,7 @@
 
 using namespace commands_yr;
 using namespace std::chrono_literals;
+using util_command::get_cmd;
 using util_command::ISCommand;
 using yrclient::as;
 using yrclient::asptr;
@@ -26,11 +27,6 @@ constexpr char key_execute_gameloop_command[] = "cb_execute_gameloop_command";
 struct hook_entry {
   u32 p_target;
   size_t code_size;
-};
-
-struct cb_entry {
-  std::string target;
-  std::unique_ptr<yrclient::ISCallback> p_callback;
 };
 
 static std::map<std::string, hook_entry> g_hooks = {
@@ -410,113 +406,104 @@ void unit_action(const u32 p_object, const yrclient::commands::UnitAction a,
   }
 }
 
-static std::map<std::string, command::Command::handler_t> commands = {
-    {"CreateHooks",
-     [](command::Command* c) {
-       ISCommand<yrclient::commands::CreateHooks> Q(c);
-       for (auto& [k, v] : g_hooks) {
-         Q.I()->create_hook(k, reinterpret_cast<u8*>(v.p_target), v.code_size);
-       }
-     }},
-    {"CreateCallbacks",
-     [](command::Command* c) {
-       ISCommand<yrclient::commands::CreateCallbacks> Q(c);
-       auto [lk_s, s] = Q.I()->aq_storage();
-       // Create ABI
-       (void)ensure_storage_value<ra2::abi::ABIGameMD>(Q.I(), s, "abi");
+static std::map<std::string, command::Command::handler_t> get_commands_nn() {
+  return {
+      get_cmd<yrclient::commands::UnitCommand>([](auto* Q) {
+        auto [mut, s] = Q->I()->aq_storage();
 
-       if (s->find(key_callbacks_yr) == s->end()) {
-         init_callbacks(Q.I());
-       }
-       auto g_callbacks = asptr<cb_map_t>(s->at(key_callbacks_yr).get());
-       lk_s.unlock();
-       auto [lk, hhooks] = Q.I()->aq_hooks();
-       for (auto& [k, v] : *g_callbacks) {
-         auto target = v->target();
-         auto cb = v.get();
-         auto h = std::find_if(hhooks->begin(), hhooks->end(), [&](auto& a) {
-           return (a.second.name() == target);
-         });
-         if (h == hhooks->end()) {
-           throw yrclient::general_error(
-               fmt::format("No such hook {}", target));
-         }
+        auto* v = asptr<cb_map_t>(Q->I()->get_value(key_callbacks_yr, false));
+        auto CB = asptr<CBExecuteGameLoopCommand>(
+            v->at(key_execute_gameloop_command).get());
+        auto a = Q->args();
+        const auto action = a.action();
+        auto* addrs = new std::vector<uint32_t>();
+        addrs->insert(addrs->begin(), a.object_addresses().begin(),
+                      a.object_addresses().end());
+        CB->work.push([addrs, action](CBYR* C) {
+          auto G = C->raw_game_state();
+          for (auto k : *addrs) {
+            auto it = G->objects.find(reinterpret_cast<std::uint32_t*>(k));
+            if (it != G->objects.end()) {
+              auto* abi = ensure_storage_value<ra2::abi::ABIGameMD>(
+                  C->I, C->storage, "abi");
+              unit_action(k, action, abi);
+            } else {
+              throw yrclient::general_error(fmt::format("not found={}", k));
+            }
+          }
+          delete addrs;
+        });
+      }),
+      get_cmd<yrclient::commands::CreateCallbacks>([](auto* Q) {
+        auto [lk_s, s] = Q->I()->aq_storage();
+        // Create ABI
+        (void)ensure_storage_value<ra2::abi::ABIGameMD>(Q->I(), s, "abi");
 
-         const std::string hook_name = k;
-         auto& tmp_cbs = h->second.callbacks();
-         if (std::find_if(tmp_cbs.begin(), tmp_cbs.end(),
-                          [&hook_name](auto& a) {
-                            return a.name == hook_name;
-                          }) != tmp_cbs.end()) {
-           throw yrclient::general_error(fmt::format(
-               "Hook {} already has a callback {}", target, hook_name));
-         }
+        if (s->find(key_callbacks_yr) == s->end()) {
+          init_callbacks(Q->I());
+        }
+        auto g_callbacks = asptr<cb_map_t>(s->at(key_callbacks_yr).get());
+        lk_s.unlock();
+        auto [lk, hhooks] = Q->I()->aq_hooks();
+        for (auto& [k, v] : *g_callbacks) {
+          auto target = v->target();
+          auto cb = v.get();
+          auto h = std::find_if(hhooks->begin(), hhooks->end(), [&](auto& a) {
+            return (a.second.name() == target);
+          });
+          if (h == hhooks->end()) {
+            throw yrclient::general_error(
+                fmt::format("No such hook {}", target));
+          }
 
-         dprintf("add hook, target={} cb={}", target, hook_name);
-         h->second.add_callback(hook::Hook::HookCallback{
-             [cb](hook::Hook* h, void* user_data, X86Regs* state) {
-               cb->call(h, user_data, state);
-             },
-             Q.I(), 0u, 0u, k});
-       }
-     }},
-    {"GetGameState",
-     [](command::Command* c) {
-       ISCommand<yrclient::commands::GetGameState> Q(c);
-       // Copy saved game state
-       auto [mut, s] = Q.I()->aq_storage();
-       auto res = Q.command_data().mutable_result();
-       auto* state = ensure_storage_value<yrclient::ra2yr::GameState>(
-           Q.I(), s, key_game_state);
-       res->mutable_state()->CopyFrom(*state);
-     }},
-    {"GetTypeClasses",
-     [](command::Command* c) {
-       ISCommand<yrclient::commands::GetTypeClasses> Q(c);
-       auto [mut, s] = Q.I()->aq_storage();
-       auto G = ensure_raw_gamestate(Q.I(), s);
-       auto res = Q.command_data().mutable_result();
-       get_object_type_classes(G, res->mutable_classes());
-     }},
-    {"GetObjects",
-     [](command::Command* c) {
-       ISCommand<yrclient::commands::GetObjects> Q(c);
-       auto [mut, s] = Q.I()->aq_storage();
-       auto G = ensure_raw_gamestate(Q.I(), s);
-       auto res = Q.command_data().mutable_result();
-       yrclient::ra2yr::GameState state;
-       raw_state_to_protobuf(G, &state);
-       res->mutable_units()->CopyFrom(state.units());
-     }},
-    {"UnitCommand", [](command::Command* c) {
-       ISCommand<yrclient::commands::UnitCommand> Q(c);
-       auto [mut, s] = Q.I()->aq_storage();
+          const std::string hook_name = k;
+          auto& tmp_cbs = h->second.callbacks();
+          if (std::find_if(tmp_cbs.begin(), tmp_cbs.end(),
+                           [&hook_name](auto& a) {
+                             return a.name == hook_name;
+                           }) != tmp_cbs.end()) {
+            throw yrclient::general_error(fmt::format(
+                "Hook {} already has a callback {}", target, hook_name));
+          }
 
-       auto* v = asptr<cb_map_t>(Q.I()->get_value(key_callbacks_yr, false));
-       auto CB = asptr<CBExecuteGameLoopCommand>(
-           v->at(key_execute_gameloop_command).get());
-       auto a = Q.args();
-       const auto action = a.action();
-       auto* addrs = new std::vector<uint32_t>();
-       addrs->insert(addrs->begin(), a.object_addresses().begin(),
-                     a.object_addresses().end());
-       CB->work.push([addrs, action](CBYR* C) {
-         auto G = C->raw_game_state();
-         for (auto k : *addrs) {
-           auto it = G->objects.find(reinterpret_cast<std::uint32_t*>(k));
-           if (it != G->objects.end()) {
-             auto* abi = ensure_storage_value<ra2::abi::ABIGameMD>(
-                 C->I, C->storage, "abi");
-             unit_action(k, action, abi);
-           } else {
-             throw yrclient::general_error(fmt::format("not found={}", k));
-           }
-         }
-         delete addrs;
-       });
-     }}};
+          dprintf("add hook, target={} cb={}", target, hook_name);
+          h->second.add_callback(
+              [cb](hook::Hook* h, void* user_data, X86Regs* state) {
+                cb->call(h, user_data, state);
+              },
+              Q->I(), k, 0u);
+        }
+      }),
+      get_cmd<yrclient::commands::CreateHooks>([](auto* Q) {
+        for (auto& [k, v] : g_hooks) {
+          Q->I()->create_hook(k, reinterpret_cast<u8*>(v.p_target),
+                              v.code_size);
+        }
+      }),
+      get_cmd<yrclient::commands::GetGameState>([](auto* Q) {
+        // Copy saved game state
+        auto [mut, s] = Q->I()->aq_storage();
+        auto res = Q->command_data().mutable_result();
+        auto* state = ensure_storage_value<yrclient::ra2yr::GameState>(
+            Q->I(), s, key_game_state);
+        res->mutable_state()->CopyFrom(*state);
+      }),
+      get_cmd<yrclient::commands::GetObjects>([](auto* Q) {
+        auto [mut, s] = Q->I()->aq_storage();
+        auto G = ensure_raw_gamestate(Q->I(), s);
+        auto res = Q->command_data().mutable_result();
+        yrclient::ra2yr::GameState state;
+        raw_state_to_protobuf(G, &state);
+        res->mutable_units()->CopyFrom(state.units());
+      }),
+      get_cmd<yrclient::commands::GetTypeClasses>([](auto* Q) {
+        auto [mut, s] = Q->I()->aq_storage();
+        auto G = ensure_raw_gamestate(Q->I(), s);
+        auto res = Q->command_data().mutable_result();
+        get_object_type_classes(G, res->mutable_classes());
+      })};
+}
 
-std::map<std::string, command::Command::handler_t>*
-commands_yr::get_commands() {
-  return &commands;
+std::map<std::string, command::Command::handler_t> commands_yr::get_commands() {
+  return get_commands_nn();
 }

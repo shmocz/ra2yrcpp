@@ -3,6 +3,9 @@
 
 #include "command/command.hpp"
 #include "instrumentation_service.hpp"
+
+#include <string>
+#include <utility>
 namespace util_command {
 
 template <typename T>
@@ -37,4 +40,15 @@ struct ISCommand {
   yrclient::CommandResult* result_q_;
   yrclient::ISArgs* res;
 };
+
+template <typename MessageT>
+std::pair<std::string, command::Command::handler_t> get_cmd(
+    std::function<void(ISCommand<MessageT>*)> fn) {
+  return {MessageT().GetTypeName(), [=](command::Command* c) {
+            ISCommand<MessageT> Q(c);
+            dprintf("exec {} ", MessageT().GetTypeName());
+            fn(&Q);
+          }};
+}
+
 }  // namespace util_command

@@ -116,9 +116,7 @@ yrclient::Response handle_cmd_ng(InstrumentationService* I,
   uint64_t task_id = 0;
   const uint64_t queue_id = C->socket();
   // Get trailing portion of protobuf type url
-  auto name =
-      split_string(split_string(client_cmd.type_url(), "/").back(), "\\.")
-          .back();
+  auto name = split_string(client_cmd.type_url(), "/").back();
 
   try {
     auto c = I->cmd_manager().factory().make_command(name, new ISArgs{I, aa},
@@ -198,7 +196,7 @@ yrclient::Response InstrumentationService::process_request(
     default:
       break;
   }
-  dprintf("something is wrong");
+  eprintf("something is wrong");
   return reply_error("Unknown command: " + std::to_string(cmd.command_type()));
 }
 

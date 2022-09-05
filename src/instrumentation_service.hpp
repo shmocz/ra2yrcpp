@@ -37,13 +37,18 @@ class InstrumentationService;
 
 // Hook callback that provides access to InstrumentationService.
 struct ISCallback {
-  void call(hook::Hook* h, void* data, X86Regs* state);
-  virtual void do_call(yrclient::InstrumentationService* I) = 0;
   ISCallback();
+  // Callback entry, whose address is stored into Hook's HookCallback object.
+  // Performs necessary setup logic for IService access.
+  void call(hook::Hook* h, void* data, X86Regs* state);
+  // Subclasses implement their callback logic by overriding this.
+  virtual void do_call(yrclient::InstrumentationService* I) = 0;
   ISCallback(const ISCallback&) = delete;
   ISCallback& operator=(const ISCallback&) = delete;
   virtual ~ISCallback() = default;
+  // Callbacks name. Duplicate callbacks will not be added into Hook.
   virtual std::string name();
+  // Target hook name.
   virtual std::string target();
   yrclient::InstrumentationService* I;
 };

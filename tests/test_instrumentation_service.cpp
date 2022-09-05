@@ -1,46 +1,26 @@
 #include "protocol/protocol.hpp"
 
 #include "client_utils.hpp"
-#include "config.hpp"
-#include "connection.hpp"
-#include "debug_helpers.h"
+#include "common.hpp"
 #include "gtest/gtest.h"
-#include "instrumentation_client.hpp"
-#include "instrumentation_service.hpp"
-#include "is_context.hpp"
 #include "util_string.hpp"
 #include "utility/time.hpp"
 
-#include <cassert>
 #include <chrono>
-#include <memory>
-#include <stdexcept>
 #include <thread>
 #include <unistd.h>
 #include <vector>
 
 using namespace yrclient;
-using namespace std::chrono_literals;
-using instrumentation_client::InstrumentationClient;
+using ra2yrcpp::tests::InstrumentationServiceTest;
 
-class IServiceTest : public ::testing::Test {
+class IServiceTest : public InstrumentationServiceTest {
  protected:
-  void SetUp() override {
-    network::Init();
-    I = std::unique_ptr<yrclient::InstrumentationService>(
-        is_context::make_is(cfg::MAX_CLIENTS, cfg::SERVER_PORT));
-    auto& S = I->server();
-    client = std::make_unique<InstrumentationClient>(S.address(), S.port(),
-                                                     5000ms, 500ms);
-  }
-
-  std::unique_ptr<yrclient::InstrumentationService> I;
-  std::unique_ptr<InstrumentationClient> client;
-  // void TearDown() override {}
   template <typename T>
   auto run(const T& cmd) {
     return client_utils::run(cmd, client.get());
   }
+  void init() override {}
 };
 
 TEST_F(IServiceTest, HookingGetSetWorks) {

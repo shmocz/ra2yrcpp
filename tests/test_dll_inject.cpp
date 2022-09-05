@@ -8,6 +8,7 @@
 #include "is_context.hpp"
 #include "utility/time.hpp"
 #include "x86.hpp"
+#include "yrclient_dll.hpp"
 
 #include <xbyak/xbyak.h>
 
@@ -17,6 +18,7 @@
 #include <vector>
 
 using instrumentation_client::InstrumentationClient;
+using namespace std::chrono_literals;
 
 class DLLInjectTest : public ::testing::Test {
  protected:
@@ -93,7 +95,23 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
   dll_inject::suspend_inject_resume(P.handle(), sc);
   util::sleep_ms(1000);
   network::Init();
-  auto client = InstrumentationClient("", std::to_string(cfg::SERVER_PORT));
+  dprintf("connecting\n");
+
+  std::unique_ptr<InstrumentationClient> client;
+
+  util::call_until(5000ms, 1000ms, [&client]() {
+    try {
+      client = std::unique_ptr<InstrumentationClient>(new InstrumentationClient(
+          cfg::SERVER_ADDRESS, std::to_string(cfg::SERVER_PORT)));
+      return false;
+    } catch (const std::exception& e) {
+      eprintf("fail\n");
+      return true;
+    }
+  });
+
+  ASSERT_NE(client.get(), nullptr);
+  dprintf("connected\n");
   // run some commands
 
   {
@@ -103,14 +121,15 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
     yrclient::commands::StoreValue s;
     s.mutable_args()->set_key(key);
     s.mutable_args()->set_value(f1);
-    auto r1 = client_utils::run(s, &client);
+    auto r1 = client_utils::run(s, client.get());
     std::cerr << r1 << std::endl;
 
     yrclient::commands::GetValue g;
     g.mutable_args()->set_key(key);
-    auto r2 = client_utils::run(g, &client);
+    auto r2 = client_utils::run(g, client.get());
     ASSERT_EQ(r2, f1);
   }
+  dprintf("joining\n");
 
   // NB. gotta wait explicitly, cuz WaitFoSingleObject could fail and we cant
   // throw from dtors

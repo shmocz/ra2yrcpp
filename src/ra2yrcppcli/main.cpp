@@ -1,5 +1,6 @@
 #include "protocol/protocol.hpp"
 
+#include "instrumentation_service.hpp"
 #include "ra2yrcppcli.hpp"
 
 #include <google/protobuf/descriptor.h>
@@ -46,8 +47,9 @@ void send_and_print(yrclient::Response r) {
   fmt::print("{}\n", yrclient::to_json(r));
 }
 
-void easy_setup(const std::string path_dll, IServiceOptions iservice,
-                DLLInjectOptions dll) {
+void easy_setup(const std::string path_dll,
+                yrclient::InstrumentationService::IServiceOptions iservice,
+                is_context::DLLInjectOptions dll) {
   inject_dll(0u, path_dll, iservice, dll);
   int tries = 3;
   auto client = get_client(iservice.host, std::to_string(iservice.port));
@@ -135,12 +137,12 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  IServiceOptions opts;
+  yrclient::InstrumentationService::IServiceOptions opts;
   opts.max_clients = A.get<unsigned>("--max-clients");
   opts.port = A.get<unsigned>("--port");
   opts.host = A.get("--destination");
 
-  DLLInjectOptions opts_dll;
+  is_context::DLLInjectOptions opts_dll;
   opts_dll.delay_post = A.get<unsigned>("--delay-post");
   opts_dll.delay_pre = A.get<unsigned>("--delay-pre");
   opts_dll.wait_process = A.get<unsigned>("--wait");

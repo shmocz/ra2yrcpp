@@ -66,6 +66,13 @@ using storage_t = std::map<std::string, storage_val>;
 
 class InstrumentationService {
  public:
+  struct IServiceOptions {
+    unsigned max_clients;
+    unsigned port;
+    std::string host;
+    IServiceOptions() : max_clients(0u), port(0u) {}
+  };
+
   InstrumentationService(const unsigned int max_clients,
                          const unsigned int port,
                          std::function<std::string(InstrumentationService*)>

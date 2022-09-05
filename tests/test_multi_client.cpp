@@ -29,7 +29,8 @@ class MultiClientTest : public ::testing::Test {
     I = std::unique_ptr<yrclient::InstrumentationService>(
         is_context::make_is(cfg::MAX_CLIENTS, cfg::SERVER_PORT));
     auto& S = I->server();
-    client = std::make_unique<AutoPollClient>(S.address(), S.port());
+    client =
+        std::make_unique<AutoPollClient>(S.address(), S.port(), 100ms, 5000ms);
   }
 
   std::unique_ptr<yrclient::InstrumentationService> I;

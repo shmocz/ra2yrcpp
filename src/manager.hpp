@@ -1,5 +1,6 @@
 #pragma once
 #include "exprocess.hpp"
+#include "instrumentation_service.hpp"
 #include "logging.hpp"
 #include "multi_client.hpp"
 #include "ra2yrcppcli/ra2yrcppcli.hpp"

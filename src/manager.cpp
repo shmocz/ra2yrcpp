@@ -142,14 +142,14 @@ LocalGameInstance::LocalGameInstance(const Settings sett,
   P_ = std::make_unique<exprocess::ExProcess>("gamemd-spawn.exe -SPAWN", "");
 
   // Inject DLL
-  ra2yrcppcli::IServiceOptions opt_I;
+  yrclient::InstrumentationService::IServiceOptions opt_I;
   opt_I.max_clients = cfg::MAX_CLIENTS;
   opt_I.port = cfg::SERVER_PORT;
   opt_I.host = cfg::SERVER_ADDRESS;
-  ra2yrcppcli::DLLInjectOptions opt_D;
+  is_context::DLLInjectOptions opt_D;
   opt_D.delay_post = 1000u;
   opt_D.delay_pre = 2000u;
-  ra2yrcppcli::inject_dll(P_->pid(), "libyrclient.dll", opt_I, opt_D);
+  is_context::inject_dll(P_->pid(), "libyrclient.dll", opt_I, opt_D);
   client_ = std::make_unique<multi_client::AutoPollClient>(
       opt_I.host, std::to_string(opt_I.port), 250ms, 4000ms);
 

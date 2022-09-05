@@ -1,5 +1,8 @@
 #pragma once
 #include "instrumentation_service.hpp"
+#include "network.hpp"
+
+#include <mutex>
 
 namespace yrclient_dll {
 yrclient::InstrumentationService* initialize(const unsigned int max_clients,

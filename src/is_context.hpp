@@ -3,6 +3,7 @@
 #include "commands_yr.hpp"
 #include "config.hpp"
 #include "context.hpp"
+#include "dll_inject.hpp"
 #include "instrumentation_service.hpp"
 #include "x86.hpp"
 
@@ -16,6 +17,20 @@ namespace is_context {
 using context::Context;
 
 u32 get_proc_address(const std::string addr);
+
+struct DLLInjectOptions {
+  unsigned delay_pre;
+  unsigned delay_post;
+  unsigned wait_process;
+  std::string process_name;
+  bool force;
+  DLLInjectOptions()
+      : delay_pre(0u),
+        delay_post(0u),
+        wait_process(0u),
+        process_name(""),
+        force(false) {}
+};
 
 struct ProcAddrs {
   u32 p_LoadLibrary;
@@ -40,5 +55,9 @@ yrclient::InstrumentationService* make_is(
     const unsigned int max_clients, const unsigned int port,
     std::function<std::string(yrclient::InstrumentationService*)> on_shutdown =
         nullptr);
+
+void inject_dll(unsigned pid, const std::string path_dll,
+                yrclient::InstrumentationService::IServiceOptions options,
+                DLLInjectOptions dll);
 
 };  // namespace is_context

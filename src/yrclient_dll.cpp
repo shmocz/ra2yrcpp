@@ -1,10 +1,6 @@
 #include "yrclient_dll.hpp"
 
-#include "instrumentation_service.hpp"
 #include "is_context.hpp"
-#include "network.hpp"
-
-#include <mutex>
 
 using namespace yrclient_dll;
 

@@ -16,6 +16,9 @@ function(make_test test_name)
   add_test(NAME ${test_name} COMMAND test_name)
 endfunction()
 
+add_library(test_common OBJECT common.cpp)
+target_link_libraries(test_common gtest_main)
+
 new_make_test(
   NAME test_process
   SRC test_process.cpp ../src/utility/scope_guard.hpp
@@ -24,46 +27,46 @@ new_make_test(
 new_make_test(
   NAME test_hooks
   SRC test_hooks.cpp $<TARGET_OBJECTS:errors> ../src/util_string.cpp
-  LIB hooks process fmt::fmt)
+  LIB yrclient fmt::fmt)
 
 new_make_test(
   NAME test_server
   SRC test_server.cpp
-  LIB instrumentation_service)
+  LIB yrclient)
 
 new_make_test(
   NAME test_instrumentation_service
   SRC test_instrumentation_service.cpp
-  LIB is_instance)
+  LIB yrclient test_common)
 
 new_make_test(
   NAME test_instrumentation_service_daemon
   SRC test_instrumentation_service_daemon.cpp
-  LIB is_instance)
+  LIB yrclient)
 
 add_executable(dummy_program dummy_program.cpp)
 
 new_make_test(
   NAME test_dll_inject
   SRC test_dll_inject.cpp
-  LIB process dll_inject fmt::fmt is_instance)
+  LIB yrclient fmt::fmt)
 
 new_make_test(
   NAME test_new_commands
   SRC test_new_commands.cpp
-  LIB is_instance)
+  LIB yrclient test_common)
 
 new_make_test(
   NAME test_command_manager
   SRC test_command_manager.cpp
-  LIB command_manager)
+  LIB yrclient)
 
 new_make_test(
   NAME test_multi_client
   SRC test_multi_client.cpp
-  LIB is_instance)
+  LIB yrclient)
 
 new_make_test(
   NAME test_integration_basic_communication
   SRC test_integration_basic_communication.cpp
-  LIB network instrumentation_client process ra2yrcppcli manager)
+  LIB yrclient)

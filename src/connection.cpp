@@ -56,7 +56,8 @@ vecu8 connection::read_bytes(ChunkReaderWriter* rw, const size_t chunk_size) {
   };
   const u32 length = read_obj<u32>(f);
   if (length > cfg::MAX_MESSAGE_LENGTH) {
-    throw std::runtime_error("Too large message");
+    throw std::runtime_error(fmt::format("Too large message: {} (max={})",
+                                         length, cfg::MAX_MESSAGE_LENGTH));
   }
   vecu8 res(length, 0);
   size_t bytes = length;
@@ -90,17 +91,25 @@ size_t connection::write_bytes(const vecu8& bytes, ChunkReaderWriter* writer,
 
   size_t c_sent = 0u;
   u32 sz = bytes.size();
+  if (sz > cfg::MAX_MESSAGE_LENGTH) {
+    throw std::runtime_error(fmt::format("Too large message: {} (max={})", sz,
+                                         cfg::MAX_MESSAGE_LENGTH));
+  }
+
   // Write length
   vecu8 ssz(sizeof(u32), 0);
   std::copy(reinterpret_cast<char*>(&sz),
             (reinterpret_cast<char*>(&sz)) + sizeof(sz), ssz.begin());
   f(ssz);
+
   // Write rest of the data
-  for (auto it = bytes.begin(); it < bytes.end(); it += chunk_size) {
-    vecu8 msg(it, std::min(bytes.end(), it + chunk_size));
+  auto* dat = bytes.data();
+  for (auto i = 0u; i < bytes.size(); i += chunk_size) {
+    vecu8 msg(dat + i, dat + std::min(i + chunk_size, bytes.size()));
     size_t count = f(msg);
     c_sent += count;
   }
+
   if (c_sent != bytes.size()) {
     throw std::runtime_error("Failed to write bytes");
   }

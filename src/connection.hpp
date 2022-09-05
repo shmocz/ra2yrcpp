@@ -38,7 +38,7 @@ T read_obj(ReaderFn reader) {
   if (buf.size() != sizeof(T)) {
     throw std::runtime_error("Byte buffer too small");
   }
-  return deserialize_obj<T>(&res, &buf[0]);
+  return deserialize_obj<T>(&res, buf.data());
 }
 
 ///

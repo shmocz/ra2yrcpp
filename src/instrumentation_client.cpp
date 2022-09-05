@@ -46,7 +46,6 @@ yrclient::PollResults InstrumentationClient::poll_blocking(
     dprintf("{}", to_json(msg).c_str());
     throw yrclient::system_error(msg.message());
   }
-  dprintf("resp={}", to_json(resp).c_str());
   return yrclient::from_any<yrclient::PollResults>(resp.body());
 }
 
@@ -57,7 +56,9 @@ size_t InstrumentationClient::send_data(const vecu8& data) {
 }
 
 yrclient::Response InstrumentationClient::send_message(const vecu8& data) {
-  (void)send_data(data);
+  if (send_data(data) != data.size()) {
+    throw std::runtime_error("msg write failed");
+  }
   auto resp = conn_->read_bytes();
   yrclient::Response R;
   R.ParseFromArray(resp.data(), resp.size());
@@ -98,14 +99,9 @@ yrclient::PollResults InstrumentationClient::poll_until(
     const std::chrono::milliseconds timeout,
     const std::chrono::milliseconds rate) {
   yrclient::PollResults P;
-  auto f = [&]() {
-    auto response = poll();
-    if (!response.body().UnpackTo(&P)) {
-      throw std::runtime_error("Could not unpack poll results");
-    }
-    return P.result().results().size() < 1;
-  };
-  util::call_until(timeout, rate, f);
+  yrclient::Response response;
+  P = poll_blocking(timeout, 0u);
+
   dprintf("size={}", P.result().results().size());
   return P;
 }
@@ -123,7 +119,7 @@ yrclient::CommandResult InstrumentationClient::run_one(
     }
     return res.result().results()[0];
   } catch (const std::runtime_error& e) {
-    dprintf("broken connection {}", e.what());
+    eprintf("broken connection {}", e.what());
     return yrclient::CommandResult();
   }
 }

@@ -53,6 +53,9 @@ results_queue_t& CommandManager::results_queue() { return results_queue_; }
 void CommandManager::create_queue(const uint64_t id) {
   std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
   dprintf("queue_id={}", id);
+  if (results_queue_.find(id) != results_queue_.end()) {
+    throw std::runtime_error(fmt::format("existsing queue_id={}", id));
+  }
   results_queue_[id] = std::shared_ptr<result_queue_t>(new result_queue_t());
 }
 

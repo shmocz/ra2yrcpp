@@ -27,6 +27,7 @@ add_library(
 target_link_libraries(ra2objects PUBLIC process errors fmt::fmt)
 add_library(instrumentation_service OBJECT instrumentation_service.cpp
                                            instrumentation_client.cpp)
+target_link_libraries(instrumentation_service PUBLIC protocol)
 
 add_library(commands OBJECT commands_builtin.cpp commands_yr.cpp)
 target_link_libraries(commands PUBLIC instrumentation_service protocol)

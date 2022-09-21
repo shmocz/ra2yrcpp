@@ -22,10 +22,13 @@ class ABIGameMD {
 
   void __cdecl DeployObject(const u32 address) const;
 
+  bool __cdecl ClickEvent(const u32 address, const u8 event) const;
+
  private:
   bool __cdecl (*SelectObject_)(u32);
   void __cdecl (*SellBuilding_)(u32, u32);
   void __cdecl (*DeployObject_)(u32);
+  bool __cdecl (*ClickEvent_)(u32, u8);
 
   std::map<u32, std::unique_ptr<void, deleter_t>> code_generators_;
 };

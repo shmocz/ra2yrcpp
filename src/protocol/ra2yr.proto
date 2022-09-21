@@ -167,3 +167,53 @@ message GameState {
   repeated Object objects = 6;
   LoadStage stage = 7;
 }
+
+enum NetworkEvent {
+  NETWORK_EVENT_Empty = 0x0;
+  NETWORK_EVENT_PowerOn = 0x1;
+  NETWORK_EVENT_PowerOff = 0x2;
+  NETWORK_EVENT_Ally = 0x3;
+  NETWORK_EVENT_MegaMission = 0x4;
+  NETWORK_EVENT_MegaMissionF = 0x5;
+  NETWORK_EVENT_Idle = 0x6;
+  NETWORK_EVENT_Scatter = 0x7;
+  NETWORK_EVENT_Destruct = 0x8;
+  NETWORK_EVENT_Deploy = 0x9;
+  NETWORK_EVENT_Detonate = 0xA;
+  NETWORK_EVENT_Place = 0xB;
+  NETWORK_EVENT_Options = 0xC;
+  NETWORK_EVENT_GameSpeed = 0xD;
+  NETWORK_EVENT_Produce = 0xE;
+  NETWORK_EVENT_Suspend = 0xF;
+  NETWORK_EVENT_Abandon = 0x10;
+  NETWORK_EVENT_Primary = 0x11;
+  NETWORK_EVENT_SpecialPlace = 0x12;
+  NETWORK_EVENT_Exit = 0x13;
+  NETWORK_EVENT_Animation = 0x14;
+  NETWORK_EVENT_Repair = 0x15;
+  NETWORK_EVENT_Sell = 0x16;
+  NETWORK_EVENT_SellCell = 0x17;
+  NETWORK_EVENT_Special = 0x18;
+  NETWORK_EVENT_FrameSync = 0x19;
+  NETWORK_EVENT_Message = 0x1A;
+  NETWORK_EVENT_ResponseTime = 0x1B;
+  NETWORK_EVENT_FrameInfo = 0x1C;
+  NETWORK_EVENT_SaveGame = 0x1D;
+  NETWORK_EVENT_Archive = 0x1E;
+  NETWORK_EVENT_AddPlayer = 0x1F;
+  NETWORK_EVENT_Timing = 0x20;
+  NETWORK_EVENT_ProcessTime = 0x21;
+  NETWORK_EVENT_PageUser = 0x22;
+  NETWORK_EVENT_RemovePlayer = 0x23;
+  NETWORK_EVENT_LatencyFudge = 0x24;
+  NETWORK_EVENT_MegaFrameInfo = 0x25;
+  NETWORK_EVENT_PacketTiming = 0x26;
+  NETWORK_EVENT_AboutToExit = 0x27;
+  NETWORK_EVENT_FallbackHost = 0x28;
+  NETWORK_EVENT_AddressChange = 0x29;
+  NETWORK_EVENT_PlanConnect = 0x2A;
+  NETWORK_EVENT_PlanCommit = 0x2B;
+  NETWORK_EVENT_PlanNodeDelete = 0x2C;
+  NETWORK_EVENT_AllCheer = 0x2D;
+  NETWORK_EVENT_AbandonAll = 0x2E;
+}

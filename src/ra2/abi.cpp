@@ -28,6 +28,7 @@ ABIGameMD::ABIGameMD() {
   put_entry(&SelectObject_, &code_generators_, game_state::p_SelectUnit);
   put_entry(&DeployObject_, &code_generators_, game_state::p_DeployObject);
   put_entry(&SellBuilding_, &code_generators_, game_state::p_SellBuilding);
+  put_entry(&ClickEvent_, &code_generators_, game_state::p_ClickedEvent);
 }
 
 bool ABIGameMD::SelectObject(const u32 address) const {
@@ -40,4 +41,8 @@ void ABIGameMD::SellBuilding(const u32 address) const {
 
 void ABIGameMD::DeployObject(const u32 address) const {
   DeployObject_(address);
+}
+
+bool ABIGameMD::ClickEvent(const u32 address, const u8 event) const {
+  return ClickEvent_(address, event);
 }

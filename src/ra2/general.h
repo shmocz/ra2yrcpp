@@ -149,6 +149,25 @@ ENUMDEF(BuildCat, unsigned int){DontCare = 0, Tech = 1,           Resoure = 2,
 ENUMDEF(BStateType, unsigned int){
     Construction = 0x0, Idle = 0x1, Active = 0x2, Full = 0x3,
     Aux1 = 0x4,         Aux2 = 0x5, Count = 0x6,  None = 0xFFFFFFFF};
+
+ENUMDEF(NetworkEvents, unsigned char){
+    Empty = 0x0,         PowerOn = 0x1,        PowerOff = 0x2,
+    Ally = 0x3,          MegaMission = 0x4,    MegaMissionF = 0x5,
+    Idle = 0x6,          Scatter = 0x7,        Destruct = 0x8,
+    Deploy = 0x9,        Detonate = 0xA,       Place = 0xB,
+    Options = 0xC,       GameSpeed = 0xD,      Produce = 0xE,
+    Suspend = 0xF,       Abandon = 0x10,       Primary = 0x11,
+    SpecialPlace = 0x12, Exit = 0x13,          Animation = 0x14,
+    Repair = 0x15,       Sell = 0x16,          SellCell = 0x17,
+    Special = 0x18,      FrameSync = 0x19,     Message = 0x1A,
+    ResponseTime = 0x1B, FrameInfo = 0x1C,     SaveGame = 0x1D,
+    Archive = 0x1E,      AddPlayer = 0x1F,     Timing = 0x20,
+    ProcessTime = 0x21,  PageUser = 0x22,      RemovePlayer = 0x23,
+    LatencyFudge = 0x24, MegaFrameInfo = 0x25, PacketTiming = 0x26,
+    AboutToExit = 0x27,  FallbackHost = 0x28,  AddressChange = 0x29,
+    PlanConnect = 0x2A,  PlanCommit = 0x2B,    PlanNodeDelete = 0x2C,
+    AllCheer = 0x2D,     AbandonAll = 0x2E};
+
 #ifdef __cplusplus
 }  // namespace general
 }  // namespace ra2

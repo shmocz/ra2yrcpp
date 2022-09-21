@@ -36,6 +36,7 @@ static constexpr std::uintptr_t p_SellObject = 0x4D9F70u;
 static constexpr std::uintptr_t p_SellBuilding = 0x447110u;
 static constexpr std::uintptr_t p_DeployObject = 0x7393C0u;
 static constexpr std::uintptr_t p_CanBuildingBeSold = 0x4494C0u;
+static constexpr std::uintptr_t p_ClickedEvent = 0x6ffe00;
 
 struct RectangleStruct {
   i32 x;

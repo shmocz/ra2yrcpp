@@ -81,3 +81,13 @@ message UnitCommand {
   Args args = 1;
   Result result = 2;
 }
+
+message ClickEvent {
+  message Args {
+    repeated uint32 object_addresses = 1;
+    yrclient.ra2yr.NetworkEvent event = 2;
+  }
+  message Result {}
+  Args args = 1;
+  Result result = 2;
+}

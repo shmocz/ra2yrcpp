@@ -393,7 +393,7 @@ void unit_action(const u32 p_object, const yrclient::commands::UnitAction a,
   using namespace yrclient::commands;
   switch (a) {
     case UnitAction::ACTION_DEPLOY:
-      abi->DeployObject(p_object);
+      abi->DeployObject(p_object);  // NB. doesn't work online
       break;
     case UnitAction::ACTION_SELL:
       abi->SellBuilding(p_object);
@@ -408,9 +408,39 @@ void unit_action(const u32 p_object, const yrclient::commands::UnitAction a,
 
 static std::map<std::string, command::Command::handler_t> get_commands_nn() {
   return {
+      get_cmd<yrclient::commands::ClickEvent>([](auto* Q) {
+        auto [mut, s] = Q->I()->aq_storage();
+        auto a = Q->args();
+        const auto event = a.event();
+        auto* addrs = new std::vector<uint32_t>();
+        addrs->insert(addrs->begin(), a.object_addresses().begin(),
+                      a.object_addresses().end());
+        dprintf("addrs={}", a.object_addresses().size());
+        asptr<CBExecuteGameLoopCommand>(
+            asptr<cb_map_t>(Q->I()->get_value(key_callbacks_yr, false))
+                ->at(key_execute_gameloop_command)
+                .get())
+            ->work.push([addrs, event](CBYR* C) {
+              auto* objects = &C->raw_game_state()->objects;
+              // Remove objects that weren't found
+              auto to_remove = std::remove_if(
+                  addrs->begin(), addrs->end(), [objects](auto k) {
+                    return objects->find(reinterpret_cast<std::uint32_t*>(k)) ==
+                           objects->end();
+                  });
+              addrs->erase(to_remove, addrs->end());
+              for (auto k : *addrs) {
+                dprintf("clickevent {} {}", k, event);
+                ensure_storage_value<ra2::abi::ABIGameMD>(C->I, C->storage,
+                                                          "abi")
+                    ->ClickEvent(k, event);
+              }
+              delete addrs;
+            });
+      }),
       get_cmd<yrclient::commands::UnitCommand>([](auto* Q) {
         auto [mut, s] = Q->I()->aq_storage();
-
+        (void)Q->command_data().mutable_result();
         auto* v = asptr<cb_map_t>(Q->I()->get_value(key_callbacks_yr, false));
         auto CB = asptr<CBExecuteGameLoopCommand>(
             v->at(key_execute_gameloop_command).get());
@@ -421,15 +451,17 @@ static std::map<std::string, command::Command::handler_t> get_commands_nn() {
                       a.object_addresses().end());
         CB->work.push([addrs, action](CBYR* C) {
           auto G = C->raw_game_state();
+          // Remove objects that weren't found
+          auto to_remove =
+              std::remove_if(addrs->begin(), addrs->end(), [G](auto k) {
+                return G->objects.find(reinterpret_cast<std::uint32_t*>(k)) ==
+                       G->objects.end();
+              });
+          addrs->erase(to_remove, addrs->end());
           for (auto k : *addrs) {
-            auto it = G->objects.find(reinterpret_cast<std::uint32_t*>(k));
-            if (it != G->objects.end()) {
-              auto* abi = ensure_storage_value<ra2::abi::ABIGameMD>(
-                  C->I, C->storage, "abi");
-              unit_action(k, action, abi);
-            } else {
-              throw yrclient::general_error(fmt::format("not found={}", k));
-            }
+            unit_action(k, action,
+                        ensure_storage_value<ra2::abi::ABIGameMD>(
+                            C->I, C->storage, "abi"));
           }
           delete addrs;
         });

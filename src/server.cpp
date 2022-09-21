@@ -69,7 +69,7 @@ std::chrono::system_clock::time_point ConnectionCTX::timestamp() const {
 
 void Server::clear_closed() {
   while (!close_queue_.empty()) {
-    auto q = close_queue_.back();
+    auto q = close_queue_.front();
     auto it = std::find_if(
         connections_.begin(), connections_.end(),
         [&](auto& ctx) { return ctx->c().socket() == q->socket(); });

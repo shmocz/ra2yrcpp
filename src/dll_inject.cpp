@@ -42,6 +42,9 @@ void dll_inject::suspend_inject_resume(
       tid = T->id();
     }
   });
+  if (tid == -1) {
+    throw std::runtime_error("tid -1");
+  }
   util::sleep_ms(delay_post_suspend);
   inject_code(&P, tid, shellcode);
   util::sleep_ms(delay_post_inject);

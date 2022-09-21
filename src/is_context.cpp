@@ -139,9 +139,9 @@ void is_context::inject_dll(
     return;
   }
   auto addrs = is_context::get_procaddrs();
-  fmt::print(stderr, "p_load={},p_getproc={}\n",
+  fmt::print(stderr, "pid={},p_load={},p_getproc={},port={}\n", pid,
              reinterpret_cast<void*>(addrs.p_LoadLibrary),
-             reinterpret_cast<void*>(addrs.p_GetProcAddress));
+             reinterpret_cast<void*>(addrs.p_GetProcAddress), options.port);
   is_context::DLLoader L(addrs.p_LoadLibrary, addrs.p_GetProcAddress, path_dll,
                          "init_iservice", options.max_clients, options.port);
   auto p = L.getCode<u8*>();

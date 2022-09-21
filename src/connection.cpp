@@ -176,7 +176,6 @@ Connection::~Connection() {
   } catch (const yrclient::system_error& e) {
     dprintf("closesocket() failed, something's messed up");
   }
-  dprintf("sock={}", socket_);
 }
 // TODO: pass by pointer
 

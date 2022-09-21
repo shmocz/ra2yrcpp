@@ -281,7 +281,7 @@ struct CBExecuteGameLoopCommand : public CBYR {
 
   void main() override {
     auto items = work.pop(0, 0ms);
-    for (auto& it : items) {
+    for (const auto& it : items) {
       it(this);
     }
   }

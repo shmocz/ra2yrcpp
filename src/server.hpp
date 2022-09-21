@@ -52,9 +52,10 @@ struct Callbacks {
 class Server {
  public:
   Server() = delete;
-  Server(unsigned int num_clients = cfg::MAX_CLIENTS,
-         unsigned int port = cfg::SERVER_PORT, Callbacks cb = {},
-         const unsigned int accept_timeout_ms = cfg::ACCEPT_TIMEOUT_MS);
+  explicit Server(
+      unsigned int num_clients = cfg::MAX_CLIENTS,
+      unsigned int port = cfg::SERVER_PORT, Callbacks cb = {},
+      const unsigned int accept_timeout_ms = cfg::ACCEPT_TIMEOUT_MS);
   ~Server();
   void add_callback();
   /// Main loop spawned for each new connection

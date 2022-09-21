@@ -51,8 +51,7 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
               std::chrono::duration<double>(c->timestamp().time_since_epoch());
           conn->set_timestamp(dur.count());
         }
-        auto& rq = Q->I()->cmd_manager().results_queue();
-        for (const auto& [k, v] : rq) {
+        for (const auto& [k, v] : Q->I()->cmd_manager().results_queue()) {
           state->add_queues()->set_queue_id(k);
         }
       }),

@@ -1,6 +1,7 @@
 #pragma once
-#include <vector>
 #include <cstdint>
+
+#include <vector>
 
 #define X(s) typedef uint##s##_t u##s
 X(8);

@@ -2,6 +2,7 @@
 
 #include "config.hpp"
 #include "gtest/gtest.h"
+#include "integration_test.hpp"
 #include "logging.hpp"
 #include "manager.hpp"
 #include "multi_client.hpp"
@@ -16,42 +17,10 @@
 
 using namespace ra2yrcpp::manager;
 using namespace std::chrono_literals;
+using namespace ra2yrcpp::tests;
 
-class IntegrationTest : public ::testing::Test {
- protected:
-  void SetUp() override {
-    network::Init();
-    manager = std::make_unique<GameInstanceManager>();
-  }
-
-  void TearDown() override { manager = nullptr; }
-
-  std::unique_ptr<GameInstanceManager> manager;
-};
-
-yrclient::game::PlayerInfo* configure_player(yrclient::game::PlayerInfo* s,
-                                             const std::string name,
-                                             const uint32_t spawn_location,
-                                             const bool is_spectator) {
-  s->set_name(name);
-  s->set_spawn_location(spawn_location);
-  s->set_is_spectator(is_spectator);
-  s->set_color(spawn_location + 1);
-  s->set_side(6);
-  return s;
-}
-
-yrclient::game::GameSettings* default_game_settings(
+yrclient::game::GameSettings* default_player_settings(
     yrclient::game::GameSettings* s) {
-  s->set_game_speed(1u);
-  s->set_map_name("[4] Dry Heat");
-  s->set_game_mode("Battle");
-  s->set_mcv_redeploy(true);
-  s->set_start_credits(10000u);
-  s->set_unit_count(0u);
-  s->set_random_seed(1852262696u);
-  s->set_short_game(true);
-
   struct ent {
     int index;
     int ai_difficulty;
@@ -63,8 +32,8 @@ yrclient::game::GameSettings* default_game_settings(
     auto* player = s->add_players();
     player->set_index(e.index);
     player->set_ai_difficulty(e.ai_difficulty);
-    (void)configure_player(player, fmt::format("player_{}", e.index), e.index,
-                           false);
+    (void)IntegrationTest::configure_player(
+        player, fmt::format("player_{}", e.index), e.index, false);
   });
 
   return s;
@@ -110,12 +79,12 @@ static auto get_house_objects(const yrclient::ra2yr::GameState& state,
 }
 
 TEST_F(IntegrationTest, BasicTest) {
-  char* tmpdir = getenv("RA2YRCPP_TMP");
-  if (tmpdir == nullptr) {
+  auto* tsett = settings();
+  if (tsett == nullptr) {
     GTEST_SKIP();
   }
   yrclient::game::GameSettings sett;
-  (void)default_game_settings(&sett);
+  (void)default_player_settings(default_game_settings(&sett));
 
   Address addr(cfg::SERVER_ADDRESS, std::to_string(cfg::SERVER_PORT));
 
@@ -132,12 +101,14 @@ TEST_F(IntegrationTest, BasicTest) {
   std::for_each(ix.begin(), ix.end(), [&](auto i) {
     // Copy settings
     auto sett0 = sett;
+    auto idir = fs::path(tsett->tmp_dir) / fmt::format("player_{}", i);
+    // NB: Make instance directory beforehand
     sett0.set_player_index(i);
     manager->add_instance(new LocalGameInstance(
         GameInstance::Settings(
             sett0, "DEPRECATED",
             Address(cfg::SERVER_ADDRESS, std::to_string(cfg::SERVER_PORT))),
-        tmpdir));
+        idir.string()));
   });
 
   // Get first instance

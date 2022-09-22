@@ -68,7 +68,19 @@ Invoke:
 $ make test
 ```
 
-To enable integration tests, store a path to a working game installation folder into environment variable `RA2YRCPP_TMP`.
+## Integration tests
+
+To enable integration tests, store a path to a working game installation folder into environment variable `RA2YRCPP_GAME_DIR` (default: game/main). For online integration tests, also make sure [pycncnettunnel](https://github.com/shmocz/pycncnettunnel) is installed. Prepare the environment:
+
+```
+make test_environment
+```
+
+Execute tests:
+
+```
+$ ./scripts/test_gamemd_tunnel.sh
+```
 
 ## Acknowledgements
 

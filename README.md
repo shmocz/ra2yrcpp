@@ -32,7 +32,13 @@ $ make docker_build
 
 ## Setup
 
-The main game executable needs to be patched for the tool to work in multiplayer setting. Locate gamemd-spawn.exe executable (this should be inside CnCNet installation directory) and patch it with the `patch_gamemd.py` script.
+The main game executable needs to be patched for the tool to work in multiplayer setting. Patcher script uses [iced](https://github.com/icedland/iced), which can be installed by e.g.:
+
+```bash
+$ python3 -m pip install -U iced-x86
+```
+
+Locate gamemd-spawn.exe executable (this should be inside CnCNet installation directory) and patch it with the `patch_gamemd.py` script.
 
 ```
 $ python ./scripts/patch_gamemd.py gamemd-spawn.exe > gamemd-spawn.patched.exe

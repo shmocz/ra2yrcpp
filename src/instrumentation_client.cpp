@@ -96,8 +96,7 @@ yrclient::Response InstrumentationClient::send_command(
 }
 
 yrclient::PollResults InstrumentationClient::poll_until(
-    const std::chrono::milliseconds timeout,
-    const std::chrono::milliseconds rate) {
+    const std::chrono::milliseconds timeout) {
   yrclient::PollResults P;
   yrclient::Response response;
   P = poll_blocking(timeout, 0u);
@@ -113,7 +112,7 @@ yrclient::CommandResult InstrumentationClient::run_one(
     throw std::runtime_error("ACK " + to_json(r_ack));
   }
   try {
-    auto res = poll_until(poll_timeout_, poll_rate_);
+    auto res = poll_until(poll_timeout_);
     if (res.result().results_size() == 0) {
       return yrclient::CommandResult();
     }

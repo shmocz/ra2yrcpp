@@ -53,8 +53,7 @@ class InstrumentationClient {
       const std::chrono::milliseconds timeout = 5000ms,
       const u64 queue_id = (u64)-1);
   yrclient::PollResults poll_until(
-      const std::chrono::milliseconds timeout = 5000ms,
-      const std::chrono::milliseconds rate = 250ms);
+      const std::chrono::milliseconds timeout = 5000ms);
   ///
   /// Run single command on the backend and poll result immediately back.
   ///

@@ -184,7 +184,7 @@ LocalGameInstance::LocalGameInstance(const Settings sett,
   opt_D.delay_pre = 2000u;
   is_context::inject_dll(P_->pid(), "libyrclient.dll", opt_I, opt_D);
   client_ = std::make_unique<multi_client::AutoPollClient>(
-      opt_I.host, std::to_string(opt_I.port), 250ms, 4000ms);
+      opt_I.host, std::to_string(opt_I.port), 250ms, 10000ms);
 
   if (chdir(cur_dir.c_str())) {
     throw std::runtime_error("chdir()");

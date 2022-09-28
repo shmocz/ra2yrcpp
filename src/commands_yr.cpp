@@ -21,17 +21,36 @@ constexpr char key_on_frame_update[] = "on_frame_update";
 constexpr char key_load_game[] = "load_game";
 constexpr char key_save_state[] = "save_state";
 constexpr char key_execute_gameloop_command[] = "cb_execute_gameloop_command";
+constexpr char key_on_tunnel_sendto[] = "cb_tunnel_sendto";
+constexpr char key_on_tunnel_recvfrom[] = "cb_tunnel_recvfrom";
 
 struct hook_entry {
   u32 p_target;
   size_t code_size;
 };
 
-static std::map<std::string, hook_entry> g_hooks = {
-    {key_on_frame_update, {0xb7e6ac, 8}},
-    {key_on_gameloop_exit, {0xb7e6bc, 6}},
-    {key_on_load_game, {0xb7e6dc, 11}},
-};
+static std::map<std::string, u32> g_hooks_ng = {
+    {key_on_frame_update, 0x55de7f},
+    {key_on_gameloop_exit, 0x72dfb0},
+    {key_on_load_game, 0x69ae90},
+    {key_on_tunnel_sendto, 0xb7e120},
+    {key_on_tunnel_recvfrom, 0xb7e226}};
+
+static hook_entry get_hook_entry(const u8* target) {
+  hook_entry h;
+  // detour trampoline location
+  h.p_target = serialize::read_obj<u32>(target + 1);
+  h.code_size = 0u;
+  // determine detour size by searching for byte pattern 0x68 <addr> 0xc3
+  auto* p = reinterpret_cast<u8*>(h.p_target);
+  for (int i = 0; i < 256; i++) {
+    if (p[i] == 0x68 && p[i + 5] == 0xc3) {
+      h.code_size = i;
+      break;
+    }
+  }
+  return h;
+}
 
 template <typename T>
 T* ensure_storage_value(yrclient::InstrumentationService* I,
@@ -505,9 +524,11 @@ static std::map<std::string, command::Command::handler_t> get_commands_nn() {
         }
       }),
       get_cmd<yrclient::commands::CreateHooks>([](auto* Q) {
-        for (auto& [k, v] : g_hooks) {
-          Q->I()->create_hook(k, reinterpret_cast<u8*>(v.p_target),
-                              v.code_size);
+        for (auto& [k, v] : g_hooks_ng) {
+          auto* p = reinterpret_cast<u8*>(v);
+          auto h = get_hook_entry(p);
+          Q->I()->create_hook(k, reinterpret_cast<u8*>(h.p_target),
+                              h.code_size);
         }
       }),
       get_cmd<yrclient::commands::GetGameState>([](auto* Q) {

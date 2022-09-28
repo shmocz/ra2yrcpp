@@ -8,11 +8,6 @@ set -e
 which pycncnettunnel
 set +e
 
-killall -w pycncnettunnel
-killall -w gamemd-spawn.exe
-# start tunnel
-pycncnettunnel &
-
 type_classes=./.tmp/tc.json
 port_base=14521
 
@@ -38,24 +33,58 @@ function click_event() {
 	printf '{"object_addresses": [%s], "event": "NETWORK_EVENT_%s"}' "$1" "$2"
 }
 
-function sell_mcv_test() {
+function begin() {
+	killall -w pycncnettunnel
+	killall -w gamemd-spawn.exe
+	# start tunnel
+	pycncnettunnel &
+
 	IFS=$'\n' read -d '' -r -a cfgs <"$PLAYERS_CONFIG"
 	cfgs=("${cfgs[@]:1}")
-
 	# start main game
 	for i in ${!cfgs[@]}; do
 		c="${cfgs[$i]}"
 		read -r name color side is_host is_observer port <<<$(echo "$c")
-		tmux new -c "$RA2YRCPP_TEST_INSTANCES_DIR/$name" -d -s "gamemd$i" bash -c "export DISPLAY=:1 WINEPREFIX=\"$RA2YRCPP_TEST_INSTANCES_DIR/$name/.wine\"; ./ra2yrcppcli.exe -p $((port_base + i)) & wine gamemd-spawn.exe -SPAWN 2> gamemd.err.log"
+		d="$RA2YRCPP_TEST_INSTANCES_DIR/$name"
+		cd "$d"
+		export WINEPREFIX="$d/.wine"
+		./ra2yrcppcli.exe -p $((port_base + i)) &
+		wine gamemd-spawn.exe -SPAWN 2>gamemd.err.log &
+		cd -
 	done
+}
 
+function end() {
+	killall -w pycncnettunnel
+	killall -w gamemd-spawn.exe
+
+	IFS=$'\n' read -d '' -r -a cfgs <"$PLAYERS_CONFIG"
+	cfgs=("${cfgs[@]:1}")
+	# kill sessions
+	for i in ${!cfgs[@]}; do
+		c="${cfgs[$i]}"
+		read -r name color side is_host is_observer port <<<$(echo "$c")
+		DISPLAY=:1 WINEPREFIX="$RA2YRCPP_TEST_INSTANCES_DIR/$name/.wine" wineboot -e
+	done
+}
+
+function errhandle() {
+	end
+	exit 1
+}
+
+trap "errhandle" ERR INT TERM
+
+function sell_mcv_test() {
 	# wait until initialization starts
 	while [[ "$(pgrep ra2yrcppcli.exe | wc -l)" == "0" ]]; do
+		echo "wait init to start"
 		sleep 1s
 	done
 
 	# wait until initialization complete
 	while [[ "$(pgrep ra2yrcppcli.exe | wc -l)" != "0" ]]; do
+		echo "wait init to finish"
 		sleep 1s
 	done
 
@@ -65,6 +94,7 @@ function sell_mcv_test() {
 		if [[ "$x" == "STAGE_INGAME" ]]; then
 			break
 		fi
+		echo "wait to start up... stage $x"
 		sleep 1s
 	done
 
@@ -115,12 +145,8 @@ function sell_mcv_test() {
 		frame0=$frame1
 		sleep 1s
 	done
-
-	# kill sessions
-	for i in ${!cfgs[@]}; do
-		c="${cfgs[$i]}"
-		tmux kill-session -t "gamemd$i"
-	done
 }
 
+begin
 sell_mcv_test
+end

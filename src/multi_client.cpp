@@ -14,7 +14,7 @@ AutoPollClient::AutoPollClient(const std::string host, const std::string port,
                                                   ClientType::POLL};
   for (auto i : t) {
     auto* c = new connection::Connection(host_, port_);
-    network::set_io_timeout(c->socket(), 5000);
+    network::set_io_timeout(c->socket(), 10000);
     is_clients_[i] = std::make_unique<InstrumentationClient>(
         std::shared_ptr<connection::Connection>(c));
   }

@@ -391,6 +391,14 @@ struct CBSaveState : public CBYR {
 
 struct CBTunnel : public CBYR {
  public:
+  struct packet_buffer {
+    void* data;
+    i32 size;  // set to -1 on error
+    // these indicate just the packet direction: if receiving, source=1, if
+    // sending, destination=1
+    u32 source;
+    u32 destination;
+  };
   std::shared_ptr<yrclient::CompressedOutputStream> out;
   explicit CBTunnel(std::shared_ptr<yrclient::CompressedOutputStream> out)
       : out(out) {}
@@ -404,6 +412,13 @@ struct CBTunnel : public CBYR {
     P.mutable_data()->assign(static_cast<const char*>(buf), len);
     yrclient::write_message(&P, &co);
   }
+  virtual packet_buffer buffer() = 0;
+  void main() override {
+    auto b = buffer();
+    if (b.size > 0) {
+      write_packet(b.source, b.destination, b.data, b.size);
+    }
+  }
 };
 
 struct CBTunnelRecvFrom : public CBTunnel {
@@ -413,13 +428,9 @@ struct CBTunnelRecvFrom : public CBTunnel {
   std::string name() override { return key_tunnel_recvfrom; }
   std::string target() override { return key_on_tunnel_recvfrom; }
 
-  void main() override {
-    auto buffer = reinterpret_cast<void*>(cpu_state->ebp + 0x3f074);
-    const i32 size = cpu_state->esi;
-    if (size < 1) {
-      return;
-    }
-    write_packet(1u, 0u, buffer, size);
+  packet_buffer buffer() override {
+    return {reinterpret_cast<void*>(cpu_state->ebp + 0x3f074),
+            static_cast<i32>(cpu_state->esi), 1u, 0u};
   }
 };
 
@@ -430,10 +441,9 @@ struct CBTunnelSendTo : public CBTunnel {
   std::string name() override { return key_tunnel_sendto; }
   std::string target() override { return key_on_tunnel_sendto; }
 
-  void main() override {
-    auto buf = reinterpret_cast<void*>(cpu_state->ecx);
-    const u32 length = cpu_state->eax;
-    write_packet(0u, 1u, buf, length);
+  packet_buffer buffer() override {
+    return {reinterpret_cast<void*>(cpu_state->ecx),
+            static_cast<i32>(cpu_state->eax), 0u, 1u};
   }
 };
 

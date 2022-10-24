@@ -520,8 +520,8 @@ static std::map<std::string, command::Command::handler_t> get_commands_nn() {
               addrs->erase(to_remove, addrs->end());
               for (auto k : *addrs) {
                 dprintf("clickevent {} {}", k, static_cast<int>(event));
-                ensure_storage_value<ra2::abi::ABIGameMD>(C->I, C->storage,
-                                                          "abi")
+                (void)ensure_storage_value<ra2::abi::ABIGameMD>(
+                    C->I, C->storage, "abi")
                     ->ClickEvent(k, event);
               }
               delete addrs;

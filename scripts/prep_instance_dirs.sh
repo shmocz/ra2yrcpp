@@ -2,8 +2,7 @@
 
 set -o nounset
 
-paths=(gamemd-spawn.exe
-    BINKW32.DLL
+paths=(BINKW32.DLL
     spawner.xdp
     ra2.mix
     ra2md.mix
@@ -121,6 +120,7 @@ for i in ${!cfgs[@]}; do
     done
 
     ln -sfr ./ra2yrcppcli.exe "$ifolder"
+    ln -sfr "$p_main/gamemd-spawn-patched.exe" "$ifolder"/gamemd-spawn.exe
     cp test_data/spawnmap.ini "$ifolder"
     # write spawn.ini
     cfg="${cfgs[$i]}"

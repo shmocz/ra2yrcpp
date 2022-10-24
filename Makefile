@@ -6,10 +6,11 @@ WINE_ENVS := $(shell tail -n+2 $(PLAYERS_CONFIG) | cut -f1)
 
 export CM_FILES = $(shell git ls-tree -r --name-only HEAD | grep -E 'CMakeLists\.txt$$')
 export CPP_SOURCES = $(shell git ls-tree -r --name-only HEAD | grep -E '\.(cpp|hpp)$$')
-export RA2YRCPP_GAME_DIR := $(realpath game/main)
+export RA2YRCPP_GAME_DIR := game/main
 export RA2YRCPP_TEST_INSTANCES_DIR := $(realpath game)
 export RA2YRCPP_TUNNEL_URL := 0.0.0.0
 export W32_FILES := process.cpp state_parser.cpp dll_inject.cpp network.cpp
+GAMEMD_PATCHED := $(RA2YRCPP_GAME_DIR)/gamemd-spawn-patched.exe
 
 doc:
 	doxygen Doxyfile
@@ -32,12 +33,18 @@ build:
 	cmake -S . -B $(BUILDDIR)
 	cmake --build $(BUILDDIR) --config $(CMAKE_BUILD_TYPE) --target all -j $(nproc)
 
-test_data/wine_envs.status: $(PLAYERS_CONFIG)
+$(GAMEMD_PATCHED): $(RA2YRCPP_GAME_DIR)/gamemd-spawn.exe
+	python ./scripts/patch_gamemd.py $< > $@
+
+patch: $(GAMEMD_PATCHED)
+
+test_data/wine_envs.status: $(PLAYERS_CONFIG) patch
 	for name in $(WINE_ENVS); do \
 		export WINEPREFIX=$(RA2YRCPP_TEST_INSTANCES_DIR)/$$name/.wine; \
 		mkdir -p $$WINEPREFIX; \
 		( export WINEARCH=win32; wineboot -ik; wine regedit test_data/env.reg ); \
 	done
+	./scripts/prep_instance_dirs.sh
 	touch $@
 
 test_environment: test_data/wine_envs.status
@@ -65,5 +72,6 @@ check: cmake_format lint
 clean:
 	rm -rf $(BUILDDIR); mkdir -p $(BUILDDIR)
 	rm -f test_data/*.status
+	rm -f $(GAMEMD_PATCHED)
 
-.PHONY: build doc lint format test docker docker_build check cppcheck test_environment
+.PHONY: build doc lint format test docker docker_build check cppcheck clean

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-./scripts/prep_instance_dirs.sh
-
 set -o nounset
 set -e
 # Checks

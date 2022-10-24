@@ -432,7 +432,6 @@ static std::map<std::string, command::Command::handler_t> get_commands_nn() {
         auto* addrs = new std::vector<uint32_t>();
         addrs->insert(addrs->begin(), a.object_addresses().begin(),
                       a.object_addresses().end());
-        dprintf("addrs={}", a.object_addresses().size());
         asptr<CBExecuteGameLoopCommand>(
             asptr<cb_map_t>(Q->I()->get_value(key_callbacks_yr, false))
                 ->at(key_execute_gameloop_command)
@@ -447,7 +446,7 @@ static std::map<std::string, command::Command::handler_t> get_commands_nn() {
                   });
               addrs->erase(to_remove, addrs->end());
               for (auto k : *addrs) {
-                dprintf("clickevent {} {}", k, event);
+                dprintf("clickevent {} {}", k, static_cast<int>(event));
                 ensure_storage_value<ra2::abi::ABIGameMD>(C->I, C->storage,
                                                           "abi")
                     ->ClickEvent(k, event);

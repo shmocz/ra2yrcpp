@@ -75,6 +75,7 @@ trap "errhandle" ERR INT TERM
 
 function sell_mcv_test() {
 	# wait until initialization starts
+	player="player_0"
 	while [[ "$(pgrep ra2yrcppcli.exe | wc -l)" == "0" ]]; do
 		echo "wait init to start"
 		sleep 1s
@@ -102,7 +103,7 @@ function sell_mcv_test() {
 	p_obj=$(get_total_state \
 		"$type_classes" \
 		"$(r2c "GetGameState")" |
-		jq -r '.[] | select(.player=="player_0" and (select(.name | test("Yard|Vehicle")))) | .pointerSelf')
+		jq -r '.[] | select(.player=="'$player'" and (select(.name | test("Yard|Vehicle")))) | .pointerSelf')
 
 	if [ -z "$p_obj" ]; then
 		echo "zero MCV pointer"
@@ -118,7 +119,7 @@ function sell_mcv_test() {
 	# wait until we have conyard
 	while true; do
 		p_obj=$(get_total_state "$type_classes" "$(r2c "GetGameState")" |
-			jq -r '.[] | select(.player=="player_0" and (select(.name | test("Yard")))) | .pointerSelf')
+			jq -r '.[] | select(.player=="'$player'" and (select(.name | test("Yard")))) | .pointerSelf')
 		if [ ! -z "$p_obj" ]; then
 			break
 		fi
@@ -127,7 +128,7 @@ function sell_mcv_test() {
 
 	# Get conyard pointer
 	p_obj=$(get_total_state "$type_classes" "$(r2c "GetGameState")" |
-		jq -r '.[] | select(.player=="player_0" and (select(.name | test("Yard")))) | .pointerSelf')
+		jq -r '.[] | select(.player=="'$player'" and (select(.name | test("Yard")))) | .pointerSelf')
 
 	# sell
 	r2c "ClickEvent" -a "$(click_event "$p_obj" "Sell")"

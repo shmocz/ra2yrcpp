@@ -51,6 +51,7 @@ struct ISCallback {
   // Target hook name.
   virtual std::string target();
   yrclient::InstrumentationService* I;
+  X86Regs* cpu_state;
 };
 
 struct ISArgs {

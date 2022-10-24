@@ -6,9 +6,10 @@ yrclient::ISCallback::ISCallback() : I(nullptr) {}
 
 void yrclient::ISCallback::call(hook::Hook* h, void* data, X86Regs* state) {
   (void)h;
-  (void)state;
   this->I = static_cast<yrclient::InstrumentationService*>(data);
+  this->cpu_state = state;
   do_call(this->I);
+  this->cpu_state = nullptr;
 }
 
 std::string yrclient::ISCallback::name() { throw yrclient::not_implemented(); }

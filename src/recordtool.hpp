@@ -6,6 +6,7 @@
 #include "google/protobuf/io/gzip_stream.h"
 
 #include <argparse/argparse.hpp>
+#include <fmt/core.h>
 
 #include <fstream>
 #include <iostream>

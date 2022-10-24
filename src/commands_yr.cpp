@@ -23,6 +23,8 @@ constexpr char key_save_state[] = "save_state";
 constexpr char key_execute_gameloop_command[] = "cb_execute_gameloop_command";
 constexpr char key_on_tunnel_sendto[] = "cb_tunnel_sendto";
 constexpr char key_on_tunnel_recvfrom[] = "cb_tunnel_recvfrom";
+constexpr char key_tunnel_sendto[] = "tunnel_sendto";
+constexpr char key_tunnel_recvfrom[] = "tunnel_recvfrom";
 
 struct hook_entry {
   u32 p_target;
@@ -33,8 +35,8 @@ static std::map<std::string, u32> g_hooks_ng = {
     {key_on_frame_update, 0x55de7f},
     {key_on_gameloop_exit, 0x72dfb0},
     {key_on_load_game, 0x69ae90},
-    {key_on_tunnel_sendto, 0xb7e120},
-    {key_on_tunnel_recvfrom, 0xb7e226}};
+    {key_on_tunnel_sendto, 0x7b3d6f},
+    {key_on_tunnel_recvfrom, 0x7b3f15}};
 
 static hook_entry get_hook_entry(const u8* target) {
   hook_entry h;
@@ -387,7 +389,62 @@ struct CBSaveState : public CBYR {
   void main() override { work.push(state_to_protobuf(!has_typeclasses())); }
 };
 
-// TODO: customizable output path
+struct CBTunnel : public CBYR {
+ public:
+  std::shared_ptr<yrclient::CompressedOutputStream> out;
+  explicit CBTunnel(std::shared_ptr<yrclient::CompressedOutputStream> out)
+      : out(out) {}
+  void write_packet(const u32 source, const u32 dest, const void* buf,
+                    size_t len) {
+    dprintf("source={} dest={}, buf={}, len={}", source, dest, buf, len);
+    yrclient::ra2yr::TunnelPacket P;
+    google::protobuf::io::CodedOutputStream co(&out->s_g);
+    P.set_source(source);
+    P.set_destination(dest);
+    P.mutable_data()->assign(static_cast<const char*>(buf), len);
+    yrclient::write_message(&P, &co);
+  }
+};
+
+struct CBTunnelRecvFrom : public CBTunnel {
+  explicit CBTunnelRecvFrom(
+      std::shared_ptr<yrclient::CompressedOutputStream> out)
+      : CBTunnel(out) {}
+  std::string name() override { return key_tunnel_recvfrom; }
+  std::string target() override { return key_on_tunnel_recvfrom; }
+
+  void main() override {
+    auto buffer = reinterpret_cast<void*>(cpu_state->ebp + 0x3f074);
+    const i32 size = cpu_state->esi;
+    if (size < 1) {
+      return;
+    }
+    write_packet(1u, 0u, buffer, size);
+  }
+};
+
+struct CBTunnelSendTo : public CBTunnel {
+  explicit CBTunnelSendTo(std::shared_ptr<yrclient::CompressedOutputStream> out)
+      : CBTunnel(out) {}
+
+  std::string name() override { return key_tunnel_sendto; }
+  std::string target() override { return key_on_tunnel_sendto; }
+
+  void main() override {
+    auto buf = reinterpret_cast<void*>(cpu_state->ecx);
+    const u32 length = cpu_state->eax;
+    write_packet(0u, 1u, buf, length);
+  }
+};
+
+static void init_tunnel_callbacks(std::vector<yrclient::ISCallback*>* callbacks,
+                                  const std::string output_path) {
+  std::shared_ptr<yrclient::CompressedOutputStream> out =
+      std::make_shared<yrclient::CompressedOutputStream>(output_path);
+  callbacks->push_back(new CBTunnelRecvFrom(out));
+  callbacks->push_back(new CBTunnelSendTo(out));
+}
+
 static void init_callbacks(yrclient::InstrumentationService* I) {
   I->store_value(key_callbacks_yr, new cb_map_t(),
                  [](void* data) { delete as<cb_map_t*>(data); });
@@ -395,11 +452,17 @@ static void init_callbacks(yrclient::InstrumentationService* I) {
   auto t = std::to_string(static_cast<std::uint64_t>(
       std::chrono::high_resolution_clock::now().time_since_epoch().count()));
 
+  // TODO: customizable output path
   std::string record_out = yrclient::join_string({"record", t, "pb.gz"}, ".");
   auto* v = asptr<cb_map_t>(I->get_value(key_callbacks_yr, false));
   std::vector<yrclient::ISCallback*> cbs{
-      new CBBeginLoad(), new CBSaveState(record_out), new CBExitGameLoop(),
-      new CBExecuteGameLoopCommand()};
+      new CBBeginLoad(),
+      new CBSaveState(record_out),
+      new CBExitGameLoop(),
+      new CBExecuteGameLoopCommand(),
+  };
+  init_tunnel_callbacks(&cbs,
+                        yrclient::join_string({"traffic", t, "pb.gz"}, "."));
   for (auto* cb : cbs) {
     v->try_emplace(cb->name(), cb);
   }

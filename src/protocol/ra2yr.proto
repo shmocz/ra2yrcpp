@@ -217,3 +217,9 @@ enum NetworkEvent {
   NETWORK_EVENT_AllCheer = 0x2D;
   NETWORK_EVENT_AbandonAll = 0x2E;
 }
+
+message TunnelPacket {
+  uint32 source = 1;
+  uint32 destination = 2;
+  bytes data = 3;
+}

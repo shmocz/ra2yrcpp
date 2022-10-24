@@ -18,6 +18,7 @@
 #include "util_command.hpp"
 #include "util_string.hpp"
 #include "utility.h"
+#include "utility/serialize.hpp"
 
 #include <algorithm>
 #include <google/protobuf/io/coded_stream.h>

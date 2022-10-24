@@ -20,6 +20,7 @@ function check_include_headers() {
 
 {
 	git diff $CM_FILES
+	git diff $CPP_SOURCES
 	check_include_headers
 } >err.log
 

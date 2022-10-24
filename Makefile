@@ -66,7 +66,7 @@ cppcheck:
 	mkdir -p .cppcheck
 	./scripts/cppcheck.sh
 
-check: cmake_format lint
+check: cmake_format lint format
 	./scripts/check.sh
 
 clean:

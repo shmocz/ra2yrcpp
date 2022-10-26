@@ -25,6 +25,7 @@ template <typename T, typename KeyT = std::uint64_t>
 class AsyncMap : public async_queue::AsyncContainer {
  public:
   AsyncMap() {}
+
   void put(const KeyT key, T item) {
     std::unique_lock<std::mutex> l(a_.get()->m);
     dprintf("key={}", key);
@@ -47,7 +48,9 @@ class AsyncMap : public async_queue::AsyncContainer {
     }
     return data_[key];
   }
+
   bool empty() const { return size() == 0; }
+
   std::size_t size() const { return data_.size(); }
 
  private:

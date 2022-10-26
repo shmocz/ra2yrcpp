@@ -12,6 +12,7 @@ class scope_guard {
  public:
   template <typename FnT>
   scope_guard(FnT&& f) : _f(std::forward<FnT>(f)) {}
+
   // cppcheck-suppress useInitializationList
   scope_guard(scope_guard&& o) : _f(std::move(o._f)) { o._f = nullptr; }
 
@@ -20,6 +21,7 @@ class scope_guard {
       _f();
     }
   }
+
   void operator=(const scope_guard&) = delete;
 };
 }  // namespace utility

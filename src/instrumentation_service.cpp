@@ -13,6 +13,7 @@ void yrclient::ISCallback::call(hook::Hook* h, void* data, X86Regs* state) {
 }
 
 std::string yrclient::ISCallback::name() { throw yrclient::not_implemented(); }
+
 std::string yrclient::ISCallback::target() {
   throw yrclient::not_implemented();
 }
@@ -50,6 +51,7 @@ command::CommandManager& InstrumentationService::cmd_manager() {
 }
 
 server::Server& InstrumentationService::server() { return server_; }
+
 std::map<u8*, hook::Hook>& InstrumentationService::hooks() { return hooks_; }
 
 template <typename T>

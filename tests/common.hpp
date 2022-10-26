@@ -14,6 +14,7 @@
 namespace ra2yrcpp {
 
 using instrumentation_client::InstrumentationClient;
+
 namespace {
 using namespace std::chrono_literals;
 }  // namespace

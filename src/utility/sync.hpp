@@ -2,6 +2,7 @@
 #include <mutex>
 #include <tuple>
 #include <utility>
+
 namespace util {
 /// Obtain exclusive access to resource @v guarded by mutex @m
 template <typename T>

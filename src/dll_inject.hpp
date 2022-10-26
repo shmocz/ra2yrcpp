@@ -10,6 +10,7 @@
 namespace dll_inject {
 
 typedef void* handle_t;
+
 namespace {
 
 using namespace std::chrono_literals;

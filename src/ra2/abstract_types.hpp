@@ -2,6 +2,7 @@
 #include "ra2/general.h"
 
 #include <string>
+
 namespace ra2 {
 namespace abstract_types {
 

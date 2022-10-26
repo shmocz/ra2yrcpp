@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+
 namespace connection {
 
 using ReaderFn = std::function<vecu8(size_t)>;

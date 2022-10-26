@@ -12,10 +12,12 @@ using yrclient::not_implemented;
 constexpr int TD_ALIGN = 16;
 
 #pragma pack(16)
+
 struct TData {
   bool acquired;
   CONTEXT ctx;
 };
+
 constexpr size_t TD_SIZE = sizeof(TData);
 
 CONTEXT* acquire_context(process::Thread* T, const DWORD flags = CONTEXT_FULL) {
@@ -72,6 +74,7 @@ ThreadData::ThreadData()
   data = _mm_malloc(size, TD_ALIGN);
   memset(data, 0, size);
 }
+
 ThreadData::~ThreadData() { _mm_free(data); }
 
 Thread::Thread(int thread_id) : id_(thread_id) {
@@ -83,6 +86,7 @@ Thread::Thread(int thread_id) : id_(thread_id) {
 #error Not implemented
 #endif
 }
+
 Thread::~Thread() {
 #ifdef _WIN32
   CloseHandle(handle_);
@@ -139,6 +143,7 @@ void Thread::resume() {
 #error Not implemented
 #endif
 }
+
 void Thread::set_gpr(const x86Reg reg, const int value) {
 #ifdef _WIN32
   auto* c = get_pgpr(reg);
@@ -148,6 +153,7 @@ void Thread::set_gpr(const x86Reg reg, const int value) {
 #error Not implemented
 #endif
 }
+
 int* Thread::get_pgpr(const x86Reg reg) {
 #ifdef _WIN32
   auto* ctx = acquire_context(this);
@@ -169,11 +175,14 @@ int* Thread::get_pgpr(const x86Reg reg) {
 #error Not implemented
 #endif
   }
+
   return nullptr;
 }
 
 void* Thread::handle() { return handle_; }
+
 int Thread::id() { return id_; }
+
 ThreadData& Thread::thread_data() { return sysdata_; }
 
 Process::Process(void* handle) : handle_(handle) {}
@@ -191,6 +200,7 @@ Process::Process(const u32 pid, const u32 perm) {
 }
 
 Process::~Process() {}
+
 Process process::get_current_process() {
   return Process(process::get_current_process_handle());
 }
@@ -232,7 +242,9 @@ unsigned long process::get_pid(const std::string name) {
 }
 
 unsigned long Process::get_pid() const { return process::get_pid(handle()); }
+
 void* Process::handle() const { return handle_; }
+
 void Process::write_memory(void* dest, const void* src, const size_t size,
                            const bool local) {
   if (local) {
@@ -289,6 +301,7 @@ void Process::for_each_thread(std::function<void(Thread*, void*)> callback,
 #error Not implemented
 #endif
 }
+
 void Process::suspend_threads(const thread_id_t main_tid,
                               const std::chrono::milliseconds delay) const {
 #ifdef _WIN32

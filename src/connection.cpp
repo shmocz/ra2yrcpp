@@ -5,10 +5,13 @@ using namespace connection;
 ChunkReaderWriter::ChunkReaderWriter() {
   std::memset(&buf_[0], 0, sizeof(buf_));
 }
+
 u8* ChunkReaderWriter::buf() { return buf_; }
+
 unsigned int ChunkReaderWriter::buflen() const { return sizeof(buf_); }
 
 SocketIO::SocketIO(network::socket_t* socket) : socket_(socket) {}
+
 vecu8 SocketIO::read_chunk(const size_t bytes) {
   size_t to_read = std::min(buflen(), bytes);
   ssize_t res;
@@ -169,6 +172,7 @@ Connection::Connection(std::string port) : port_(port) {
 Connection::Connection(network::socket_t s) : socket_(s) {
   memset(&hints_, 0, sizeof(hints_));
 }
+
 Connection::~Connection() {
   try {
     dprintf("closing {}", socket_);
@@ -177,14 +181,17 @@ Connection::~Connection() {
     dprintf("closesocket() failed, something's messed up");
   }
 }
+
 // TODO: pass by pointer
 
 int Connection::send_bytes(const vecu8& bytes) {
   connection::SocketIO S(&socket_);
   return write_bytes(bytes, &S);
 }
+
 vecu8 Connection::read_bytes() {
   connection::SocketIO S(&socket_);
   return ::read_bytes(&S);
 }
+
 network::socket_t Connection::socket() { return socket_; }

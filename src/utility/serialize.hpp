@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include <algorithm>
+
 namespace serialize {
 
 using u8 = std::uint8_t;

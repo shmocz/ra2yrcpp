@@ -6,6 +6,7 @@ namespace yrclient {
 
 int get_last_error();
 std::string get_error_message(const int error_code);
+
 class not_implemented : public std::exception {
  public:
   explicit not_implemented(const std::string message = "");

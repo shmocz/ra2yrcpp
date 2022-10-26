@@ -14,6 +14,7 @@
 
 struct sockaddr;
 struct addrinfo;
+
 namespace network {
 #ifdef _WIN32
 typedef unsigned int socket_t;

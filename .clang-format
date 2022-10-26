@@ -6,6 +6,7 @@ Language: Cpp
 # Force pointers to the type for C++.
 DerivePointerAlignment: false
 PointerAlignment: Left
+SeparateDefinitionBlocks: Always
 IncludeBlocks: Regroup
 IncludeCategories:
   - Regex: '^"protocol/protocol.hpp' # must be included before windows includes!

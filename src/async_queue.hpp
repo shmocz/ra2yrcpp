@@ -27,6 +27,7 @@ struct AsyncData {
 class AsyncContainer {
  public:
   AsyncContainer() : a_(std::make_unique<AsyncData>()) {}
+
   AsyncContainer(AsyncContainer& o) : a_(o.a_) {}
 
   void notify_all() { a_.get()->cv.notify_all(); }
@@ -41,13 +42,17 @@ template <typename T>
 class AsyncQueue : public AsyncContainer {
  public:
   AsyncQueue() : AsyncContainer() {}
+
   AsyncQueue(const AsyncQueue& o) : AsyncContainer(o), q_(o.q_) {}
+
   AsyncQueue(AsyncQueue&& o) : AsyncContainer(o), q_(o.q_) {}
+
   AsyncQueue& operator=(const AsyncQueue& o) {
     a_ = o.a_;
     q_ = o.q_;
     return *this;
   }
+
   // Put item to queue and notify
   void push(T t) {
     std::unique_lock<std::mutex> l(a_.get()->m);
@@ -57,6 +62,7 @@ class AsyncQueue : public AsyncContainer {
 #endif
     notify_all();
   }
+
   // Pop items from queue. If count < 1, pop all items. If timeout > 0, block
   // and wait up to that amount for results.
   std::vector<T> pop(const std::size_t count = 1,
@@ -84,7 +90,9 @@ class AsyncQueue : public AsyncContainer {
     } while (res.size() < count);
     return res;
   }
+
   bool empty() const { return size() == 0; }
+
   std::size_t size() const { return q_.size(); }
 
  private:

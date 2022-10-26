@@ -20,6 +20,7 @@ class IServiceTest : public InstrumentationServiceTest {
   auto run(const T& cmd) {
     return client_utils::run(cmd, client.get());
   }
+
   void init() override {}
 };
 

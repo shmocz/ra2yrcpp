@@ -45,7 +45,9 @@ class NewCommandsTest : public ra2yrcpp::tests::InstrumentationServiceTest {
 
   std::string key;
   std::string val;
+
   auto get_storeval() { return ::get_storeval(key, val); }
+
   auto get_getval() { return ::get_getval(key); }
 
   void do_get(const std::string k, const std::string v) {

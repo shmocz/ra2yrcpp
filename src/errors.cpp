@@ -14,6 +14,7 @@ int yrclient::get_last_error() {
 }
 
 general_error::general_error(const std::string message) : message_(message) {}
+
 const char* general_error::what() const throw() { return message_.c_str(); }
 
 std::string yrclient::get_error_message(const int error_code) {

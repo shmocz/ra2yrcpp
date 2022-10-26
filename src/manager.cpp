@@ -192,6 +192,7 @@ LocalGameInstance::LocalGameInstance(const Settings sett,
 }
 
 GameInstanceManager::GameInstanceManager() {}
+
 GameInstanceManager::~GameInstanceManager() {}
 
 instances_t& GameInstanceManager::instances() { return instances_; }

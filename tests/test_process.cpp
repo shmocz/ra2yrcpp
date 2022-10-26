@@ -20,11 +20,13 @@ class ThreadTest : public ::testing::Test {
       threads.emplace_back(thread(f, std::chrono::milliseconds((i + 1) * 500)));
     }
   }
+
   void TearDown() override {
     for (auto& t : threads) {
       t.join();
     }
   }
+
   vector<thread> threads;
 };
 

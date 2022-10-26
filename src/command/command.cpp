@@ -37,13 +37,17 @@ Command::~Command() {
 }
 
 void* Command::result() { return result_; }
+
 void* Command::args() { return args_; }
+
 CommandType Command::type() const { return type_; }
 
 void Command::run() { methods_.handler(this); }
 
 std::uint64_t Command::queue_id() const { return queue_id_; }
+
 std::uint64_t Command::task_id() const { return task_id_; }
+
 ResultCode* Command::result_code() { return &result_code_; }
 
 void Command::set_result(void* p) { result_ = p; }

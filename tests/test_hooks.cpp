@@ -20,6 +20,7 @@ struct ExampleProgram : Xbyak::CodeGenerator {
     mul(ptr[esp + 0x8]);
     ret();
   }
+
   static int expected(const unsigned a, const unsigned b) { return a * b; }
 };
 
@@ -32,8 +33,10 @@ size_t start_region(Xbyak::CodeGenerator* c, const unsigned int key) {
   c->add(esp, 0x4);
   return c->getSize();
 }
+
 struct InfiniteLoop : Xbyak::CodeGenerator {
   size_t start_region_size;
+
   explicit InfiniteLoop(const unsigned int key) {
     L("L1");
     start_region_size = start_region(this, key);
@@ -45,6 +48,7 @@ struct InfiniteLoop : Xbyak::CodeGenerator {
     je("L1");
     ret();
   }
+
   auto get_code() { return getCode<int __cdecl (*)()>(); }
 };
 

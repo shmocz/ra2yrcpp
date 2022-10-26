@@ -19,6 +19,7 @@ namespace process {
 
 using thread_id_t = u32;
 using std::size_t;
+
 namespace {
 using namespace std::chrono_literals;
 }
@@ -55,6 +56,7 @@ struct ThreadData {
 };
 
 #pragma pack(16)
+
 class Thread {
  public:
   // Open handle to given thread id

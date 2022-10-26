@@ -71,6 +71,7 @@ class InstrumentationService {
     unsigned max_clients;
     unsigned port;
     std::string host;
+
     IServiceOptions() : max_clients(0u), port(0u) {}
   };
 

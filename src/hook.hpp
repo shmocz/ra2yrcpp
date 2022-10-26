@@ -48,6 +48,7 @@ struct Detour {
 class Hook {
  public:
   typedef void (*hook_cb_t)(Hook* h, void* user_data, X86Regs* state);
+
   struct HookCallback {
     std::function<void(Hook*, void*, X86Regs*)> func;
     void* user_data;
@@ -90,6 +91,7 @@ class Hook {
       push(target + code_length);
       ret();
     }
+
     explicit DetourMain(Hook* h)
         : DetourMain(h->detour().src_address, reinterpret_cast<addr_t>(h),
                      h->detour().code_length,

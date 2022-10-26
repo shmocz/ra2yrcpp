@@ -21,11 +21,13 @@ class GenerateReadableString {
 
  public:
   explicit GenerateReadableString(const std::size_t length) : msg_(length, 0) {}
+
   void operator()(const std::vector<unsigned int> sequence) {
     for (auto i = 0u; i < msg_.size(); i++) {
       msg_[i] = syms[sequence[i % sequence.size()]];
     }
   }
+
   auto& msg() { return msg_; }
 
  private:

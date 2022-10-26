@@ -13,7 +13,9 @@ struct TestProgram : Xbyak::CodeGenerator {
     entry_size = getSize();
     ret();
   }
+
   auto get_code() { return getCode<int __cdecl (*)(const int, const int)>(); }
+
   size_t entry_size;
 };
 

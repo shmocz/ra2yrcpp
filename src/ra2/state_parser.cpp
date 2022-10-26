@@ -15,6 +15,7 @@ struct MemoryReader {
     auto val = serialize::read_obj<T>(reinterpret_cast<u8*>(base) + offset);
     *dest = val;
   }
+
   void* base;
 };
 

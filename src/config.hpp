@@ -1,4 +1,5 @@
 #pragma once
+
 namespace cfg {
 constexpr unsigned int ACCEPT_TIMEOUT_MS = 250;
 constexpr unsigned SOCKET_SR_TIMEOUT = 5000;

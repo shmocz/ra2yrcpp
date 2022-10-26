@@ -42,6 +42,7 @@ struct Matrix3D {
     float row[3][4];
     float Data[12];
   };
+
   std::vector<float> as_vector();
 };
 

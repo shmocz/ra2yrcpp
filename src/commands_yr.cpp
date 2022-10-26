@@ -242,8 +242,11 @@ struct CBYR : public yrclient::ISCallback {
 
 struct CBExitGameLoop : public yrclient::ISCallback {
   std::string name() override { return key_exit_gameloop; }
+
   std::string target() override { return key_on_gameloop_exit; }
+
   CBExitGameLoop() {}
+
   ~CBExitGameLoop() override {}
 
   void do_call(yrclient::InstrumentationService* I) override {
@@ -399,9 +402,12 @@ struct CBTunnel : public CBYR {
     u32 source;
     u32 destination;
   };
+
   std::shared_ptr<yrclient::CompressedOutputStream> out;
+
   explicit CBTunnel(std::shared_ptr<yrclient::CompressedOutputStream> out)
       : out(out) {}
+
   void write_packet(const u32 source, const u32 dest, const void* buf,
                     size_t len) {
     dprintf("source={} dest={}, buf={}, len={}", source, dest, buf, len);
@@ -412,7 +418,9 @@ struct CBTunnel : public CBYR {
     P.mutable_data()->assign(static_cast<const char*>(buf), len);
     yrclient::write_message(&P, &co);
   }
+
   virtual packet_buffer buffer() = 0;
+
   void main() override {
     auto b = buffer();
     if (b.size > 0) {
@@ -425,7 +433,9 @@ struct CBTunnelRecvFrom : public CBTunnel {
   explicit CBTunnelRecvFrom(
       std::shared_ptr<yrclient::CompressedOutputStream> out)
       : CBTunnel(out) {}
+
   std::string name() override { return key_tunnel_recvfrom; }
+
   std::string target() override { return key_on_tunnel_recvfrom; }
 
   packet_buffer buffer() override {
@@ -439,6 +449,7 @@ struct CBTunnelSendTo : public CBTunnel {
       : CBTunnel(out) {}
 
   std::string name() override { return key_tunnel_sendto; }
+
   std::string target() override { return key_on_tunnel_sendto; }
 
   packet_buffer buffer() override {

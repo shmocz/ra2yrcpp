@@ -105,9 +105,13 @@ void Hook::call(Hook* H, X86Regs state) {
 }
 
 std::vector<Hook::HookCallback>& Hook::callbacks() { return callbacks_; }
+
 void Hook::lock() { mu_.lock(); }
+
 void Hook::unlock() { mu_.unlock(); }
+
 Detour& Hook::detour() { return d_; }
+
 const std::string& Hook::name() const { return name_; }
 
 void Hook::patch_code(u8* target_address, const u8* code,
@@ -141,6 +145,7 @@ void Hook::patch_code_safe(u8* target_address, const u8* code,
 }
 
 unsigned int* Hook::count_enter() { return &count_enter_; }
+
 unsigned int* Hook::count_exit() { return &count_exit_; }
 
 template <typename T>

@@ -20,8 +20,11 @@ struct Entry {
   std::string v;
 
   Entry(const std::string k, const char* v) : k(k), v(v) {}
+
   Entry(const std::string k, const std::string v) : k(k), v(v) {}
+
   Entry(const std::string k, const bool v) : k(k), v(v ? "True" : "False") {}
+
   template <typename T>
   Entry(const std::string k, T v) : k(k), v(std::to_string(v)) {}
 };

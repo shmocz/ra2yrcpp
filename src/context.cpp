@@ -14,6 +14,7 @@ void Context::join() {
 }
 
 void*& Context::data() { return data_; }
+
 std::function<void(Context*)>& Context::deleter() { return deleter_; }
 
 void Context::set_on_signal(std::function<std::string(Context*)> cb_on_signal) {

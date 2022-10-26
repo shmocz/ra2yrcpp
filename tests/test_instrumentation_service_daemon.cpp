@@ -20,6 +20,7 @@ class IClient {
     const auto& S = I->server();
     client = std::make_unique<InstrumentationClient>(S.address(), S.port());
   }
+
   template <typename T>
   auto run(const T& cmd) {
     return client_utils::run(cmd, client.get());

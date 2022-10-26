@@ -7,6 +7,7 @@
 using namespace ra2yrcpp::tests;
 
 void IntegrationTest::init() {}
+
 void IntegrationTest::deinit() {}
 
 void IntegrationTest::TearDown() {

@@ -39,6 +39,7 @@ struct B2STest : Xbyak::CodeGenerator {
   static void __cdecl copy_fn(char* dst, const char* src) {
     std::strcpy(dst, src);
   }
+
   B2STest(const std::string msg, void* dest) {
     vecu8 v1(msg.begin(), msg.end());
     v1.push_back(0x0);

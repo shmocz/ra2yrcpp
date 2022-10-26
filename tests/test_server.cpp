@@ -35,12 +35,14 @@ class ServerTest : public ::testing::Test {
     network::Init();
     S = get_server();
   }
+
   std::unique_ptr<server::Server> get_server() {
     return std::make_unique<server::Server>(
         max_clients, cfg::SERVER_PORT,
         server::Callbacks{&on_receive, &on_send, nullptr, nullptr},
         cfg::ACCEPT_TIMEOUT_MS);
   }
+
   // void TearDown() override {}
   std::unique_ptr<server::Server> S;
   const unsigned int max_clients{4};

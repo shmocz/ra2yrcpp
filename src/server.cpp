@@ -119,13 +119,19 @@ void Server::on_send_bytes(connection::Connection* C, vecu8* bytes) {
 }
 
 std::string Server::address() const { return address_; }
+
 std::string Server::port() const { return port_; }
+
 bool Server::is_closing() const { return is_closing_; }
+
 server::Callbacks& Server::callbacks() { return callbacks_; }
+
 // cppcheck-suppress unusedFunction
 void Server::signal_close() { is_closing_ = true; }
+
 size_t Server::num_clients() {
   std::unique_lock<std::mutex> lk(connections_mut_);
   return connections_.size();
 }
+
 std::vector<uptr<ConnectionCTX>>& Server::connections() { return connections_; }

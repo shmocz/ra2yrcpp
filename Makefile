@@ -1,14 +1,15 @@
 BUILDDIR := build
-TESTS = $(shell find $(BUILDDIR)/tests -name 'test_*.exe')
 CMAKE_BUILD_TYPE := Release
-export PLAYERS_CONFIG := ./test_data/envs.tsv
-WINE_ENVS := $(shell tail -n+2 $(PLAYERS_CONFIG) | cut -f1)
+REPO_FILES = $(shell git ls-tree -r --name-only HEAD) 
+TESTS = $(patsubst %.cpp,$(BUILDDIR)/%.exe,$(filter tests/test_%.cpp, $(REPO_FILES)))
 
-export CM_FILES = $(shell git ls-tree -r --name-only HEAD | grep -E 'CMakeLists\.txt$$')
-export CPP_SOURCES = $(shell git ls-tree -r --name-only HEAD | grep -E '\.(cpp|hpp)$$')
+export PLAYERS_CONFIG := ./test_data/envs.tsv
+export CM_FILES = $(filter %CMakeLists.txt, $(REPO_FILES))
+export CPP_SOURCES = $(filter %.cpp %.hpp, $(REPO_FILES))
 export RA2YRCPP_GAME_DIR := game/main
 export RA2YRCPP_TEST_INSTANCES_DIR := $(realpath game)
-export RA2YRCPP_TUNNEL_URL := 0.0.0.0
+# disables old integration test
+#export RA2YRCPP_TUNNEL_URL := 0.0.0.0
 export W32_FILES := process.cpp state_parser.cpp dll_inject.cpp network.cpp
 GAMEMD_PATCHED := $(RA2YRCPP_GAME_DIR)/gamemd-spawn-patched.exe
 
@@ -39,7 +40,7 @@ $(GAMEMD_PATCHED): $(RA2YRCPP_GAME_DIR)/gamemd-spawn.exe
 patch: $(GAMEMD_PATCHED)
 
 test_data/wine_envs.status: $(PLAYERS_CONFIG) patch
-	for name in $(WINE_ENVS); do \
+	for name in $(shell tail -n+2 $< | cut -f1); do \
 		export WINEPREFIX=$(RA2YRCPP_TEST_INSTANCES_DIR)/$$name/.wine; \
 		mkdir -p $$WINEPREFIX; \
 		( export WINEARCH=win32; wineboot -ik; wine regedit test_data/env.reg ); \
@@ -51,7 +52,7 @@ test_environment: test_data/wine_envs.status
 
 test:
 	set -e; for f in $(TESTS); do \
-		WINEPATH="./build/src" wine $$f; done
+		WINEPATH="./$(BUILDDIR)/src" wine $$f; done
 
 test_integration:
 	./scripts/test_gamemd_tunnel.sh
@@ -63,7 +64,6 @@ docker_build:
 	docker-compose run --rm builder make BUILDDIR=$(BUILDDIR) build
 
 cppcheck:
-	mkdir -p .cppcheck
 	./scripts/cppcheck.sh
 
 check: cmake_format lint format
@@ -71,7 +71,6 @@ check: cmake_format lint format
 
 clean:
 	rm -rf $(BUILDDIR); mkdir -p $(BUILDDIR)
-	rm -f test_data/*.status
-	rm -f $(GAMEMD_PATCHED)
+	rm -f test_data/*.status $(GAMEMD_PATCHED)
 
 .PHONY: build doc lint format test docker docker_build check cppcheck clean

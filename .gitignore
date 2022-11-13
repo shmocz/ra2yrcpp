@@ -1,0 +1,26 @@
+# Exclude everything
+**
+# Whitelist
+!.clang-format
+!.cmake-format
+!.gitignore
+!/.github
+!/.github/**
+!/docker
+!/docker/**
+!/scripts
+!/scripts/**
+!/src
+!/src/**
+!/test_data
+!/test_data/**
+!/tests
+!/tests/**
+!/toolchains
+!/toolchains/**
+!CMakeLists.txt
+!Doxyfile
+!LICENSE.md
+!Makefile
+!README.md
+!docker-compose.yml

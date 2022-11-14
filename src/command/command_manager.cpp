@@ -28,14 +28,6 @@ Command* CommandFactory::make_command(const std::string name, void* args,
   return C;
 }
 
-#if 1
-Command* CommandFactory::make_builtin(const CommandType type,
-                                      const std::uint64_t queue_id) {
-  auto* C = new Command(type, queue_id);
-  return C;
-}
-#endif
-
 CommandManager::CommandManager()
     : worker_thread_([this]() { this->worker(); }) {}
 
@@ -50,13 +42,15 @@ CommandFactory& CommandManager::factory() { return factory_; }
 
 results_queue_t& CommandManager::results_queue() { return results_queue_; }
 
-void CommandManager::create_queue(const uint64_t id) {
+void CommandManager::create_queue(const uint64_t id,
+                                  const std::size_t max_size) {
   std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
   dprintf("queue_id={}", id);
   if (results_queue_.find(id) != results_queue_.end()) {
     throw std::runtime_error(fmt::format("existsing queue_id={}", id));
   }
-  results_queue_[id] = std::shared_ptr<result_queue_t>(new result_queue_t());
+  results_queue_[id] = std::shared_ptr<result_queue_t>(
+      new result_queue_t(result_queue_t::queue_t(max_size)));
 }
 
 void CommandManager::destroy_queue(const uint64_t id) {
@@ -81,11 +75,11 @@ void CommandManager::invoke_user_command(std::shared_ptr<Command> cmd) {
   q->push(cmd);
 }
 
-void CommandManager::enqueue_builtin(const CommandType type,
-                                     const int queue_id) {
+void CommandManager::enqueue_builtin(const CommandType type, const int queue_id,
+                                     BuiltinArgs args) {
   std::unique_lock<std::mutex> k(work_queue_mut_);
   // FIXME: use uptr
-  auto cmd = factory().make_builtin(type, queue_id);
+  auto* cmd = new Command(type, queue_id, new BuiltinArgs(args));
   // TODO: rlock
   work_queue_.push(std::shared_ptr<Command>(cmd));
   work_queue_cv_.notify_all();
@@ -107,9 +101,10 @@ void CommandManager::worker() {
     auto cmd = work_queue_.top();
     work_queue_.pop();
     switch (cmd->type()) {
-      case CommandType::CREATE_QUEUE:
-        create_queue(cmd->queue_id());
-        break;
+      case CommandType::CREATE_QUEUE: {
+        create_queue(cmd->queue_id(),
+                     reinterpret_cast<BuiltinArgs*>(cmd->args())->queue_size);
+      } break;
       case CommandType::DESTROY_QUEUE:
         destroy_queue(cmd->queue_id());
         break;

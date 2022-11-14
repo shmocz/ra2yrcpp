@@ -14,6 +14,10 @@ enum class ResultCode { NONE = 0, OK, ERROR };
 
 enum class CommandType { DESTROY_QUEUE = 1, CREATE_QUEUE, SHUTDOWN, USER };
 
+struct BuiltinArgs {
+  std::size_t queue_size;
+};
+
 class Command {
  public:
   using handler_t = std::function<void(Command*)>;
@@ -33,7 +37,8 @@ class Command {
           std::uint64_t task_id, void* args,
           CommandType cmd_type = CommandType::USER);
   // For built-in commands
-  Command(const CommandType type, const uint64_t queue_id);
+  Command(const CommandType type, const uint64_t queue_id,
+          BuiltinArgs* args = nullptr);
   ~Command();
   void run();
   // Pointer to result data.
@@ -46,6 +51,7 @@ class Command {
   // FIXME: use directly ref. in result(). this is just to not to break old code
   void set_result(void* p);
   std::string* error_message();
+  bool builtin() const;
 
  private:
   methods_t methods_;

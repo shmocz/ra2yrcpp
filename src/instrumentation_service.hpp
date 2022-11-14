@@ -56,7 +56,7 @@ struct ISCallback {
 
 struct ISArgs {
   yrclient::InstrumentationService* I;
-  google::protobuf::Any* M;
+  google::protobuf::Any M;
 };
 
 template <typename T>

@@ -4,6 +4,7 @@
 #include "command.hpp"
 #include "errors.hpp"
 #include "logging.hpp"
+#include "ring_buffer.hpp"
 #include "utility/sync.hpp"
 #include "utility/time.hpp"
 
@@ -55,7 +56,6 @@ class CommandFactory {
                  Command::deleter_t deleter = nullptr);
   Command* make_command(const std::string name, void* args,
                         const std::uint64_t queue_id);
-  Command* make_builtin(const CommandType type, const std::uint64_t queue_id);
 
  private:
   std::map<std::string, Command::handler_t> handlers_;
@@ -66,7 +66,9 @@ class CommandFactory {
 template <typename T>
 using guarded = std::tuple<std::unique_lock<std::mutex>, T*>;
 
-using result_queue_t = async_queue::AsyncQueue<std::shared_ptr<Command>>;
+using result_queue_t =
+    async_queue::AsyncQueue<std::shared_ptr<Command>,
+                            ring_buffer::RingBuffer<std::shared_ptr<Command>>>;
 
 using results_queue_t = std::map<uint64_t, std::shared_ptr<result_queue_t>>;
 
@@ -76,13 +78,15 @@ class CommandManager {
   /// Shutdown and join worker
   ~CommandManager();
 
-  void create_queue(const uint64_t id);
+  /// Create new result queue.
+  void create_queue(const uint64_t id, const std::size_t max_size = -1u);
   void destroy_queue(const uint64_t id);
   void invoke_user_command(std::shared_ptr<Command> cmd);
   /// Enqueue command and store result to given queue
   void enqueue_command(std::shared_ptr<Command> cmd);
   /// Enqueue execution of a built-in command
-  void enqueue_builtin(const CommandType type, const int queue_id);
+  void enqueue_builtin(const CommandType type, const int queue_id,
+                       const BuiltinArgs args = {});
   /// Worker loop that consumes command from input queue and stores result to
   /// appropriate queue.
   void worker();

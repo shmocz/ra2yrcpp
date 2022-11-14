@@ -17,7 +17,7 @@ struct ISCommand {
       : c(c), a((yrclient::ISArgs*)c->args()) {
     result_q_ = new yrclient::CommandResult();
     res = nullptr;
-    a->M->UnpackTo(&command_data_);
+    a->M.UnpackTo(&command_data_);
   }
 
   ISCommand(const ISCommand&) = delete;

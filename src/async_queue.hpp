@@ -38,10 +38,14 @@ class AsyncContainer {
 
 // NB: pop method is undefined for empty queues - ensure that this is handled
 // correctly elsewhere
-template <typename T>
+template <typename T, typename QueueT = std::queue<T>>
 class AsyncQueue : public AsyncContainer {
  public:
+  using queue_t = QueueT;
+
   AsyncQueue() : AsyncContainer() {}
+
+  explicit AsyncQueue(QueueT q) : AsyncContainer(), q_(q) {}
 
   AsyncQueue(const AsyncQueue& o) : AsyncContainer(o), q_(o.q_) {}
 
@@ -96,6 +100,6 @@ class AsyncQueue : public AsyncContainer {
   std::size_t size() const { return q_.size(); }
 
  private:
-  std::queue<T> q_;
+  QueueT q_;
 };
 };  // namespace async_queue

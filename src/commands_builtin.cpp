@@ -29,8 +29,10 @@ void test_cb(hook::Hook* h, void* data, X86Regs* state) {
 
 void yrclient::commands_builtin::command_deleter(command::Command* c) {
   if (c->result()) {
-    auto* M = yrclient::as<yrclient::CommandResult*>(c->result());
-    delete M;
+    delete static_cast<yrclient::CommandResult*>(c->result());
+  }
+  if (c->args()) {
+    delete static_cast<yrclient::ISArgs*>(c->args());
   }
 }
 

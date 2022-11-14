@@ -113,17 +113,17 @@ yrclient::Response handle_cmd_ng(InstrumentationService* I,
   // TODO: reduce amount of copies we make
   vecu8 result;
   auto client_cmd = cmd->command();
-  auto* aa = new google::protobuf::Any();
-  aa->CopyFrom(client_cmd);
   // schedule command execution
   uint64_t task_id = 0;
   const uint64_t queue_id = C->socket();
+  auto is_args = new ISArgs;
+  is_args->I = I;
+  is_args->M.CopyFrom(client_cmd);
   // Get trailing portion of protobuf type url
   auto name = split_string(client_cmd.type_url(), "/").back();
 
   try {
-    auto c = I->cmd_manager().factory().make_command(name, new ISArgs{I, aa},
-                                                     queue_id);
+    auto c = I->cmd_manager().factory().make_command(name, is_args, queue_id);
     I->cmd_manager().enqueue_command(std::shared_ptr<command::Command>(c));
     task_id = c->task_id();
   } catch (const std::exception& e) {
@@ -211,8 +211,8 @@ vecu8 InstrumentationService::on_receive_bytes(connection::Connection* C,
 
 void InstrumentationService::on_accept(connection::Connection* C) {
   // Create result queue
-  cmd_manager().enqueue_builtin(command::CommandType::CREATE_QUEUE,
-                                C->socket());
+  cmd_manager().enqueue_builtin(command::CommandType::CREATE_QUEUE, C->socket(),
+                                command::BuiltinArgs{.queue_size = 32});
 }
 
 void InstrumentationService::on_close(connection::Connection* C) {

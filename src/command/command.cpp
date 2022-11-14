@@ -22,16 +22,20 @@ Command::Command(const std::string name, methods_t methods,
       args_(args),
       result_(nullptr) {}
 
-Command::Command(const CommandType type, const uint64_t queue_id)
-    : Command("", {nullptr, nullptr}, queue_id, 0u, nullptr, type) {
-  if (!(type_ == CommandType::DESTROY_QUEUE ||
-        type_ == CommandType::CREATE_QUEUE || type_ == CommandType::SHUTDOWN)) {
+Command::Command(const CommandType type, const uint64_t queue_id,
+                 BuiltinArgs* args)
+    : Command("", {nullptr, nullptr}, queue_id, 0u, args, type) {
+  if (!(builtin())) {
     throw std::invalid_argument("Invalid command type");
   }
 }
 
 Command::~Command() {
-  if (methods_.deleter) {
+  if (builtin()) {
+    if (args_) {
+      delete reinterpret_cast<BuiltinArgs*>(args_);
+    }
+  } else if (methods_.deleter) {
     methods_.deleter(this);
   }
 }
@@ -53,3 +57,8 @@ ResultCode* Command::result_code() { return &result_code_; }
 void Command::set_result(void* p) { result_ = p; }
 
 std::string* Command::error_message() { return &error_message_; }
+
+bool Command::builtin() const {
+  return (type_ == CommandType::DESTROY_QUEUE ||
+          type_ == CommandType::CREATE_QUEUE || type_ == CommandType::SHUTDOWN);
+}

@@ -1,5 +1,9 @@
 #include "manager.hpp"
 
+#ifdef _WIN32
+#include <io.h>
+#endif
+
 using namespace ra2yrcpp::manager;
 
 Address::Address(const std::string host, const std::string port)

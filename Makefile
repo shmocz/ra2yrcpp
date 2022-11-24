@@ -10,8 +10,8 @@ export RA2YRCPP_GAME_DIR := game/main
 export RA2YRCPP_TEST_INSTANCES_DIR := $(realpath game)
 # disables old integration test
 #export RA2YRCPP_TUNNEL_URL := 0.0.0.0
-export W32_FILES := process.cpp state_parser.cpp dll_inject.cpp network.cpp
 GAMEMD_PATCHED := $(RA2YRCPP_GAME_DIR)/gamemd-spawn-patched.exe
+export W32_FILES := process.cpp state_parser.cpp dll_inject.cpp network.cpp manager.cpp
 
 doc:
 	doxygen Doxyfile

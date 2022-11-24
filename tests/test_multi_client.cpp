@@ -55,7 +55,7 @@ TEST_F(MultiClientTest, RunRegularCommand) {
   const unsigned count = 5u;
   yrclient::commands::HookableCommand cmd;
   for (auto i = 0u; i < count; i++) {
-    auto res0 = run_async<decltype(cmd)>(cmd);
+    (void)run_async<decltype(cmd)>(cmd);
   }
 }
 

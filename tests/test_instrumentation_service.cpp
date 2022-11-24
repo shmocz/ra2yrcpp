@@ -55,7 +55,7 @@ TEST_F(IServiceTest, HookingGetSetWorks) {
   yrclient::commands::AddCallback ac;
   ac.mutable_args()->set_hook_address(res0.address_test_function());
   ac.mutable_args()->set_callback_address(res0.address_test_callback());
-  auto res_ac = run(ac);
-  auto res1 = run(h);
+  (void)run(ac);
+  (void)run(h);
   value_eq(flag2);
 }

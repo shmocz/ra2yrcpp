@@ -43,7 +43,8 @@ class ServerTest : public ::testing::Test {
         cfg::ACCEPT_TIMEOUT_MS);
   }
 
-  // void TearDown() override {}
+  void TearDown() override {}
+
   std::unique_ptr<server::Server> S;
   const unsigned int max_clients{4};
 };
@@ -107,6 +108,8 @@ TEST_F(ServerTest, ServerConnectionAndMessagingWorks) {
       // Write messages and verify results
       auto msg = to_bytes(T_MESSAGE);
       C.send_bytes(msg);
+      auto i = C.send_bytes(msg);
+      ASSERT_EQ(msg.size(), i);
       auto resp = C.read_bytes();
       auto q = to_string(resp);
       ASSERT_EQ(q, T_KEY);

@@ -8,6 +8,7 @@
 #include "util_string.hpp"
 #include "utility.h"
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>

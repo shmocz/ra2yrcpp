@@ -9,10 +9,10 @@
 
 #include <algorithm>
 #include <atomic>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
-#include <queue>
 #include <string>
 #include <thread>
 #include <utility>
@@ -20,6 +20,7 @@
 
 namespace server {
 using network::socket_t;
+// TODO: dont use this
 template <typename T>
 using uptr = std::unique_ptr<T>;
 
@@ -48,7 +49,9 @@ struct Callbacks {
   std::function<void(connection::Connection* C)> close;
 };
 
-// TODO: callback for something like "on_ctx_remove"
+/// TODO: callback for something like "on_ctx_remove"
+/// Basic TCP server implementation
+///
 class Server {
  public:
   Server() = delete;
@@ -60,7 +63,7 @@ class Server {
   void add_callback();
   /// Main loop spawned for each new connection
   void connection_thread(connection::Connection* C);
-  /// Main loop for accepting new connections
+  /// Main loop for managing incoming and closing connections.
   void listener_thread();
   vecu8 on_receive_bytes(connection::Connection* C, vecu8* bytes);
   void on_send_bytes(connection::Connection* C, vecu8* bytes);
@@ -69,8 +72,9 @@ class Server {
   bool is_closing() const;
   Callbacks& callbacks();
   void signal_close();
-  size_t num_clients();
   std::vector<uptr<ConnectionCTX>>& connections();
+  std::deque<connection::Connection*>& close_queue();
+  std::mutex connections_mut;
 
  private:
   const unsigned int max_clients_;
@@ -79,13 +83,12 @@ class Server {
   Callbacks callbacks_;
   const unsigned int accept_timeout_ms_;
   std::atomic_bool is_closing_;
-  std::queue<connection::Connection*> close_queue_;
+  std::deque<connection::Connection*> close_queue_;
   connection::Connection listen_connection_;
   std::thread listen_thread_;
   std::vector<uptr<ConnectionCTX>> connections_;
   /// Remove Connections that have been marked as closed from the connections
   /// vector
   void clear_closed();
-  std::mutex connections_mut_;
 };
 }  // namespace server

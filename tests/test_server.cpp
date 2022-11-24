@@ -86,7 +86,11 @@ TEST_F(ServerTest, MultipleConnections) {
 
   // Spawn connection, this should work
   {
-    while (S->num_clients() == max_clients) {
+    auto f = [this]() {
+      std::unique_lock<std::mutex> lk(S->connections_mut);
+      return S->connections().size();
+    };
+    while (f() == max_clients) {
       util::sleep_ms(10);
     }
     Connection cfail(S->address(), S->port());

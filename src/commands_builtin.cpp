@@ -1,5 +1,7 @@
 #include "commands_builtin.hpp"
 
+// TODO: rename this to avoid confusion between command manager builtins
+
 using namespace yrclient::commands;
 using util_command::ISCommand;
 
@@ -47,14 +49,32 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
         Q->set_result(a.value());
       }),
       get_cmd<yrclient::commands::GetSystemState>([](auto* Q) {
+        std::lock_guard<std::mutex> lk(Q->I()->server().connections_mut);
         auto* state = Q->command_data().mutable_result()->mutable_state();
-        for (auto& c : Q->I()->server().connections()) {
+        std::vector<server::ConnectionCTX*> active_connections;
+        auto& conns = Q->I()->server().connections();
+        auto& close = Q->I()->server().close_queue();
+        std::transform(conns.begin(), conns.end(),
+                       std::back_inserter(active_connections),
+                       [](auto& ctx) { return ctx.get(); });
+        active_connections.erase(
+            std::remove_if(active_connections.begin(), active_connections.end(),
+                           [&close](auto* c) {
+                             return std::find_if(close.begin(), close.end(),
+                                                 [&c](auto* d) {
+                                                   return d->socket() ==
+                                                          c->c().socket();
+                                                 }) != close.end();
+                           }),
+            active_connections.end());
+        for (auto& c : active_connections) {
           auto* conn = state->add_connections();
           conn->set_socket_id(c->c().socket());
           auto dur =
               std::chrono::duration<double>(c->timestamp().time_since_epoch());
           conn->set_timestamp(dur.count());
         }
+        // NB. this is safe. We're in cmd manager's main loop thread
         for (const auto& [k, v] : Q->I()->cmd_manager().results_queue()) {
           state->add_queues()->set_queue_id(k);
         }

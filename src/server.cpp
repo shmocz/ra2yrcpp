@@ -68,13 +68,14 @@ std::chrono::system_clock::time_point ConnectionCTX::timestamp() const {
 }
 
 void Server::clear_closed() {
+  std::lock_guard<std::mutex> lk(connections_mut);
   while (!close_queue_.empty()) {
     auto q = close_queue_.front();
     auto it = std::find_if(
         connections_.begin(), connections_.end(),
         [&](auto& ctx) { return ctx->c().socket() == q->socket(); });
     connections_.erase(it);
-    close_queue_.pop();
+    close_queue_.pop_front();
   }
 }
 
@@ -91,13 +92,18 @@ void Server::listener_thread() {
       if (connections_.size() >= max_clients_) {
       } else {
         dprintf("new conn, sock={}", conn.get()->socket());
+        std::lock_guard<std::mutex> lk(connections_mut);
         connections_.emplace_back(std::make_unique<ConnectionCTX>(
             std::move(conn), [this](ConnectionCTX* ctx) -> void {
               ctx->thread_id = process::get_current_tid();
               auto c = &ctx->c();
               this->connection_thread(c);
               dprintf("closing");
-              this->close_queue_.push(c);
+              std::lock_guard<std::mutex> lk_(this->connections_mut);
+              // Signal listener thread to destroy the ConnectionCTX object. We
+              // cannot just remove ourselves, because we would join to the same
+              // thread we are in.
+              this->close_queue_.push_front(c);
             }));
       }
     } else if (err == network::ERR_TIMEOUT) {
@@ -129,9 +135,8 @@ server::Callbacks& Server::callbacks() { return callbacks_; }
 // cppcheck-suppress unusedFunction
 void Server::signal_close() { is_closing_ = true; }
 
-size_t Server::num_clients() {
-  std::unique_lock<std::mutex> lk(connections_mut_);
-  return connections_.size();
-}
-
 std::vector<uptr<ConnectionCTX>>& Server::connections() { return connections_; }
+
+std::deque<connection::Connection*>& Server::close_queue() {
+  return close_queue_;
+}

@@ -35,6 +35,10 @@ enum class ClientType : i32 { COMMAND = 0, POLL = 1 };
 
 using ResultMap = AsyncMap<yrclient::CommandResult, u64>;
 
+///
+/// Client that uses two connections to fetch results in real time. One
+/// connection issues command executions and the other polls the results.
+///
 class AutoPollClient {
  public:
   AutoPollClient(const std::string host, const std::string port,
@@ -51,6 +55,7 @@ class AutoPollClient {
   void poll_thread();
   ResultMap& results();
   InstrumentationClient* get_client(const ClientType type);
+  u64 queue_id() const;
 
  private:
   std::string host_;
@@ -61,9 +66,8 @@ class AutoPollClient {
 
   std::map<ClientType, std::unique_ptr<connection::Connection>> conns_;
   std::map<ClientType, std::unique_ptr<InstrumentationClient>> is_clients_;
-  std::map<ClientType, u64> queue_ids_;
   std::thread poll_thread_;
   ResultMap results_;
-  const u64 queue_id_{(u64)-1};
+  u64 queue_id_{(u64)-1};
 };
 }  // namespace multi_client

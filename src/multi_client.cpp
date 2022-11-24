@@ -32,9 +32,17 @@ yrclient::Response AutoPollClient::send_command(
   auto resp = get_client(ClientType::COMMAND)
                   ->send_command(cmd, yrclient::CommandType::CLIENT_COMMAND);
   auto ack = yrclient::from_any<yrclient::RunCommandAck>(resp.body());
+  // FIXME: ugly hack to set result queue id
+  if (queue_id_ == (u64)-1) {
+    queue_id_ = ack.queue_id();
+    yrclient::CommandResult C;
+    C.set_command_id(-1);
+    results().put((u64)-1, C);
+  }
   // Wait until item found from polled messages
   dprintf("ack={}", ack.id());
   try {
+    // FIXME: signal if poll_thread dies
     auto poll_res = results().get(ack.id(), command_timeout_);
     return make_response(yrclient::RESPONSE_OK, poll_res);
   } catch (const std::runtime_error& e) {
@@ -43,31 +51,16 @@ yrclient::Response AutoPollClient::send_command(
   }
 }
 
-static std::vector<u64> get_queue_ids(InstrumentationClient* I) {
-  std::vector<u64> r;
-  auto res = client_utils::run(yrclient::commands::GetSystemState(), I);
-  auto& Q = res.state().queues();
-  std::transform(Q.begin(), Q.end(), std::back_inserter(r),
-                 [](const auto& a) { return a.queue_id(); });
-  return r;
-}
-
 void AutoPollClient::poll_thread() {
-  std::vector<u64> queue_ids;
-  util::call_until(4000ms, 500ms, [&]() {
-    queue_ids = get_queue_ids(get_client(ClientType::POLL));
-    return queue_ids.size() < 2;
-  });
-
-  if (queue_ids.empty()) {
-    eprintf("empty queue, client wont work");
-    return;
+  // wait for queue id to be set up
+  auto item = results().get((u64)-1, command_timeout_);
+  if (item.command_id() != -1) {
+    throw std::runtime_error("couldn't get command queue id");
   }
-
   while (active_) {
     try {
-      auto R = get_client(ClientType::POLL)
-                   ->poll_blocking(poll_timeout_, queue_ids[0]);
+      auto R =
+          get_client(ClientType::POLL)->poll_blocking(poll_timeout_, queue_id_);
       for (auto& r : R.result().results()) {
         results_.put(r.command_id(), r);
       }
@@ -85,3 +78,5 @@ ResultMap& AutoPollClient::results() { return results_; }
 InstrumentationClient* AutoPollClient::get_client(const ClientType type) {
   return is_clients_[type].get();
 }
+
+u64 AutoPollClient::queue_id() const { return queue_id_; }

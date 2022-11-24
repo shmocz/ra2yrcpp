@@ -75,7 +75,7 @@ add_library(
   manager.cpp
   ra2yrcppcli/ra2yrcppcli.cpp)
 target_link_libraries(yrclient PRIVATE ${Protobuf_LIBRARIES} ZLIB::ZLIB
-                                       fmt::fmt ${LIB_WSOCK})
+                                       fmt::fmt ${LIB_WSOCK} psapi)
 
 add_executable(recordtool recordtool.cpp)
 target_link_libraries(recordtool PUBLIC yrclient)

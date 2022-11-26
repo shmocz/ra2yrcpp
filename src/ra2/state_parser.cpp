@@ -183,7 +183,7 @@ ra2::state_parser::parse_AbstractTypeClassInstance(void* address) {
   }
 #undef X
 #endif
-  fmt::print(stderr, "[ERROR]: failed to parse: {}\n", at.name);
+  eprintf("failed to parse: {}", at.name);
   return nullptr;
 }
 
@@ -210,9 +210,8 @@ void ra2::state_parser::parse_AbstractTypeClasses(ra2::game_state::GameState* G,
       try {
         G->add_AbstractTypeClass(std::move(ATC), p_obj);
       } catch (const std::runtime_error& e) {
-        fmt::print(stderr,
-                   "not adding AbstractTypeClass with duplicate key {}\n",
-                   reinterpret_cast<void*>(p_obj));
+        eprintf("not adding AbstractTypeClass with duplicate key {}",
+                reinterpret_cast<void*>(p_obj));
       }
     } else {
     }
@@ -351,8 +350,8 @@ void ra2::state_parser::parse_DVC_Objects(ra2::game_state::GameState* G,
                                     it->second.get());
       }
       parsedd.erase(key);
-    } catch (const yrclient::system_error& e) {
-      fmt::print(stderr, "[ERROR]: %s\n", e.what());
+    } catch (const yrclient::system_error& e) {  // FIXME: potential memory leak
+      eprintf("%s", e.what());
     }
   }
   // remove non-parsed

@@ -37,12 +37,6 @@ inline void debug(const char* s, const char* file, const char* func,
 }
 
 template <typename... Args>
-inline void error(const char* s, const char* file, const char* func,
-                  const int line, Args... args) {
-  print_message(stderr, Level::ERROR, s, file, func, line, args...);
-}
-
-template <typename... Args>
 inline void eerror(Args... args) {
   print_message(stderr, Level::ERROR, args...);
 }
@@ -53,7 +47,7 @@ inline void eerror(Args... args) {
 #define VA_ARGS(...) , ##__VA_ARGS__
 #define LOCATION_INFO() __FILE__, __func__, __LINE__
 
-#ifdef NDEBUG
+#ifndef NDEBUG
 #define dprintf(fmt, ...)                                                \
   do {                                                                   \
     ra2yrcpp::logging::debug(fmt, LOCATION_INFO() VA_ARGS(__VA_ARGS__)); \

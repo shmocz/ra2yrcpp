@@ -292,8 +292,13 @@ struct CBBeginLoad : public CBYR {
   }
 };
 
+struct entry {
+  std::shared_ptr<void> data;
+  std::function<void(CBYR*, void*)> fn;
+};
+
 struct CBExecuteGameLoopCommand : public CBYR {
-  async_queue::AsyncQueue<std::function<void(CBYR*)>> work;
+  async_queue::AsyncQueue<entry> work;
 
   CBExecuteGameLoopCommand() {}
 
@@ -304,7 +309,7 @@ struct CBExecuteGameLoopCommand : public CBYR {
   void main() override {
     auto items = work.pop(0, 0ms);
     for (const auto& it : items) {
-      it(this);
+      it.fn(this, it.data.get());
     }
   }
 };
@@ -489,8 +494,9 @@ static void init_callbacks(yrclient::InstrumentationService* I) {
   }
 }
 
-void unit_action(const u32 p_object, const yrclient::commands::UnitAction a,
-                 const ra2::abi::ABIGameMD* abi) {
+static inline void unit_action(const u32 p_object,
+                               const yrclient::commands::UnitAction a,
+                               const ra2::abi::ABIGameMD* abi) {
   using namespace yrclient::commands;
   switch (a) {
     case UnitAction::ACTION_DEPLOY:
@@ -520,51 +526,61 @@ static std::map<std::string, command::Command::handler_t> get_commands_nn() {
             asptr<cb_map_t>(Q->I()->get_value(key_callbacks_yr, false))
                 ->at(key_execute_gameloop_command)
                 .get())
-            ->work.push([addrs, event](CBYR* C) {
-              auto* objects = &C->raw_game_state()->objects;
-              // Remove objects that weren't found
-              auto to_remove = std::remove_if(
-                  addrs->begin(), addrs->end(), [objects](auto k) {
-                    return objects->find(reinterpret_cast<std::uint32_t*>(k)) ==
-                           objects->end();
-                  });
-              addrs->erase(to_remove, addrs->end());
-              for (auto k : *addrs) {
-                dprintf("clickevent {} {}", k, static_cast<int>(event));
-                (void)ensure_storage_value<ra2::abi::ABIGameMD>(
-                    C->I, C->storage, "abi")
-                    ->ClickEvent(k, event);
-              }
-              delete addrs;
-            });
+            ->work.push(
+                {std::shared_ptr<void>(addrs, [](auto d) { delete d; }),
+                 [event](CBYR* C, void* data) {
+                   auto* addrs = reinterpret_cast<std::vector<uint32_t>*>(data);
+                   auto* objects = &C->raw_game_state()->objects;
+                   // Remove objects that weren't found
+                   addrs->erase(
+                       std::remove_if(
+                           addrs->begin(), addrs->end(),
+                           [objects](auto k) {
+                             return objects->find(
+                                        reinterpret_cast<std::uint32_t*>(k)) ==
+                                    objects->end();
+                           }),
+                       addrs->end());
+                   for (auto k : *addrs) {
+                     dprintf("clickevent {} {}", k, static_cast<int>(event));
+                     (void)ensure_storage_value<ra2::abi::ABIGameMD>(
+                         C->I, C->storage, "abi")
+                         ->ClickEvent(k, event);
+                   }
+                 }});
       }),
       get_cmd<yrclient::commands::UnitCommand>([](auto* Q) {
         auto [mut, s] = Q->I()->aq_storage();
-        (void)Q->command_data().mutable_result();
-        auto* v = asptr<cb_map_t>(Q->I()->get_value(key_callbacks_yr, false));
-        auto CB = asptr<CBExecuteGameLoopCommand>(
-            v->at(key_execute_gameloop_command).get());
         auto a = Q->args();
         const auto action = a.action();
         auto* addrs = new std::vector<uint32_t>();
         addrs->insert(addrs->begin(), a.object_addresses().begin(),
                       a.object_addresses().end());
-        CB->work.push([addrs, action](CBYR* C) {
-          auto G = C->raw_game_state();
-          // Remove objects that weren't found
-          auto to_remove =
-              std::remove_if(addrs->begin(), addrs->end(), [G](auto k) {
-                return G->objects.find(reinterpret_cast<std::uint32_t*>(k)) ==
-                       G->objects.end();
-              });
-          addrs->erase(to_remove, addrs->end());
-          for (auto k : *addrs) {
-            unit_action(k, action,
-                        ensure_storage_value<ra2::abi::ABIGameMD>(
-                            C->I, C->storage, "abi"));
-          }
-          delete addrs;
-        });
+
+        // TODO: simplify this, it's starting to get out of control
+        asptr<CBExecuteGameLoopCommand>(
+            asptr<cb_map_t>(Q->I()->get_value(key_callbacks_yr, false))
+                ->at(key_execute_gameloop_command)
+                .get())
+            ->work.push(
+                {std::shared_ptr<void>(addrs, [](auto d) { delete d; }),
+                 [action](CBYR* C, void* data) {
+                   auto* addrs = reinterpret_cast<std::vector<uint32_t>*>(data);
+                   auto G = C->raw_game_state();
+                   // Remove objects that weren't found
+                   auto to_remove = std::remove_if(
+                       addrs->begin(), addrs->end(), [G](auto k) {
+                         return G->objects.find(
+                                    reinterpret_cast<std::uint32_t*>(k)) ==
+                                G->objects.end();
+                       });
+                   addrs->erase(to_remove, addrs->end());
+                   for (auto k : *addrs) {
+                     unit_action(k, action,
+                                 ensure_storage_value<ra2::abi::ABIGameMD>(
+                                     C->I, C->storage, "abi"));
+                   }
+                 }});
       }),
       get_cmd<yrclient::commands::CreateCallbacks>([](auto* Q) {
         auto [lk_s, s] = Q->I()->aq_storage();

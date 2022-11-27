@@ -16,13 +16,13 @@ class ABIGameMD {
   // JIT the functions here
   ABIGameMD();
 
-  bool __cdecl SelectObject(const u32 address) const;
+  bool SelectObject(const u32 address) const;
 
-  void __cdecl SellBuilding(const u32 address) const;
+  void SellBuilding(const u32 address) const;
 
-  void __cdecl DeployObject(const u32 address) const;
+  void DeployObject(const u32 address) const;
 
-  bool __cdecl ClickEvent(const u32 address, const u8 event) const;
+  bool ClickEvent(const u32 address, const u8 event) const;
 
  private:
   bool __cdecl (*SelectObject_)(u32);

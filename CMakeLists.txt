@@ -16,6 +16,7 @@ else()
 endif()
 add_compile_definitions(__MINGW_FORCE_SYS_INTRINS)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -30,6 +31,15 @@ set(gtest_force_shared_crt
 FetchContent_MakeAvailable(googletest)
 
 find_library(LIB_WSOCK ws2_32)
+
+# find MinGW libraries
+set(MINGW_LIBS libgcc_s_dw2-1.dll libstdc++-6.dll libwinpthread-1.dll zlib1.dll)
+set(MINGW_LIBS_FULL "")
+foreach(X IN LISTS MINGW_LIBS)
+  find_file(LIB_OUT ${X} PATHS ${CMAKE_SYSROOT}/lib NO_CACHE REQUIRED)
+  list(APPEND MINGW_LIBS_FULL ${LIB_OUT})
+  unset(LIB_OUT)
+endforeach()
 
 find_package(ZLIB REQUIRED)
 add_compile_definitions(protobuf_MSVC_STATIC_RUNTIME=OFF)

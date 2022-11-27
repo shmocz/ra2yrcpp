@@ -27,7 +27,7 @@ class DLLInjectTest : public ::testing::Test {
     p_GetProcAddress = is_context::get_proc_address("GetProcAddress");
   }
 
-  std::string path_dll{"build/src/libyrclient.dll"};
+  std::string path_dll{"libyrclient.dll"};
   std::string name_init{"init_iservice"};
   // FIXME: avoid hardcoding
   u32 p_LoadLibrary;

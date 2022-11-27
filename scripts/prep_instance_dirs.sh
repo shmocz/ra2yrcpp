@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+INSTANCES="$1"
+PLAYER_ID=${2:-""}
+
 set -o nounset
 
 paths=(BINKW32.DLL
@@ -20,21 +23,15 @@ paths=(BINKW32.DLL
     Maps
     RA2.INI
     RA2MD.ini
-    thememd.INI
     ddraw.ini
     Keyboard.ini
     KeyboardMD.ini
     Blowfish.tlb
     spawner2.xdp
     Blowfish.dll
-    libgcc_s_dw2-1.dll
-    libwinpthread-1.dll
-    libstdc++-6.dll
     qres32.dll
     PATCHW32.DLL
     DRVMGT.DLL
-    libyrclient.dll
-    zlib1.dll
     ddraw.dll)
 
 function get_spawn_ini_settings() {
@@ -111,16 +108,35 @@ Port=50000
     get_others "$1"
 }
 
+function mklink() {
+    it=("$@")
+    params=("${@:1:$(($# - 1))}")
+    target="${it[-1]}"
+    for ii in "${params[@]}"; do
+        [ ! -e "$ii" ] && {
+            echo "$ii not found" && exit 1
+        }
+        ln -vfrns "$ii" "$target"
+    done
+}
+
 p_main="$RA2YRCPP_GAME_DIR"
 for i in ${!cfgs[@]}; do
-    ifolder="$RA2YRCPP_TEST_INSTANCES_DIR/player_${i}"
+    if [ ! -z "$PLAYER_ID" ] && [[ "$PLAYER_ID" != "player_${i}" ]]; then
+        continue
+    fi
+    ifolder="$INSTANCES/player_${i}"
     mkdir -p "$ifolder"
     for p in ${paths[@]}; do
-        ln -fnrs "$p_main/$p" "$ifolder/$p"
+        mklink "$p_main/$p" "$ifolder/$p"
     done
 
-    ln -sfr ./ra2yrcppcli.exe "$ifolder"
-    ln -sfr "$p_main/gamemd-spawn-patched.exe" "$ifolder"/gamemd-spawn.exe
+    # link files
+    cd "$CMAKE_RUNTIME_OUTPUT_DIRECTORY"
+    mklink "gamemd-spawn-patched.exe" "$ifolder"/gamemd-spawn.exe
+    mklink ra2yrcppcli.exe *.dll "$ifolder"
+    cd -
+
     cp test_data/spawnmap.ini "$ifolder"
     # write spawn.ini
     cfg="${cfgs[$i]}"

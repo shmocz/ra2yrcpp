@@ -87,3 +87,16 @@ add_dependencies(ra2yrcpp yrclient recordtool ra2yrcppcli-bin)
 
 add_library(manager STATIC manager.cpp)
 target_link_libraries(manager PUBLIC instrumentation_client)
+
+list(TRANSFORM MINGW_LIBS PREPEND "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+                                  OUTPUT_VARIABLE MINGW_LIBS_TEST)
+
+add_custom_target(copy-mingw-libraries ALL DEPENDS ${MINGW_LIBS_TEST})
+add_custom_command(
+  OUTPUT ${MINGW_LIBS_TEST}
+  COMMAND ${CMAKE_COMMAND} -E copy ${MINGW_LIBS_FULL}
+          ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+  DEPENDS ${MINGW_LIBS_FULL})
+
+install(TARGETS yrclient RUNTIME)
+install(FILES ${MINGW_LIBS_TEST} TYPE BIN)

@@ -1,9 +1,33 @@
 version: "3.9"
 services:
-  builder:
+  vnc:
+    build:
+      context: .
+      dockerfile: docker/vnc.Dockerfile
+    image: shmocz/vnc:latest
+    command: sh -c 'Xvnc :1 -depth 24 -geometry $$RESOLUTION -br -rfbport=5901 -SecurityTypes None -AcceptSetDesktopSize=off'
     environment:
-      CMAKE_TOOLCHAIN_FILE: /home/user/project/toolchains/mingw-w64-i686-docker.cmake
-    image: shmocz/yrclient:latest
+      RESOLUTION: "1280x1024"
+    ports:
+      - "6081:6081" # novnc
+      - "12001:5901" # vnc
+      - "50000:50000" # tunnel
+      - "14521:14521" # ra2yrcpp
+  novnc:
+    image: shmocz/vnc:latest
+    network_mode: service:vnc
+    user: root
+    command: /utils/novnc_proxy --vnc localhost:5901 --listen 6081
+  wm:
+    image: shmocz/vnc:latest
+    command: sh -c 'exec openbox-session'
+    depends_on:
+      - vnc
+    env_file:
+      - integration.env
+    network_mode: service:vnc
+  builder:
+    image: shmocz/ra2yrcpp:latest
     build:
       context: .
       dockerfile: docker/Dockerfile
@@ -11,3 +35,24 @@ services:
         PROTOBUF_VERSION: "v3.21.1"
     volumes:
       - .:/home/user/project
+      - ./wine-dir:/home/user/.wine
+      - gamedata:/home/user/RA2
+    user: "${UID}:${GID}"
+    env_file:
+      - integration.env
+    command: "${COMMAND}"
+  tunnel:
+    build:
+      context: .
+      dockerfile: docker/tunnel.Dockerfile
+    image: shmocz/pycncnettunnel:latest
+    stop_signal: SIGKILL
+    network_mode: service:vnc
+
+volumes:
+  gamedata:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/jba/prog/ra2yrcpp/maingame # path to CnCNet files
+      o: bind

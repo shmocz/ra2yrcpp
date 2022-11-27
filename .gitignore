@@ -23,4 +23,5 @@
 !LICENSE.md
 !Makefile
 !README.md
-!docker-compose.yml
+!docker-compose*.yml
+!integration.env

@@ -18,6 +18,8 @@
 !/tests/**
 !/toolchains
 !/toolchains/**
+!3rdparty
+!3rdparty/*
 !CMakeLists.txt
 !Doxyfile
 !LICENSE.md

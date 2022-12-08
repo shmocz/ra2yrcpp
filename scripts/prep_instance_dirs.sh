@@ -5,7 +5,8 @@ PLAYER_ID=${2:-""}
 
 set -o nounset
 
-paths=(BINKW32.DLL
+paths=(
+    BINKW32.DLL
     spawner.xdp
     ra2.mix
     ra2md.mix
@@ -14,7 +15,6 @@ paths=(BINKW32.DLL
     langmd.mix
     language.mix
     expandmd01.mix
-    expandmd02.mix
     mapsmd03.mix
     maps02.mix
     maps01.mix
@@ -24,14 +24,8 @@ paths=(BINKW32.DLL
     RA2.INI
     RA2MD.ini
     ddraw.ini
-    Keyboard.ini
-    KeyboardMD.ini
-    Blowfish.tlb
     spawner2.xdp
     Blowfish.dll
-    qres32.dll
-    PATCHW32.DLL
-    DRVMGT.DLL
     ddraw.dll)
 
 function get_spawn_ini_settings() {

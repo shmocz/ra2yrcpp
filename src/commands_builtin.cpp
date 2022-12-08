@@ -2,7 +2,6 @@
 
 // TODO: rename this to avoid confusion between command manager builtins
 
-using namespace yrclient::commands;
 using util_command::ISCommand;
 
 using util_command::get_cmd;
@@ -31,7 +30,7 @@ void test_cb(hook::Hook* h, void* data, X86Regs* state) {
 
 void yrclient::commands_builtin::command_deleter(command::Command* c) {
   if (c->result()) {
-    delete static_cast<yrclient::CommandResult*>(c->result());
+    delete static_cast<ra2yrproto::CommandResult*>(c->result());
   }
   if (c->args()) {
     delete static_cast<yrclient::ISArgs*>(c->args());
@@ -40,7 +39,7 @@ void yrclient::commands_builtin::command_deleter(command::Command* c) {
 
 std::map<std::string, command::Command::handler_t> get_commands_nn() {
   return {
-      get_cmd<yrclient::commands::StoreValue>([](auto* Q) {
+      get_cmd<ra2yrproto::commands::StoreValue>([](auto* Q) {
         // NB: ensure correct radix
         auto& a = Q->args();
         auto v = new vecu8(a.value().begin(), a.value().end());
@@ -48,7 +47,7 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
         Q->I()->store_value(a.key(), v);
         Q->set_result(a.value());
       }),
-      get_cmd<yrclient::commands::GetSystemState>([](auto* Q) {
+      get_cmd<ra2yrproto::commands::GetSystemState>([](auto* Q) {
         std::lock_guard<std::mutex> lk(Q->I()->server().connections_mut);
         auto* state = Q->command_data().mutable_result()->mutable_state();
         std::vector<server::ConnectionCTX*> active_connections;
@@ -79,7 +78,7 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
           state->add_queues()->set_queue_id(k);
         }
       }),
-      get_cmd<yrclient::commands::GetValue>([](auto* Q) {
+      get_cmd<ra2yrproto::commands::GetValue>([](auto* Q) {
         // NB: ensure correct radix
         // FIXME: proper locking
         auto [lk, s] = Q->I()->aq_storage();
@@ -87,7 +86,7 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
             yrclient::as<vecu8*>(Q->I()->get_value(Q->args().key(), false));
         Q->set_result(yrclient::to_string(*val));
       }),
-      get_cmd<yrclient::commands::HookableCommand>([](auto* Q) {
+      get_cmd<ra2yrproto::commands::HookableCommand>([](auto* Q) {
         static TestProgram t;
         auto t_addr = t.get_code();
         t_addr(3, 3);
@@ -97,12 +96,12 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
         res->set_address_test_callback(reinterpret_cast<u32>(&test_cb));
         res->set_code_size(t.entry_size);
       }),
-      get_cmd<yrclient::commands::InstallHook>([](auto* Q) {
+      get_cmd<ra2yrproto::commands::InstallHook>([](auto* Q) {
         auto& a = Q->args();
         Q->I()->create_hook(a.name(), reinterpret_cast<u8*>(a.address()),
                             a.code_length());
       }),
-      get_cmd<yrclient::commands::AddCallback>([](auto* Q) {
+      get_cmd<ra2yrproto::commands::AddCallback>([](auto* Q) {
         auto& a = Q->args();
         Q->I()
             ->hooks()

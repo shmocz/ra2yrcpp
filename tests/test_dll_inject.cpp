@@ -119,13 +119,13 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
     std::string f1 = "flag1";
     std::string key = "key1";
 
-    yrclient::commands::StoreValue s;
+    ra2yrproto::commands::StoreValue s;
     s.mutable_args()->set_key(key);
     s.mutable_args()->set_value(f1);
     auto r1 = client_utils::run(s, client.get());
     std::cerr << r1 << std::endl;
 
-    yrclient::commands::GetValue g;
+    ra2yrproto::commands::GetValue g;
     g.mutable_args()->set_key(key);
     auto r2 = client_utils::run(g, client.get());
     ASSERT_EQ(r2, f1);

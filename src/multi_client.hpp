@@ -33,7 +33,7 @@ using namespace async_map;
 
 enum class ClientType : i32 { COMMAND = 0, POLL = 1 };
 
-using ResultMap = AsyncMap<yrclient::CommandResult, u64>;
+using ResultMap = AsyncMap<ra2yrproto::CommandResult, u64>;
 
 ///
 /// Client that uses two connections to fetch results in real time. One
@@ -48,8 +48,8 @@ class AutoPollClient {
   ///
   /// Send command message with command client and poll results with poll client
   ///
-  yrclient::Response send_command(const google::protobuf::Message& cmd);
-  static yrclient::Response get_item();
+  ra2yrproto::Response send_command(const google::protobuf::Message& cmd);
+  static ra2yrproto::Response get_item();
   // Repeatedly executes blocking poll command on the backend, until stop signal
   // is given
   void poll_thread();

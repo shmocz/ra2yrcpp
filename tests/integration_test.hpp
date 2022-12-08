@@ -24,12 +24,12 @@ struct Settings {
 
 class IntegrationTest : public ::testing::Test {
  public:
-  static yrclient::game::PlayerInfo* configure_player(
-      yrclient::game::PlayerInfo* s, const std::string name,
+  static ra2yrproto::game::PlayerInfo* configure_player(
+      ra2yrproto::game::PlayerInfo* s, const std::string name,
       const uint32_t spawn_location, const bool is_spectator);
 
-  static yrclient::game::GameSettings* default_game_settings(
-      yrclient::game::GameSettings* s);
+  static ra2yrproto::game::GameSettings* default_game_settings(
+      ra2yrproto::game::GameSettings* s);
 
   void make_instance_directory(const fs::path game_dir, const fs::path tmp_dir);
 

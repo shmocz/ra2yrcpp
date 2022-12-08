@@ -35,7 +35,7 @@ struct INISection {
 };
 
 struct GameConfig {
-  yrclient::game::GameSettings s;
+  ra2yrproto::game::GameSettings s;
 
   GameConfig();
   std::string to_ini();
@@ -50,11 +50,11 @@ struct Address {
 class GameInstance {
  public:
   struct Settings {
-    yrclient::game::GameSettings config;
+    ra2yrproto::game::GameSettings config;
     const std::string map_name;
     Address dest;
 
-    Settings(const yrclient::game::GameSettings config,
+    Settings(const ra2yrproto::game::GameSettings config,
              const std::string map_name, const Address dest)
         : config(config), map_name(map_name), dest(dest) {}
 

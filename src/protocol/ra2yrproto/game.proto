@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package yrclient.game;
+package ra2yrproto.game;
 
 message PlayerInfo {
   string name = 1;

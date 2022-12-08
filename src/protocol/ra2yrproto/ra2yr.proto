@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package yrclient.ra2yr;
+package ra2yrproto.ra2yr;
 
 enum SpeedType {
   SPEED_TYPE_FOOT = 0;

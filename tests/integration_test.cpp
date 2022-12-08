@@ -37,8 +37,8 @@ void IntegrationTest::SetUp() {
   init();
 }
 
-yrclient::game::PlayerInfo* IntegrationTest::configure_player(
-    yrclient::game::PlayerInfo* s, const std::string name,
+ra2yrproto::game::PlayerInfo* IntegrationTest::configure_player(
+    ra2yrproto::game::PlayerInfo* s, const std::string name,
     const uint32_t spawn_location, const bool is_spectator) {
   s->set_name(name);
   s->set_spawn_location(spawn_location);
@@ -48,8 +48,8 @@ yrclient::game::PlayerInfo* IntegrationTest::configure_player(
   return s;
 }
 
-yrclient::game::GameSettings* IntegrationTest::default_game_settings(
-    yrclient::game::GameSettings* s) {
+ra2yrproto::game::GameSettings* IntegrationTest::default_game_settings(
+    ra2yrproto::game::GameSettings* s) {
   s->set_game_speed(1u);
   s->set_map_name("[4] Dry Heat");
   s->set_game_mode("Battle");

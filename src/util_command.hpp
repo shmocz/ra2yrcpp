@@ -15,7 +15,7 @@ struct ISCommand {
 
   explicit ISCommand(command::Command* c)
       : c(c), a((yrclient::ISArgs*)c->args()) {
-    result_q_ = new yrclient::CommandResult();
+    result_q_ = new ra2yrproto::CommandResult();
     res = nullptr;
     a->M.UnpackTo(&command_data_);
   }
@@ -44,7 +44,7 @@ struct ISCommand {
   command::Command* c;
   yrclient::ISArgs* a;
   T command_data_;
-  yrclient::CommandResult* result_q_;
+  ra2yrproto::CommandResult* result_q_;
   yrclient::ISArgs* res;
 };
 

@@ -50,6 +50,8 @@ find_package(Protobuf REQUIRED)
 set(Protobuf_PROTOC_EXECUTABLE ${PROTOBUF_PATH})
 include_directories(${Protobuf_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/src/protocol
+                    ${Protobuf_INCLUDE_DIRS})
 include_directories(src)
 include_directories(3rdparty/xbyak)
 include_directories(3rdparty/argparse/include)

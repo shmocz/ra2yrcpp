@@ -36,23 +36,23 @@ class InstrumentationClient {
   /// Send encoded message to server and read response back.
   /// @exception std::runtime_error on read/write failure.
   ///
-  yrclient::Response send_message(const vecu8& data);
+  ra2yrproto::Response send_message(const vecu8& data);
   /// Send protobuf message to server.
-  yrclient::Response send_message(const google::protobuf::Message& M);
+  ra2yrproto::Response send_message(const google::protobuf::Message& M);
 
-  yrclient::Response send_command_old(
+  ra2yrproto::Response send_command_old(
       std::string name, std::string args,
-      yrclient::CommandType type = yrclient::CLIENT_COMMAND_OLD);
+      ra2yrproto::CommandType type = ra2yrproto::CLIENT_COMMAND_OLD);
 
   /// Send a command of given type to server and read response.
-  yrclient::Response send_command(const google::protobuf::Message& cmd,
-                                  yrclient::CommandType type);
+  ra2yrproto::Response send_command(const google::protobuf::Message& cmd,
+                                    ra2yrproto::CommandType type);
 
-  yrclient::Response poll(const std::chrono::milliseconds timeout = 0ms);
-  yrclient::PollResults poll_blocking(
+  ra2yrproto::Response poll(const std::chrono::milliseconds timeout = 0ms);
+  ra2yrproto::PollResults poll_blocking(
       const std::chrono::milliseconds timeout = 5000ms,
       const u64 queue_id = (u64)-1);
-  yrclient::PollResults poll_until(
+  ra2yrproto::PollResults poll_until(
       const std::chrono::milliseconds timeout = 5000ms);
   ///
   /// Run single command on the backend and poll result immediately back.
@@ -62,7 +62,7 @@ class InstrumentationClient {
   /// @exception yrclient::timeout if result isn't available within specified
   /// time interval.
   ///
-  yrclient::CommandResult run_one(const google::protobuf::Message& M);
+  ra2yrproto::CommandResult run_one(const google::protobuf::Message& M);
   std::string shutdown();
 
  private:

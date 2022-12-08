@@ -1,8 +1,8 @@
 #pragma once
-#include "commands_builtin.pb.h"
-#include "commands_yr.pb.h"
-#include "core.pb.h"
-#include "game.pb.h"
+#include "ra2yrproto/commands_builtin.pb.h"
+#include "ra2yrproto/commands_yr.pb.h"
+#include "ra2yrproto/core.pb.h"
+#include "ra2yrproto/game.pb.h"
 #include "types.h"
 #include "util_string.hpp"
 
@@ -19,8 +19,8 @@
 namespace yrclient {
 
 // see issue #1
-constexpr auto RESPONSE_OK = yrclient::ResponseCode::OK;
-constexpr auto RESPONSE_ERROR = yrclient::ResponseCode::ERROR;
+constexpr auto RESPONSE_OK = ra2yrproto::ResponseCode::OK;
+constexpr auto RESPONSE_ERROR = ra2yrproto::ResponseCode::ERROR;
 
 template <typename T>
 inline vecu8 to_vecu8(const T& msg) {
@@ -35,8 +35,8 @@ inline vecu8 to_vecu8(const T& msg) {
 std::string to_json(const google::protobuf::Message& m);
 std::string message_type(const google::protobuf::Any& m);
 std::string message_type(const google::protobuf::Message& m);
-yrclient::Response make_response(const yrclient::ResponseCode code,
-                                 const google::protobuf::Message& body);
+ra2yrproto::Response make_response(const ra2yrproto::ResponseCode code,
+                                   const google::protobuf::Message& body);
 
 template <typename T>
 T from_any(const google::protobuf::Any& a) {

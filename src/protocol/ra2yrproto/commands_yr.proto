@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package yrclient.commands;
+package ra2yrproto.commands;
 
-import "ra2yr.proto";
+import "ra2yrproto/ra2yr.proto";
 
 enum UnitAction {
   ACTION_NONE = 0;
@@ -30,7 +30,7 @@ message CreateCallbacks {
 message GetGameState {
   message Args {}
   message Result {
-    yrclient.ra2yr.GameState state = 1;
+    ra2yrproto.ra2yr.GameState state = 1;
   }
   Args args = 1;
   Result result = 2;
@@ -39,7 +39,7 @@ message GetGameState {
 message GetTypeClasses {
   message Args {}
   message Result {
-    repeated yrclient.ra2yr.ObjectTypeClass classes = 1;
+    repeated ra2yrproto.ra2yr.ObjectTypeClass classes = 1;
   }
   Args args = 1;
   Result result = 2;
@@ -48,7 +48,7 @@ message GetTypeClasses {
 message GetObjects {
   message Args {}
   message Result {
-    repeated yrclient.ra2yr.Unit units = 1;
+    repeated ra2yrproto.ra2yr.Unit units = 1;
   }
   Args args = 1;
   Result result = 2;
@@ -57,7 +57,7 @@ message GetObjects {
 message GetHouses {
   message Args {}
   message Result {
-    repeated yrclient.ra2yr.House houses = 1;
+    repeated ra2yrproto.ra2yr.House houses = 1;
   }
   Args args = 1;
   Result result = 2;
@@ -85,7 +85,7 @@ message UnitCommand {
 message ClickEvent {
   message Args {
     repeated uint32 object_addresses = 1;
-    yrclient.ra2yr.NetworkEvent event = 2;
+    ra2yrproto.ra2yr.NetworkEvent event = 2;
   }
   message Result {}
   Args args = 1;

@@ -103,9 +103,9 @@ class InstrumentationService {
   std::function<std::string(InstrumentationService*)> on_shutdown_;
 
  private:
-  yrclient::Response flush_results(
+  ra2yrproto::Response flush_results(
       const u64 queue_id, const std::chrono::milliseconds delay = 1000ms);
-  yrclient::Response process_request(connection::Connection* C, vecu8* bytes);
+  ra2yrproto::Response process_request(connection::Connection* C, vecu8* bytes);
   command::CommandManager cmd_manager_;
   server::Server server_;
   std::map<u8*, hook::Hook> hooks_;

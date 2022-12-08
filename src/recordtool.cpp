@@ -22,9 +22,9 @@ int main(int argc, char* argv[]) {
   const std::string input = A.get<std::string>("-i");
   auto mode = A.get<std::string>("mode");
   if (mode == "record") {
-    dump_messages<yrclient::ra2yr::GameState>(input);
+    dump_messages<ra2yrproto::ra2yr::GameState>(input);
   } else if (mode == "traffic") {
-    dump_messages<yrclient::ra2yr::TunnelPacket>(input);
+    dump_messages<ra2yrproto::ra2yr::TunnelPacket>(input);
   }
   return 0;
 }

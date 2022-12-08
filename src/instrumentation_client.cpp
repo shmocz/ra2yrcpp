@@ -18,35 +18,35 @@ InstrumentationClient::InstrumentationClient(
                             poll_timeout, poll_rate) {}
 
 // TODO: get rid of this
-yrclient::Response InstrumentationClient::poll(
+ra2yrproto::Response InstrumentationClient::poll(
     const std::chrono::milliseconds timeout) {
   (void)timeout;
-  yrclient::Command C;
-  return send_command(C, yrclient::POLL);
+  ra2yrproto::Command C;
+  return send_command(C, ra2yrproto::POLL);
 }
 
 template <typename T>
-auto unpack(const yrclient::Response& R) {
+auto unpack(const ra2yrproto::Response& R) {
   T P;
   R.body().UnpackTo(&P);
   return P;
 }
 
-yrclient::PollResults InstrumentationClient::poll_blocking(
+ra2yrproto::PollResults InstrumentationClient::poll_blocking(
     const std::chrono::milliseconds timeout, const u64 queue_id) {
-  yrclient::PollResults C;
+  ra2yrproto::PollResults C;
   if (queue_id < (u64)-1) {
     auto* args = C.mutable_args();
     args->set_queue_id(queue_id);
     args->set_timeout((u64)timeout.count());
   }
-  auto resp = send_command(C, yrclient::POLL_BLOCKING);
+  auto resp = send_command(C, ra2yrproto::POLL_BLOCKING);
   if (resp.code() == yrclient::RESPONSE_ERROR) {
-    auto msg = yrclient::from_any<yrclient::TextResponse>(resp.body());
+    auto msg = yrclient::from_any<ra2yrproto::TextResponse>(resp.body());
     dprintf("{}", to_json(msg).c_str());
     throw yrclient::system_error(msg.message());
   }
-  return yrclient::from_any<yrclient::PollResults>(resp.body());
+  return yrclient::from_any<ra2yrproto::PollResults>(resp.body());
 }
 
 size_t InstrumentationClient::send_data(const vecu8& data) {
@@ -55,39 +55,39 @@ size_t InstrumentationClient::send_data(const vecu8& data) {
   return sent;
 }
 
-yrclient::Response InstrumentationClient::send_message(const vecu8& data) {
+ra2yrproto::Response InstrumentationClient::send_message(const vecu8& data) {
   if (send_data(data) != data.size()) {
     throw std::runtime_error("msg write failed");
   }
   auto resp = conn_->read_bytes();
-  yrclient::Response R;
+  ra2yrproto::Response R;
   R.ParseFromArray(resp.data(), resp.size());
   return R;
 }
 
-yrclient::Response InstrumentationClient::send_message(
+ra2yrproto::Response InstrumentationClient::send_message(
     const google::protobuf::Message& M) {
   auto data = yrclient::to_vecu8(M);
   assert(!data.empty());
   return send_message(data);
 }
 
-yrclient::Response InstrumentationClient::send_command_old(
-    std::string name, std::string args, yrclient::CommandType type) {
-  yrclient::Command C;
+ra2yrproto::Response InstrumentationClient::send_command_old(
+    std::string name, std::string args, ra2yrproto::CommandType type) {
+  ra2yrproto::Command C;
   C.set_command_type(type);
-  if (type == yrclient::CLIENT_COMMAND_OLD) {
+  if (type == ra2yrproto::CLIENT_COMMAND_OLD) {
     auto* CC = C.mutable_client_command_old();
     CC->set_name(name);
     CC->set_args(args);
   }
-  // auto data = yrclient::to_vecu8(C);
+  // auto data = ra2yrproto::to_vecu8(C);
   return send_message(C);
 }
 
-yrclient::Response InstrumentationClient::send_command(
-    const google::protobuf::Message& cmd, yrclient::CommandType type) {
-  yrclient::Command C;
+ra2yrproto::Response InstrumentationClient::send_command(
+    const google::protobuf::Message& cmd, ra2yrproto::CommandType type) {
+  ra2yrproto::Command C;
   C.set_command_type(type);
   if (!C.mutable_command()->PackFrom(cmd)) {
     throw yrclient::general_error("Packging message failed");
@@ -95,38 +95,38 @@ yrclient::Response InstrumentationClient::send_command(
   return send_message(C);
 }
 
-yrclient::PollResults InstrumentationClient::poll_until(
+ra2yrproto::PollResults InstrumentationClient::poll_until(
     const std::chrono::milliseconds timeout) {
-  yrclient::PollResults P;
-  yrclient::Response response;
+  ra2yrproto::PollResults P;
+  ra2yrproto::Response response;
   P = poll_blocking(timeout, 0u);
 
   dprintf("size={}", P.result().results().size());
   return P;
 }
 
-yrclient::CommandResult InstrumentationClient::run_one(
+ra2yrproto::CommandResult InstrumentationClient::run_one(
     const google::protobuf::Message& M) {
-  auto r_ack = send_command(M, yrclient::CLIENT_COMMAND);
+  auto r_ack = send_command(M, ra2yrproto::CLIENT_COMMAND);
   if (r_ack.code() == yrclient::RESPONSE_ERROR) {
     throw std::runtime_error("ACK " + to_json(r_ack));
   }
   try {
     auto res = poll_until(poll_timeout_);
     if (res.result().results_size() == 0) {
-      return yrclient::CommandResult();
+      return ra2yrproto::CommandResult();
     }
     return res.result().results()[0];
   } catch (const std::runtime_error& e) {
     eprintf("broken connection {}", e.what());
-    return yrclient::CommandResult();
+    return ra2yrproto::CommandResult();
   }
 }
 
 // FIXME: remove old code
 std::string InstrumentationClient::shutdown() {
-  auto r = send_command_old("shutdown", {}, yrclient::SHUTDOWN);
-  yrclient::TextResponse T;
+  auto r = send_command_old("shutdown", {}, ra2yrproto::SHUTDOWN);
+  ra2yrproto::TextResponse T;
   r.body().UnpackTo(&T);
   return T.message();
 }

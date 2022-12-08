@@ -27,8 +27,8 @@ std::vector<const google::protobuf::Descriptor*> get_messages(
 }
 
 void list_commands() {
-  const std::vector<std::string> ss = {"yrclient.commands.CreateCallbacks",
-                                       "yrclient.commands.GetSystemState"};
+  const std::vector<std::string> ss = {"ra2yrproto.commands.CreateCallbacks",
+                                       "ra2yrproto.commands.GetSystemState"};
   auto* pool = google::protobuf::DescriptorPool::generated_pool();
   for (const auto& s : ss) {
     auto* p = pool->FindMessageTypeByName(s);
@@ -43,7 +43,7 @@ void list_commands() {
   }
 }
 
-void send_and_print(yrclient::Response r) {
+void send_and_print(ra2yrproto::Response r) {
   fmt::print("{}\n", yrclient::to_json(r));
 }
 

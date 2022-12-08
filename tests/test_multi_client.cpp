@@ -46,21 +46,21 @@ class MultiClientTest : public ::testing::Test {
   auto run_async(const T& cmd) {
     auto r = client->send_command(cmd);
     dprintf("body={}\n", to_json(r.body()).c_str());
-    auto cmd_res = yrclient::from_any<yrclient::CommandResult>(r.body());
+    auto cmd_res = yrclient::from_any<ra2yrproto::CommandResult>(r.body());
     return yrclient::from_any<T>(cmd_res.result()).result();
   }
 };
 
 TEST_F(MultiClientTest, RunRegularCommand) {
   const unsigned count = 5u;
-  yrclient::commands::HookableCommand cmd;
+  ra2yrproto::commands::HookableCommand cmd;
   for (auto i = 0u; i < count; i++) {
     (void)run_async<decltype(cmd)>(cmd);
   }
 }
 
 TEST_F(MultiClientTest, RunCommandsAndVerify) {
-  yrclient::commands::HookableCommand cmd;
+  ra2yrproto::commands::HookableCommand cmd;
   auto r = run_async<decltype(cmd)>(cmd);
   const u32 addr = r.address_test_callback();
   ASSERT_GT(r.address_test_callback(), 0);

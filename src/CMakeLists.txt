@@ -1,9 +1,5 @@
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-set(PROTO_FILES
-    protocol/core.proto protocol/ra2yr.proto protocol/commands_builtin.proto
-    protocol/commands_yr.proto protocol/game.proto)
-protobuf_generate_python(PROTO_PY ${PROTO_FILES})
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
+add_subdirectory(protocol)
 
 add_library(errors OBJECT errors.cpp)
 add_library(process STATIC process.cpp exprocess.cpp $<TARGET_OBJECTS:errors>)
@@ -13,12 +9,7 @@ add_library(network STATIC network.cpp $<TARGET_OBJECTS:errors>)
 target_link_libraries(network ${LIB_WSOCK})
 add_library(dll_inject OBJECT dll_inject.cpp)
 target_link_libraries(dll_inject process)
-add_library(protocol_o OBJECT protocol/protocol.cpp ${PROTO_SRCS} ${PROTO_HDRS}
-                              util_string.cpp)
-add_library(protocol INTERFACE protocol/protocol.cpp)
-target_link_libraries(protocol INTERFACE protocol_o)
-target_include_directories(protocol INTERFACE ${Protobuf_INCLUDE_DIRS})
-add_custom_target(protocol_py ALL DEPENDS ${PROTO_PY})
+
 add_library(connection OBJECT connection.cpp)
 target_link_libraries(connection PUBLIC network)
 add_library(

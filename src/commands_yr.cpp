@@ -69,7 +69,7 @@ static GameT* ensure_raw_gamestate(yrclient::InstrumentationService* I,
 }
 
 static void get_factories(GameT* G,
-                          RepeatedPtrField<yrclient::ra2yr::Factory>* res) {
+                          RepeatedPtrField<ra2yrproto::ra2yr::Factory>* res) {
   for (auto& v : G->factory_classes()) {
     auto* f = res->Add();
     f->set_object_id(reinterpret_cast<u32>(v->object));
@@ -83,7 +83,7 @@ static bool is_valid_house(const ra2::objects::HouseClass& H) {
 }
 
 static void get_houses(GameT* G,
-                       RepeatedPtrField<yrclient::ra2yr::House>* res) {
+                       RepeatedPtrField<ra2yrproto::ra2yr::House>* res) {
   for (auto& v : G->house_classes()) {
     if (!is_valid_house(*v)) {
       continue;
@@ -105,7 +105,7 @@ static void get_houses(GameT* G,
   }
 }
 
-static void get_object(yrclient::ra2yr::Object* u,
+static void get_object(ra2yrproto::ra2yr::Object* u,
                        ra2::abstract_types::AbstractTypeClass* atc,
                        ra2::objects::ObjectClass* v) {
   using ra2::general::AbstractType;
@@ -130,17 +130,17 @@ static void get_object(yrclient::ra2yr::Object* u,
   // TODO: static LUT
   switch (at.t) {
     case AbstractType::BuildingType:
-      u->set_object_type(yrclient::ra2yr::ABSTRACT_TYPE_BUILDING);
+      u->set_object_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_BUILDING);
       u->set_owner_country_index(tc->owner_country_index);
       break;
     case AbstractType::InfantryType:
-      u->set_object_type(yrclient::ra2yr::ABSTRACT_TYPE_INFANTRY);
+      u->set_object_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_INFANTRY);
       break;
     case AbstractType::UnitType:
-      u->set_object_type(yrclient::ra2yr::ABSTRACT_TYPE_VEHICLE);
+      u->set_object_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_VEHICLE);
       break;
     case AbstractType::AircraftType:
-      u->set_object_type(yrclient::ra2yr::ABSTRACT_TYPE_AIRCRAFT);
+      u->set_object_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_AIRCRAFT);
       break;
     default:
       eprintf("no match for type {}", at.name);
@@ -158,7 +158,7 @@ static void get_object(yrclient::ra2yr::Object* u,
   coords->set_z(tc->coords.z);
 }
 
-static void get_object_type_class(yrclient::ra2yr::ObjectTypeClass* t,
+static void get_object_type_class(ra2yrproto::ra2yr::ObjectTypeClass* t,
                                   ra2::objects::AbstractTypeClass* v) {
   t->set_name(v->name);
   if (ra2::utility::is_technotypeclass(reinterpret_cast<void*>(v->p_vtable))) {
@@ -166,13 +166,13 @@ static void get_object_type_class(yrclient::ra2yr::ObjectTypeClass* t,
     t->set_pointer_self(ttc->pointer_self);
     t->set_cost(ttc->cost);
     t->set_soylent(ttc->soylent);
-    t->set_armor_type((yrclient::ra2yr::Armor)ttc->armor);
+    t->set_armor_type((ra2yrproto::ra2yr::Armor)ttc->armor);
     t->set_pointer_shp_struct(reinterpret_cast<u32>(ttc->p_cameo));
   }
 }
 
 static void get_object_type_classes(
-    GameT* G, RepeatedPtrField<yrclient::ra2yr::ObjectTypeClass>* r) {
+    GameT* G, RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* r) {
   for (const auto& [k, v] : G->abstract_type_classes()) {
     auto* t = r->Add();
     get_object_type_class(t, v.get());
@@ -180,7 +180,7 @@ static void get_object_type_classes(
 }
 
 static void get_objects(GameT* G,
-                        RepeatedPtrField<yrclient::ra2yr::Object>* res) {
+                        RepeatedPtrField<ra2yrproto::ra2yr::Object>* res) {
   for (const auto& [k, v] : G->objects) {
     auto* tc = (ra2::objects::TechnoClass*)(v.get());
     try {
@@ -198,7 +198,7 @@ static void get_objects(GameT* G,
 }
 
 static void raw_state_to_protobuf(GameT* raw_state,
-                                  yrclient::ra2yr::GameState* state,
+                                  ra2yrproto::ra2yr::GameState* state,
                                   const bool type_classes = false) {
   state->set_current_frame(
       serialize::read_obj_le<u32>(as<u32*>(ra2::game_state::current_frame)));
@@ -287,8 +287,8 @@ struct CBBeginLoad : public CBYR {
   std::string target() override { return key_on_load_game; }
 
   void main() override {
-    auto* state = storage_value<yrclient::ra2yr::GameState>(key_game_state);
-    state->set_stage(yrclient::ra2yr::LoadStage::STAGE_LOADING);
+    auto* state = storage_value<ra2yrproto::ra2yr::GameState>(key_game_state);
+    state->set_stage(ra2yrproto::ra2yr::LoadStage::STAGE_LOADING);
   }
 };
 
@@ -318,7 +318,7 @@ struct CBSaveState : public CBYR {
   const std::string record_path;
   yrclient::CompressedOutputStream* out;
   std::thread worker_thread;
-  async_queue::AsyncQueue<yrclient::ra2yr::GameState*> work;
+  async_queue::AsyncQueue<ra2yrproto::ra2yr::GameState*> work;
 
   explicit CBSaveState(const std::string record_path)
       : record_path(record_path),
@@ -332,7 +332,7 @@ struct CBSaveState : public CBYR {
     delete out;
   }
 
-  void serialize_state(yrclient::ra2yr::GameState* G) {
+  void serialize_state(ra2yrproto::ra2yr::GameState* G) {
     if (out != nullptr) {
       google::protobuf::io::CodedOutputStream co(&out->s_g);
 
@@ -362,9 +362,9 @@ struct CBSaveState : public CBYR {
     return !this->raw_game_state()->abstract_type_classes().empty();
   }
 
-  yrclient::ra2yr::GameState* state_to_protobuf(
+  ra2yrproto::ra2yr::GameState* state_to_protobuf(
       const bool do_type_classes = false) {
-    auto* gbuf = storage_value<yrclient::ra2yr::GameState>(key_game_state);
+    auto* gbuf = storage_value<ra2yrproto::ra2yr::GameState>(key_game_state);
     gbuf->Clear();
 
     // Parse type classes only once
@@ -387,9 +387,9 @@ struct CBSaveState : public CBYR {
         reinterpret_cast<void*>(ra2::game_state::p_DVC_FactoryClasses));
 
     // At this point we're free to leave the callback
-    gbuf->set_stage(yrclient::ra2yr::LoadStage::STAGE_INGAME);
+    gbuf->set_stage(ra2yrproto::ra2yr::LoadStage::STAGE_INGAME);
     raw_state_to_protobuf(raw_game_state(), gbuf, do_type_classes);
-    auto* gnew = new yrclient::ra2yr::GameState();
+    auto* gnew = new ra2yrproto::ra2yr::GameState();
     gnew->CopyFrom(*gbuf);
     return gnew;
   }
@@ -416,7 +416,7 @@ struct CBTunnel : public CBYR {
   void write_packet(const u32 source, const u32 dest, const void* buf,
                     size_t len) {
     dprintf("source={} dest={}, buf={}, len={}", source, dest, buf, len);
-    yrclient::ra2yr::TunnelPacket P;
+    ra2yrproto::ra2yr::TunnelPacket P;
     google::protobuf::io::CodedOutputStream co(&out->s_g);
     P.set_source(source);
     P.set_destination(dest);
@@ -495,9 +495,9 @@ static void init_callbacks(yrclient::InstrumentationService* I) {
 }
 
 static inline void unit_action(const u32 p_object,
-                               const yrclient::commands::UnitAction a,
+                               const ra2yrproto::commands::UnitAction a,
                                const ra2::abi::ABIGameMD* abi) {
-  using namespace yrclient::commands;
+  using namespace ra2yrproto::commands;
   switch (a) {
     case UnitAction::ACTION_DEPLOY:
       abi->DeployObject(p_object);  // NB. doesn't work online
@@ -515,7 +515,7 @@ static inline void unit_action(const u32 p_object,
 
 static std::map<std::string, command::Command::handler_t> get_commands_nn() {
   return {
-      get_cmd<yrclient::commands::ClickEvent>([](auto* Q) {
+      get_cmd<ra2yrproto::commands::ClickEvent>([](auto* Q) {
         auto [mut, s] = Q->I()->aq_storage();
         auto a = Q->args();
         const auto event = a.event();
@@ -549,7 +549,7 @@ static std::map<std::string, command::Command::handler_t> get_commands_nn() {
                    }
                  }});
       }),
-      get_cmd<yrclient::commands::UnitCommand>([](auto* Q) {
+      get_cmd<ra2yrproto::commands::UnitCommand>([](auto* Q) {
         auto [mut, s] = Q->I()->aq_storage();
         auto a = Q->args();
         const auto action = a.action();
@@ -582,7 +582,7 @@ static std::map<std::string, command::Command::handler_t> get_commands_nn() {
                    }
                  }});
       }),
-      get_cmd<yrclient::commands::CreateCallbacks>([](auto* Q) {
+      get_cmd<ra2yrproto::commands::CreateCallbacks>([](auto* Q) {
         auto [lk_s, s] = Q->I()->aq_storage();
         // Create ABI
         (void)ensure_storage_value<ra2::abi::ABIGameMD>(Q->I(), s, "abi");
@@ -622,7 +622,7 @@ static std::map<std::string, command::Command::handler_t> get_commands_nn() {
               Q->I(), k, 0u);
         }
       }),
-      get_cmd<yrclient::commands::CreateHooks>([](auto* Q) {
+      get_cmd<ra2yrproto::commands::CreateHooks>([](auto* Q) {
         for (auto& [k, v] : g_hooks_ng) {
           auto* p = reinterpret_cast<u8*>(v);
           auto h = get_hook_entry(p);
@@ -630,23 +630,23 @@ static std::map<std::string, command::Command::handler_t> get_commands_nn() {
                               h.code_size);
         }
       }),
-      get_cmd<yrclient::commands::GetGameState>([](auto* Q) {
+      get_cmd<ra2yrproto::commands::GetGameState>([](auto* Q) {
         // Copy saved game state
         auto [mut, s] = Q->I()->aq_storage();
         auto res = Q->command_data().mutable_result();
-        auto* state = ensure_storage_value<yrclient::ra2yr::GameState>(
+        auto* state = ensure_storage_value<ra2yrproto::ra2yr::GameState>(
             Q->I(), s, key_game_state);
         res->mutable_state()->CopyFrom(*state);
       }),
-      get_cmd<yrclient::commands::GetObjects>([](auto* Q) {
+      get_cmd<ra2yrproto::commands::GetObjects>([](auto* Q) {
         auto [mut, s] = Q->I()->aq_storage();
         auto G = ensure_raw_gamestate(Q->I(), s);
         auto res = Q->command_data().mutable_result();
-        yrclient::ra2yr::GameState state;
+        ra2yrproto::ra2yr::GameState state;
         raw_state_to_protobuf(G, &state);
         res->mutable_units()->CopyFrom(state.units());
       }),
-      get_cmd<yrclient::commands::GetTypeClasses>([](auto* Q) {
+      get_cmd<ra2yrproto::commands::GetTypeClasses>([](auto* Q) {
         auto [mut, s] = Q->I()->aq_storage();
         auto G = ensure_raw_gamestate(Q->I(), s);
         auto res = Q->command_data().mutable_result();

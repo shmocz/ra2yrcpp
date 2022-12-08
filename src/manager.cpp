@@ -26,8 +26,8 @@ std::string INISection::to_string(const std::string name,
   return ss.str();
 }
 
-std::vector<Entry> get_other(const yrclient::game::GameSettings* s,
-                             const yrclient::game::PlayerInfo* p) {
+std::vector<Entry> get_other(const ra2yrproto::game::GameSettings* s,
+                             const ra2yrproto::game::PlayerInfo* p) {
   return {
       Entry("Name", p->name()),
       Entry("Side", p->side()),

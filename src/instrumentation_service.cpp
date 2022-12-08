@@ -55,16 +55,16 @@ server::Server& InstrumentationService::server() { return server_; }
 std::map<u8*, hook::Hook>& InstrumentationService::hooks() { return hooks_; }
 
 template <typename T>
-yrclient::Response* reply_body(yrclient::Response* R, const T& body) {
+ra2yrproto::Response* reply_body(ra2yrproto::Response* R, const T& body) {
   if (!R->mutable_body()->PackFrom(body)) {
     throw yrclient::general_error("Couldn't pack response body");
   }
   return R;
 }
 
-yrclient::Response reply_error(std::string message) {
-  yrclient::Response R;
-  yrclient::TextResponse E;
+ra2yrproto::Response reply_error(std::string message) {
+  ra2yrproto::Response R;
+  ra2yrproto::TextResponse E;
   E.mutable_message()->assign(message);
   // E.set_error_message(message);
   R.set_code(RESPONSE_ERROR);
@@ -72,23 +72,23 @@ yrclient::Response reply_error(std::string message) {
   return *reply_body(&R, E);
 }
 
-yrclient::Response reply_ok(std::string message) {
-  yrclient::Response R;
-  yrclient::TextResponse T;
+ra2yrproto::Response reply_ok(std::string message) {
+  ra2yrproto::Response R;
+  ra2yrproto::TextResponse T;
   T.mutable_message()->assign(message);
   R.set_code(RESPONSE_OK);
   return *reply_body(&R, T);
 }
 
-yrclient::Response InstrumentationService::flush_results(
+ra2yrproto::Response InstrumentationService::flush_results(
     const u64 queue_id, const std::chrono::milliseconds delay) {
   auto results = cmd_manager().flush_results(queue_id, delay, 0);
-  yrclient::Response R;
-  yrclient::PollResults P;
+  ra2yrproto::Response R;
+  ra2yrproto::PollResults P;
   auto* PR = P.mutable_result();
   while (!results.empty()) {
     auto item = results.back();
-    auto* cmd_result = as<CommandResult*>(item->result());
+    auto* cmd_result = as<ra2yrproto::CommandResult*>(item->result());
     auto* res = PR->add_results();
     res->set_command_id(cmd_result->command_id());
     res->mutable_result()->CopyFrom(cmd_result->result());
@@ -105,9 +105,11 @@ yrclient::Response InstrumentationService::flush_results(
   return R;
 }
 
-yrclient::Response handle_cmd_ng(InstrumentationService* I,
-                                 connection::Connection* C, vecu8* bytes,
-                                 Command* cmd) {
+// TODO: static as separate commit
+static ra2yrproto::Response handle_cmd_ng(InstrumentationService* I,
+                                          connection::Connection* C,
+                                          vecu8* bytes,
+                                          ra2yrproto::Command* cmd) {
   (void)bytes;
   using yrclient::split_string;
   // TODO: reduce amount of copies we make
@@ -129,10 +131,10 @@ yrclient::Response handle_cmd_ng(InstrumentationService* I,
   } catch (const std::exception& e) {
     return reply_error(join_string({e.what(), name}));
   }
-  // write status back
-  Response presp;
+  // write status back (FIXME: use make_response)
+  ra2yrproto::Response presp;
   presp.set_code(RESPONSE_OK);
-  RunCommandAck ack;
+  ra2yrproto::RunCommandAck ack;
   ack.set_id(task_id);
   ack.set_queue_id(queue_id);
   if (!presp.mutable_body()->PackFrom(ack)) {
@@ -147,31 +149,31 @@ yrclient::Response handle_cmd_ng(InstrumentationService* I,
 // 2. if cmd found, return ACK as usual and schedule for executin
 // 3. pass command protobuf message as argument to command
 // 4. execute command, store result in protobuf message's field
-yrclient::Response InstrumentationService::process_request(
+ra2yrproto::Response InstrumentationService::process_request(
     connection::Connection* C, vecu8* bytes) {
   // read command from message
-  Command cmd;
+  ra2yrproto::Command cmd;
   if (!cmd.ParseFromArray(bytes->data(), bytes->size())) {
     return reply_error("Message parse error");
   }
 
   // execute parsed command & write result
   switch (cmd.command_type()) {
-    case yrclient::CLIENT_COMMAND_OLD: {
+    case ra2yrproto::CLIENT_COMMAND_OLD: {
       return reply_error("Deprecated");
     } break;
-    case yrclient::CLIENT_COMMAND:
+    case ra2yrproto::CLIENT_COMMAND:
       return handle_cmd_ng(this, C, bytes, &cmd);
-    case yrclient::POLL: {
+    case ra2yrproto::POLL: {
       try {
         return flush_results(C->socket());
       } catch (const std::out_of_range& e) {
         return reply_error(e.what());
       }
     }
-    case yrclient::POLL_BLOCKING: {
+    case ra2yrproto::POLL_BLOCKING: {
       try {
-        yrclient::PollResults R;
+        ra2yrproto::PollResults R;
         cmd.command().UnpackTo(&R);
         // TODO: correct check?
         const u64 queue_id =
@@ -188,7 +190,7 @@ yrclient::Response InstrumentationService::process_request(
         return reply_error(e.what());
       }
     }
-    case yrclient::SHUTDOWN: {
+    case ra2yrproto::SHUTDOWN: {
       try {
         dprintf("shutdown signal");
         return reply_ok(on_shutdown_(this));

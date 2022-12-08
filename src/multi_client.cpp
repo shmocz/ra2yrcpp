@@ -26,16 +26,16 @@ AutoPollClient::~AutoPollClient() {
   poll_thread_.join();
 }
 
-yrclient::Response AutoPollClient::send_command(
+ra2yrproto::Response AutoPollClient::send_command(
     const google::protobuf::Message& cmd) {
   // Send command
   auto resp = get_client(ClientType::COMMAND)
-                  ->send_command(cmd, yrclient::CommandType::CLIENT_COMMAND);
-  auto ack = yrclient::from_any<yrclient::RunCommandAck>(resp.body());
+                  ->send_command(cmd, ra2yrproto::CommandType::CLIENT_COMMAND);
+  auto ack = yrclient::from_any<ra2yrproto::RunCommandAck>(resp.body());
   // FIXME: ugly hack to set result queue id
   if (queue_id_ == (u64)-1) {
     queue_id_ = ack.queue_id();
-    yrclient::CommandResult C;
+    ra2yrproto::CommandResult C;
     C.set_command_id(-1);
     results().put((u64)-1, C);
   }
@@ -44,7 +44,7 @@ yrclient::Response AutoPollClient::send_command(
   try {
     // FIXME: signal if poll_thread dies
     auto poll_res = results().get(ack.id(), command_timeout_);
-    return make_response(yrclient::RESPONSE_OK, poll_res);
+    return yrclient::make_response(yrclient::RESPONSE_OK, poll_res);
   } catch (const std::runtime_error& e) {
     throw yrclient::general_error(fmt::format(
         "timeout after {}ms, key={}", command_timeout_.count(), ack.id()));

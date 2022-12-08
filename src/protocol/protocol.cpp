@@ -17,9 +17,10 @@ std::string yrclient::message_type(const google::protobuf::Message& m) {
   return m.GetTypeName();
 }
 
-yrclient::Response yrclient::make_response(
-    const yrclient::ResponseCode code, const google::protobuf::Message& body) {
-  yrclient::Response r;
+ra2yrproto::Response yrclient::make_response(
+    const ra2yrproto::ResponseCode code,
+    const google::protobuf::Message& body) {
+  ra2yrproto::Response r;
   r.set_code(code);
   if (!r.mutable_body()->PackFrom(body)) {
     throw std::runtime_error("Could not pack message body");

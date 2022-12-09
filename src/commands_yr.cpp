@@ -623,12 +623,21 @@ static std::map<std::string, command::Command::handler_t> get_commands_nn() {
         }
       }),
       get_cmd<ra2yrproto::commands::CreateHooks>([](auto* Q) {
+        // TODO: put these to utility function and share code with Hook code
+        // suspend threads
+        auto P = process::get_current_process();
+        std::vector<process::thread_id_t> ns(Q->I()->get_connection_threads());
+        ns.push_back(process::get_current_tid());
+        P.suspend_threads(ns);
+
+        // create hooks
         for (auto& [k, v] : g_hooks_ng) {
-          auto* p = reinterpret_cast<u8*>(v);
-          auto h = get_hook_entry(p);
+          auto h = get_hook_entry(reinterpret_cast<u8*>(v));
           Q->I()->create_hook(k, reinterpret_cast<u8*>(h.p_target),
                               h.code_size);
         }
+        // resume threads
+        P.resume_threads(ns);
       }),
       get_cmd<ra2yrproto::commands::GetGameState>([](auto* Q) {
         // Copy saved game state

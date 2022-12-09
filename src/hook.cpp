@@ -26,13 +26,14 @@ unsigned int num_threads_at_tgt(const process::Process& P, const u8* target,
 }
 
 Hook::Hook(addr_t src_address, const size_t code_length, const std::string name,
-           const std::vector<thread_id_t> no_suspend)
+           const std::vector<thread_id_t> no_suspend, const bool manual)
     : d_{src_address, 0u, code_length},
       name_(name),
       dm_(this),
       no_suspend_(no_suspend),
       count_enter_(0u),
-      count_exit_(0u) {
+      count_exit_(0u),
+      manual_(manual) {
   // Create detour
   auto p = dm_.getCode<u8*>();
 
@@ -42,7 +43,11 @@ Hook::Hook(addr_t src_address, const size_t code_length, const std::string name,
   // Patch target region
   DetourTrampoline D(p, code_length);
   auto f = D.getCode<u8*>();
-  patch_code_safe(reinterpret_cast<u8*>(src_address), f, D.getSize());
+  if (manual_) {
+    patch_code(reinterpret_cast<u8*>(src_address), f, D.getSize());
+  } else {
+    patch_code_safe(reinterpret_cast<u8*>(src_address), f, D.getSize());
+  }
 }
 
 void threads_resume_wait_pause(const process::Process& P,
@@ -148,6 +153,7 @@ unsigned int* Hook::count_enter() { return &count_enter_; }
 
 unsigned int* Hook::count_exit() { return &count_exit_; }
 
+// FIXME: unused
 template <typename T>
 static auto get_callback_(T* h, const std::string name) {
   return std::find_if(h->begin(), h->end(),

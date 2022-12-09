@@ -109,7 +109,8 @@ class Hook {
   ///
   Hook(addr_t src_address, const size_t code_length,
        const std::string name = "",
-       const std::vector<thread_id_t> no_suspend = {});
+       const std::vector<thread_id_t> no_suspend = {},
+       const bool manual = false);
   ~Hook();
   void add_callback(HookCallback c);
   ///
@@ -146,6 +147,7 @@ class Hook {
   std::vector<thread_id_t> no_suspend_;
   unsigned int count_enter_;
   unsigned int count_exit_;
+  bool manual_;
 };
 
 }  // namespace hook

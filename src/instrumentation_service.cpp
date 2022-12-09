@@ -43,7 +43,7 @@ void InstrumentationService::create_hook(std::string name, u8* target,
   }
   auto tids = get_connection_threads();
   hooks_.try_emplace(target, reinterpret_cast<addr_t>(target), code_length,
-                     name, tids);
+                     name, tids, true);
 }
 
 command::CommandManager& InstrumentationService::cmd_manager() {

@@ -21,10 +21,12 @@ constexpr char key_on_frame_update[] = "on_frame_update";
 constexpr char key_load_game[] = "load_game";
 constexpr char key_save_state[] = "save_state";
 constexpr char key_execute_gameloop_command[] = "cb_execute_gameloop_command";
+constexpr char key_progress_update[] = "cb_progress_update";
 constexpr char key_on_tunnel_sendto[] = "cb_tunnel_sendto";
 constexpr char key_on_tunnel_recvfrom[] = "cb_tunnel_recvfrom";
 constexpr char key_tunnel_sendto[] = "tunnel_sendto";
 constexpr char key_tunnel_recvfrom[] = "tunnel_recvfrom";
+constexpr char key_on_progress_update[] = "on_progress_update";
 
 struct hook_entry {
   u32 p_target;
@@ -32,11 +34,13 @@ struct hook_entry {
 };
 
 static std::map<std::string, u32> g_hooks_ng = {
-    {key_on_frame_update, 0x55de7f},
-    {key_on_gameloop_exit, 0x72dfb0},
-    {key_on_load_game, 0x69ae90},
-    {key_on_tunnel_sendto, 0x7b3d6f},
-    {key_on_tunnel_recvfrom, 0x7b3f15}};
+    {key_on_frame_update, 0x55de7f},     //
+    {key_on_gameloop_exit, 0x72dfb0},    //
+    {key_on_load_game, 0x686730},        //
+    {key_on_tunnel_sendto, 0x7b3d6f},    //
+    {key_on_tunnel_recvfrom, 0x7b3f15},  //
+    {key_on_progress_update, 0x643c62}   //
+};
 
 static hook_entry get_hook_entry(const u8* target) {
   hook_entry h;
@@ -253,6 +257,9 @@ struct CBExitGameLoop : public yrclient::ISCallback {
     // Delete all callbacks except ourselves
     // NB. the corresponding HookCallback must be removed from Hook object
     // (shared_ptr would be handy here)
+    auto [mut, s] = I->aq_storage();
+    ensure_storage_value<ra2yrproto::ra2yr::GameState>(I, s, key_game_state)
+        ->set_stage(ra2yrproto::ra2yr::STAGE_EXIT_GAME);
 
     auto [lk, hhooks] = I->aq_hooks();
     auto* callbacks = asptr<cb_map_t>(I->get_value(key_callbacks_yr, true));
@@ -288,6 +295,33 @@ struct CBBeginLoad : public CBYR {
 
   void main() override {
     auto* state = storage_value<ra2yrproto::ra2yr::GameState>(key_game_state);
+    state->set_stage(ra2yrproto::ra2yr::LoadStage::STAGE_LOADING);
+  }
+};
+
+struct CBUpdateLoadProgress : public CBYR {
+  CBUpdateLoadProgress() {}
+
+  std::string name() override { return key_progress_update; }
+
+  std::string target() override { return key_on_progress_update; }
+
+  static constexpr char key_state[] = "progress";
+
+  void main() override {
+    // this = ESI
+    auto* state = storage_value<ra2yrproto::ra2yr::GameState>(key_game_state);
+    auto* local_state = storage_value<ra2yrproto::ra2yr::GameState>(key_state);
+    if (local_state->load_progresses().empty()) {
+      for (auto i = 0u; i < 8u; i++) {
+        local_state->add_load_progresses(0.0);
+      }
+    }
+    for (auto i = 0; i < local_state->load_progresses().size(); i++) {
+      local_state->set_load_progresses(
+          i, serialize::read_obj<double>(reinterpret_cast<u32*>(
+                 cpu_state->esi + 0x8 + i * sizeof(double))));
+    }
     state->set_stage(ra2yrproto::ra2yr::LoadStage::STAGE_LOADING);
   }
 };
@@ -366,6 +400,12 @@ struct CBSaveState : public CBYR {
       const bool do_type_classes = false) {
     auto* gbuf = storage_value<ra2yrproto::ra2yr::GameState>(key_game_state);
     gbuf->Clear();
+
+    // put load stages
+    gbuf->mutable_load_progresses()->CopyFrom(
+        storage_value<ra2yrproto::ra2yr::GameState>(
+            CBUpdateLoadProgress::key_state)
+            ->load_progresses());
 
     // Parse type classes only once
     if (do_type_classes) {
@@ -481,12 +521,11 @@ static void init_callbacks(yrclient::InstrumentationService* I) {
   // TODO: customizable output path
   std::string record_out = yrclient::join_string({"record", t, "pb.gz"}, ".");
   auto* v = asptr<cb_map_t>(I->get_value(key_callbacks_yr, false));
-  std::vector<yrclient::ISCallback*> cbs{
-      new CBBeginLoad(),
-      new CBSaveState(record_out),
-      new CBExitGameLoop(),
-      new CBExecuteGameLoopCommand(),
-  };
+  std::vector<yrclient::ISCallback*> cbs{new CBBeginLoad(),               //
+                                         new CBSaveState(record_out),     //
+                                         new CBExitGameLoop(),            //
+                                         new CBExecuteGameLoopCommand(),  //
+                                         new CBUpdateLoadProgress()};
   init_tunnel_callbacks(&cbs,
                         yrclient::join_string({"traffic", t, "pb.gz"}, "."));
   for (auto* cb : cbs) {

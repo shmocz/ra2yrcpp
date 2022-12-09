@@ -166,6 +166,7 @@ message GameState {
   repeated ObjectTypeClass object_types = 5;
   repeated Object objects = 6;
   LoadStage stage = 7;
+  repeated double load_progresses = 8;
 }
 
 enum NetworkEvent {

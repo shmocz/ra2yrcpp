@@ -11,6 +11,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <exception>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -20,6 +21,7 @@
 #include <system_error>
 #include <thread>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 namespace command {
@@ -41,20 +43,20 @@ class QueueCompare {
 ///
 class CommandEntry {
  public:
-  CommandEntry(const std::string name, Command::handler_t handler,
-               Command::deleter_t deleter = nullptr);
+  CommandEntry(const std::string name, Command::handler_t handler);
   const std::string name_;
   Command::handler_t handler_;
-  Command::deleter_t deleter_;
 };
 
 /// Constructs new Command instances
 class CommandFactory {
  public:
   CommandFactory();
-  void add_entry(const std::string name, Command::handler_t handler,
-                 Command::deleter_t deleter = nullptr);
+  void add_entry(const std::string name, Command::handler_t handler);
   Command* make_command(const std::string name, void* args,
+                        const std::uint64_t queue_id);
+  Command* make_command(const std::string name,
+                        std::unique_ptr<void, void (*)(void*)> args,
                         const std::uint64_t queue_id);
 
  private:
@@ -62,9 +64,6 @@ class CommandFactory {
   std::map<std::string, CommandEntry> entries_;
   std::uint64_t counter_{0u};
 };
-
-template <typename T>
-using guarded = std::tuple<std::unique_lock<std::mutex>, T*>;
 
 using result_queue_t =
     async_queue::AsyncQueue<std::shared_ptr<Command>,
@@ -101,6 +100,7 @@ class CommandManager {
 
  private:
   std::atomic_bool active_{true};
+  std::chrono::milliseconds timeout_;
   std::thread worker_thread_;
   CommandFactory factory_;
   std::priority_queue<std::shared_ptr<Command>,
@@ -110,6 +110,5 @@ class CommandManager {
   std::mutex work_queue_mut_;
   results_queue_t results_queue_;
   std::timed_mutex mut_results_;
-  std::chrono::milliseconds timeout_;
 };
 }  // namespace command

@@ -19,9 +19,8 @@ std::string yrclient::ISCallback::target() {
 }
 
 void InstrumentationService::add_command(std::string name,
-                                         command::Command::handler_t fn,
-                                         command::Command::deleter_t deleter) {
-  cmd_manager_.factory().add_entry(name, fn, deleter);
+                                         command::Command::handler_t fn) {
+  cmd_manager_.factory().add_entry(name, fn);
 }
 
 std::vector<process::thread_id_t>
@@ -113,7 +112,6 @@ static ra2yrproto::Response handle_cmd_ng(InstrumentationService* I,
   (void)bytes;
   using yrclient::split_string;
   // TODO: reduce amount of copies we make
-  vecu8 result;
   auto client_cmd = cmd->command();
   // schedule command execution
   uint64_t task_id = 0;
@@ -121,11 +119,16 @@ static ra2yrproto::Response handle_cmd_ng(InstrumentationService* I,
   auto is_args = new ISArgs;
   is_args->I = I;
   is_args->M.CopyFrom(client_cmd);
+
   // Get trailing portion of protobuf type url
   auto name = split_string(client_cmd.type_url(), "/").back();
 
   try {
-    auto c = I->cmd_manager().factory().make_command(name, is_args, queue_id);
+    auto c = I->cmd_manager().factory().make_command(
+        name,
+        std::unique_ptr<void, void (*)(void*)>(
+            is_args, [](auto d) { delete reinterpret_cast<ISArgs*>(d); }),
+        queue_id);
     I->cmd_manager().enqueue_command(std::shared_ptr<command::Command>(c));
     task_id = c->task_id();
   } catch (const std::exception& e) {
@@ -140,6 +143,7 @@ static ra2yrproto::Response handle_cmd_ng(InstrumentationService* I,
   if (!presp.mutable_body()->PackFrom(ack)) {
     return reply_error("Packing ACK message failed");
   }
+  vecu8 result;
   result.resize(presp.ByteSizeLong());
   presp.SerializeToArray(result.data(), result.size());
   return presp;

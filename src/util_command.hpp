@@ -4,6 +4,7 @@
 #include "command/command.hpp"
 #include "instrumentation_service.hpp"
 
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -14,10 +15,13 @@ struct ISCommand {
   using result_t = decltype(std::declval<T>().result());
 
   explicit ISCommand(command::Command* c)
-      : c(c), a((yrclient::ISArgs*)c->args()) {
-    result_q_ = new ra2yrproto::CommandResult();
-    res = nullptr;
-    a->M.UnpackTo(&command_data_);
+      : c(c),
+        a_((yrclient::ISArgs*)c->args()),
+        result_q_(std::unique_ptr<void, void (*)(void*)>(
+            new ra2yrproto::CommandResult(), [](auto p) {
+              delete reinterpret_cast<ra2yrproto::CommandResult*>(p);
+            })) {
+    a_->M.UnpackTo(&command_data_);
   }
 
   ISCommand(const ISCommand&) = delete;
@@ -32,20 +36,20 @@ struct ISCommand {
   void set_result(result_t val) { command_data_.set_result(val); }
 
   void save_command_result() {
-    result_q_->set_command_id(c->task_id());
-    result_q_->mutable_result()->PackFrom(command_data_);
-    c->set_result(reinterpret_cast<void*>(result_q_));
+    auto* p = reinterpret_cast<ra2yrproto::CommandResult*>(result_q_.get());
+    p->set_command_id(c->task_id());
+    p->mutable_result()->PackFrom(command_data_);
+    c->set_result(std::move(result_q_));
   }
 
-  auto* I() { return a->I; }
+  auto* I() { return a_->I; }
 
-  auto* M() { return a->M; }
+  auto* M() { return a_->M; }
 
   command::Command* c;
-  yrclient::ISArgs* a;
+  yrclient::ISArgs* a_;
   T command_data_;
-  ra2yrproto::CommandResult* result_q_;
-  yrclient::ISArgs* res;
+  std::unique_ptr<void, void (*)(void*)> result_q_;
 };
 
 template <typename MessageT>

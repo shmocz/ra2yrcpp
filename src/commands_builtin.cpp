@@ -28,15 +28,6 @@ void test_cb(hook::Hook* h, void* data, X86Regs* state) {
   I->store_value("test_key", new vecu8(s.begin(), s.end()));
 }
 
-void yrclient::commands_builtin::command_deleter(command::Command* c) {
-  if (c->result()) {
-    delete static_cast<ra2yrproto::CommandResult*>(c->result());
-  }
-  if (c->args()) {
-    delete static_cast<yrclient::ISArgs*>(c->args());
-  }
-}
-
 std::map<std::string, command::Command::handler_t> get_commands_nn() {
   return {
       get_cmd<ra2yrproto::commands::StoreValue>([](auto* Q) {

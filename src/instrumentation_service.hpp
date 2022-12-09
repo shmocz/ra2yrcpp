@@ -80,8 +80,7 @@ class InstrumentationService {
                          std::function<std::string(InstrumentationService*)>
                              on_shutdown = nullptr);
   ~InstrumentationService();
-  void add_command(std::string name, command::Command::handler_t fn,
-                   command::Command::deleter_t deleter);
+  void add_command(std::string name, command::Command::handler_t fn);
 
   std::vector<process::thread_id_t> get_connection_threads();
   void create_hook(std::string name, u8* target, const size_t code_length);

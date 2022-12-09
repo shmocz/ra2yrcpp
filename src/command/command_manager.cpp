@@ -2,9 +2,8 @@
 
 using namespace command;
 
-CommandEntry::CommandEntry(const std::string name, Command::handler_t handler,
-                           Command::deleter_t deleter)
-    : name_(name), handler_(handler), deleter_(deleter) {}
+CommandEntry::CommandEntry(const std::string name, Command::handler_t handler)
+    : name_(name), handler_(handler) {}
 
 bool QueueCompare::operator()(cmd_entry_t left, cmd_entry_t right) {
   return left->type() >= right->type();
@@ -13,23 +12,36 @@ bool QueueCompare::operator()(cmd_entry_t left, cmd_entry_t right) {
 CommandFactory::CommandFactory() {}
 
 void CommandFactory::add_entry(const std::string name,
-                               Command::handler_t handler,
-                               Command::deleter_t deleter) {
+                               Command::handler_t handler) {
   dprintf("add cmd {}", name.c_str());
-  entries_.try_emplace(name, name, handler, deleter);
+  entries_.try_emplace(name, name, handler);
 }
 
 Command* CommandFactory::make_command(const std::string name, void* args,
                                       const std::uint64_t queue_id) {
+  return make_command(
+      name,
+      std::unique_ptr<void, void (*)(void*)>(args, [](auto d) { (void)d; }),
+      queue_id);
+}
+
+Command* CommandFactory::make_command(
+    const std::string name, std::unique_ptr<void, void (*)(void*)> args,
+    const std::uint64_t queue_id) {
   auto& e = entries_.at(name);
-  auto* C =
-      new Command(name, {e.handler_, e.deleter_}, queue_id, counter_, args);
+  auto* C = new Command(name, e.handler_, queue_id, counter_, std::move(args));
   ++counter_;
   return C;
 }
 
 CommandManager::CommandManager()
-    : worker_thread_([this]() { this->worker(); }) {}
+    : timeout_(0ms), worker_thread_([this]() {
+        try {
+          this->worker();
+        } catch (const std::exception& e) {
+          eprintf("worker died {}", e.what());
+        }
+      }) {}
 
 CommandManager::~CommandManager() {
   enqueue_builtin(CommandType::SHUTDOWN, 0);
@@ -49,8 +61,8 @@ void CommandManager::create_queue(const uint64_t id,
   if (results_queue_.find(id) != results_queue_.end()) {
     throw std::runtime_error(fmt::format("existsing queue_id={}", id));
   }
-  results_queue_[id] = std::shared_ptr<result_queue_t>(
-      new result_queue_t(result_queue_t::queue_t(max_size)));
+  results_queue_[id] =
+      std::make_shared<result_queue_t>(result_queue_t::queue_t(max_size));
 }
 
 void CommandManager::destroy_queue(const uint64_t id) {
@@ -71,7 +83,6 @@ void CommandManager::invoke_user_command(std::shared_ptr<Command> cmd) {
   }
   std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
   auto q = results_queue_.at(cmd->queue_id());
-  dprintf("task_id={}", cmd->task_id());
   q->push(cmd);
 }
 
@@ -79,9 +90,13 @@ void CommandManager::enqueue_builtin(const CommandType type, const int queue_id,
                                      BuiltinArgs args) {
   std::unique_lock<std::mutex> k(work_queue_mut_);
   // FIXME: use uptr
-  auto* cmd = new Command(type, queue_id, new BuiltinArgs(args));
-  // TODO: rlock
-  work_queue_.push(std::shared_ptr<Command>(cmd));
+  // TODO: rlock to avoid copypaste code
+  work_queue_.push(std::shared_ptr<Command>(
+      new Command("", nullptr, queue_id, 0u,
+                  std::unique_ptr<void, void (*)(void*)>(
+                      new BuiltinArgs(args),
+                      [](auto d) { delete reinterpret_cast<BuiltinArgs*>(d); }),
+                  type)));
   work_queue_cv_.notify_all();
 }
 
@@ -101,10 +116,10 @@ void CommandManager::worker() {
     auto cmd = work_queue_.top();
     work_queue_.pop();
     switch (cmd->type()) {
-      case CommandType::CREATE_QUEUE: {
+      case CommandType::CREATE_QUEUE:
         create_queue(cmd->queue_id(),
                      reinterpret_cast<BuiltinArgs*>(cmd->args())->queue_size);
-      } break;
+        break;
       case CommandType::DESTROY_QUEUE:
         destroy_queue(cmd->queue_id());
         break;

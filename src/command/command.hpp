@@ -6,6 +6,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace command {
@@ -21,24 +22,12 @@ struct BuiltinArgs {
 class Command {
  public:
   using handler_t = std::function<void(Command*)>;
-  using deleter_t = std::function<void(Command*)>;
-
-  struct methods_t {
-    handler_t handler;
-    deleter_t deleter;
-  };
 
   Command() = delete;
-  // For factory commands
-  Command(const std::string name, handler_t handler,
-          deleter_t deleter = nullptr);
   // For command instantiation
-  Command(const std::string name, methods_t methods, std::uint64_t queue_id,
-          std::uint64_t task_id, void* args,
+  Command(const std::string name, handler_t handler, std::uint64_t queue_id,
+          std::uint64_t task_id, std::unique_ptr<void, void (*)(void*)> args,
           CommandType cmd_type = CommandType::USER);
-  // For built-in commands
-  Command(const CommandType type, const uint64_t queue_id,
-          BuiltinArgs* args = nullptr);
   ~Command();
   void run();
   // Pointer to result data.
@@ -48,13 +37,11 @@ class Command {
   std::uint64_t queue_id() const;
   std::uint64_t task_id() const;
   ResultCode* result_code();
-  // FIXME: use directly ref. in result(). this is just to not to break old code
-  void set_result(void* p);
+  void set_result(std::unique_ptr<void, void (*)(void*)> p);
   std::string* error_message();
-  bool builtin() const;
 
  private:
-  methods_t methods_;
+  handler_t handler_;
   CommandType type_;        // is this a built-in command or something else?
   std::uint64_t queue_id_;  // such as socket
   std::uint64_t task_id_;   // unique task id
@@ -63,8 +50,8 @@ class Command {
   // protobuf descriptor
   std::string name_;
   // how these are processed is completely up to handler function
-  void* args_;
-  void* result_;
+  std::unique_ptr<void, void (*)(void*)> args_;
+  std::unique_ptr<void, void (*)(void*)> result_;
   ResultCode result_code_{ResultCode::NONE};
   std::string error_message_;
 };

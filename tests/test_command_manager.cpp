@@ -45,22 +45,23 @@ TEST_F(CommandManagerTest, RegisterAndRunCommandWithResources) {
   const std::string cmd_name = "test_cmd";
   std::uint64_t queue = 0u;
   const size_t count = 100;
-  M.factory().add_entry(
-      cmd_name,
-      [&flag](command::Command* c) {
-        auto* G = as<GenerateReadableString*>(c->args());
-        (*G)({1, 2, 3, 4, 5});
-        flag.assign(G->msg());
-      },
-      [](command::Command* c) {
-        delete as<GenerateReadableString*>(c->args());
-      });
+  M.factory().add_entry(cmd_name, [&flag](command::Command* c) {
+    auto* G = as<GenerateReadableString*>(c->args());
+    (*G)({1, 2, 3, 4, 5});
+    flag.assign(G->msg());
+  });
 
   M.create_queue(queue);
   for (size_t i = 0u; i < count; i++) {
     auto* G = new GenerateReadableString(1024);
-    auto cmd = std::shared_ptr<command::Command>(
-        M.factory().make_command(cmd_name, G, queue));
+    auto cmd = std::shared_ptr<command::Command>(M.factory().make_command(
+        cmd_name,
+        std::unique_ptr<void, void (*)(void*)>(
+            G,
+            [](auto d) {
+              delete reinterpret_cast<GenerateReadableString*>(d);
+            }),
+        queue));
     M.enqueue_command(cmd);
   }
   std::vector<command::cmd_entry_t> tot;
@@ -79,12 +80,9 @@ TEST_F(CommandManagerTest, RegisterAndRunCommand) {
   const std::string key = "key";
   const std::string cmd_name = "test_cmd";
   std::uint64_t queue = 0u;
-  M.factory().add_entry(
-      cmd_name,
-      [&key](command::Command* c) {
-        as<decltype(flag)*>(c->args())->assign(key);
-      },
-      nullptr);
+  M.factory().add_entry(cmd_name, [&key](command::Command* c) {
+    as<decltype(flag)*>(c->args())->assign(key);
+  });
   auto cmd = std::shared_ptr<command::Command>(
       M.factory().make_command(cmd_name, &flag, queue));
   M.create_queue(queue);

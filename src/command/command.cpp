@@ -2,51 +2,27 @@
 
 using namespace command;
 
-Command::Command(const std::string name, handler_t handler, deleter_t deleter)
-    : methods_({.handler = handler, .deleter = deleter}),
-      type_(CommandType::USER),
-      queue_id_(0),
-      task_id_(0),
-      name_(name),
-      args_(nullptr),
-      result_(nullptr) {}
-
-Command::Command(const std::string name, methods_t methods,
-                 std::uint64_t queue_id, std::uint64_t task_id, void* args,
+Command::Command(const std::string name, handler_t handler,
+                 std::uint64_t queue_id, std::uint64_t task_id,
+                 std::unique_ptr<void, void (*)(void*)> args,
                  CommandType cmd_type)
-    : methods_({.handler = methods.handler, .deleter = methods.deleter}),
+    : handler_(handler),
       type_(cmd_type),
       queue_id_(queue_id),
       task_id_(task_id),
       name_(name),
-      args_(args),
-      result_(nullptr) {}
+      args_(std::move(args)),
+      result_(nullptr, [](auto d) { (void)d; }) {}
 
-Command::Command(const CommandType type, const uint64_t queue_id,
-                 BuiltinArgs* args)
-    : Command("", {nullptr, nullptr}, queue_id, 0u, args, type) {
-  if (!(builtin())) {
-    throw std::invalid_argument("Invalid command type");
-  }
-}
+Command::~Command() {}
 
-Command::~Command() {
-  if (builtin()) {
-    if (args_) {
-      delete reinterpret_cast<BuiltinArgs*>(args_);
-    }
-  } else if (methods_.deleter) {
-    methods_.deleter(this);
-  }
-}
+void* Command::result() { return result_.get(); }
 
-void* Command::result() { return result_; }
-
-void* Command::args() { return args_; }
+void* Command::args() { return args_.get(); }
 
 CommandType Command::type() const { return type_; }
 
-void Command::run() { methods_.handler(this); }
+void Command::run() { handler_(this); }
 
 std::uint64_t Command::queue_id() const { return queue_id_; }
 
@@ -54,11 +30,8 @@ std::uint64_t Command::task_id() const { return task_id_; }
 
 ResultCode* Command::result_code() { return &result_code_; }
 
-void Command::set_result(void* p) { result_ = p; }
+void Command::set_result(std::unique_ptr<void, void (*)(void*)> p) {
+  result_ = std::move(p);
+}
 
 std::string* Command::error_message() { return &error_message_; }
-
-bool Command::builtin() const {
-  return (type_ == CommandType::DESTROY_QUEUE ||
-          type_ == CommandType::CREATE_QUEUE || type_ == CommandType::SHUTDOWN);
-}

@@ -55,7 +55,7 @@ struct ThreadData {
   size_t size;
 };
 
-#pragma pack(16)
+#pragma pack(push, 16)
 
 class Thread {
  public:
@@ -79,6 +79,8 @@ class Thread {
   ThreadData sysdata_;
   // targetThread = ;
 };
+
+#pragma pack(pop)
 
 void save_context(Thread* T);
 

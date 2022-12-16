@@ -2,6 +2,7 @@
 **
 # Whitelist
 !.clang-format
+!.clang-tidy
 !.cmake-format
 !.gitignore
 !/.github

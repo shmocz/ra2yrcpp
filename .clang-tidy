@@ -1,0 +1,9 @@
+Checks: >-
+  clang-diagnostic-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  -modernize-use-trailing-return-type
+HeaderFilterRegex: ""
+WarningsAsErrors: "*"
+AnalyzeTemporaryDtors: false

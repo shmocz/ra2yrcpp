@@ -40,6 +40,7 @@ FROM mingw
 COPY --from=protobuf /tmp/proto/ /
 RUN apt-get install -y --install-recommends wine32
 RUN apt-get install -y --no-install-recommends python3 python3-pip
+RUN apt-get install -y --no-install-recommends clang-tidy
 RUN pip install -U iced-x86
 
 # Free up some space

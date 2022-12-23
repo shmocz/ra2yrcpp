@@ -55,6 +55,9 @@ TEST_F(ServerTest, MultipleConnections) {
     auto msg = to_bytes(T_MESSAGE);
     C->send_bytes(msg);
     auto resp = C->read_bytes();
+    if (resp.empty()) {
+      throw std::runtime_error("connection closed");
+    }
     auto q = to_string(resp);
     ASSERT_EQ(q, T_KEY);
   };
@@ -107,7 +110,6 @@ TEST_F(ServerTest, ServerConnectionAndMessagingWorks) {
 
       // Write messages and verify results
       auto msg = to_bytes(T_MESSAGE);
-      C.send_bytes(msg);
       auto i = C.send_bytes(msg);
       ASSERT_EQ(msg.size(), i);
       auto resp = C.read_bytes();

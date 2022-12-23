@@ -128,3 +128,11 @@ int network::get_last_network_error() {
 #error Not implemented
 #endif
 }
+
+int network::shutdown(socket_t s, int how) {
+#ifdef _WIN32
+  return ::shutdown(s, how);
+#else
+#error Not implemented
+#endif
+}

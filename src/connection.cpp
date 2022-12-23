@@ -54,10 +54,20 @@ vecu8 connection::read_bytes(ChunkReaderWriter* rw, const size_t chunk_size) {
     try {
       return rw->read_chunk(l);
     } catch (const yrclient::system_error& e) {
-      throw std::runtime_error(e.what());
+      throw std::runtime_error(
+          e.what());  // FIXME: just throw the original exception
     }
   };
-  const u32 length = read_obj<u32>(f);
+  u32 length = 0U;
+  try {
+    length = read_obj<u32>(f);
+  } catch (const std::runtime_error& e) {
+    if (std::string(e.what()).find("connection closed") != std::string::npos) {
+      return {};
+    }
+    throw;
+  }
+
   if (length > cfg::MAX_MESSAGE_LENGTH) {
     throw std::runtime_error(fmt::format("Too large message: {} (max={})",
                                          length, cfg::MAX_MESSAGE_LENGTH));
@@ -176,6 +186,7 @@ Connection::Connection(network::socket_t s) : socket_(s) {
 Connection::~Connection() {
   try {
     dprintf("closing {}", socket_);
+    network::shutdown(socket_, 0);
     network::closesocket(socket_);
   } catch (const yrclient::system_error& e) {
     dprintf("closesocket() failed, something's messed up");

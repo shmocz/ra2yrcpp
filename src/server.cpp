@@ -10,7 +10,13 @@ Server::Server(unsigned int num_clients, unsigned int port, Callbacks callbacks,
       accept_timeout_ms_(accept_timeout_ms),
       is_closing_(false),
       listen_connection_(port_),
-      listen_thread_([this]() { this->listener_thread(); }) {}
+      listen_thread_([this]() {
+        try {
+          this->listener_thread();
+        } catch (const std::exception& e) {
+          eprintf("listener died {}", e.what());
+        }
+      }) {}
 
 Server::~Server() {
   // Tell all worker threads to shut down
@@ -27,6 +33,10 @@ void Server::connection_thread(connection::Connection* C) {
   do {
     try {
       auto msg = C->read_bytes();
+      if (msg.empty()) {
+        dprintf("connection closed");
+        break;
+      }
       auto response = on_receive_bytes(C, &msg);
       on_send_bytes(C, &response);
     } catch (const yrclient::timeout& E) {
@@ -97,7 +107,11 @@ void Server::listener_thread() {
             std::move(conn), [this](ConnectionCTX* ctx) -> void {
               ctx->thread_id = process::get_current_tid();
               auto c = &ctx->c();
-              this->connection_thread(c);
+              try {
+                this->connection_thread(c);
+              } catch (const std::exception& e) {
+                eprintf("connection died {}", e.what());
+              }
               dprintf("closing");
               std::lock_guard<std::mutex> lk_(this->connections_mut);
               // Signal listener thread to destroy the ConnectionCTX object. We

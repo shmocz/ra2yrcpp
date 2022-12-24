@@ -12,7 +12,8 @@ cppcheck -q --platform=win32W \
 	--suppress=unusedStructMember:src/commands_yr.cpp \
 	--suppress=unusedFunction:tests/*.cpp \
 	--suppress=uninitMemberVar:src/ra2/objects.cpp \
-	src/ tests/ 2> "$out"
+	--suppress=shadowVar:src/commands_yr.cpp \
+	src/ tests/ 2>"$out"
 
 [ "$(cat "$out" | wc -l)" != 0 ] && { cat "$out" && exit 1; }
 

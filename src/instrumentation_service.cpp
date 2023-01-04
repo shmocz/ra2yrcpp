@@ -227,7 +227,7 @@ aq_t<std::map<u8*, hook::Hook>*> InstrumentationService::aq_hooks() {
   return util::acquire(mut_hooks_, &hooks_);
 }
 
-aq_t<storage_t*> InstrumentationService::aq_storage() {
+aq_t<storage_t*, std::recursive_mutex> InstrumentationService::aq_storage() {
   return util::acquire(mut_storage_, &storage_);
 }
 

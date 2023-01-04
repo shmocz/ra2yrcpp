@@ -60,8 +60,8 @@ struct ISArgs {
   google::protobuf::Any M;
 };
 
-template <typename T>
-using aq_t = std::tuple<std::unique_lock<std::mutex>, T>;
+template <typename T, typename MutexT = std::mutex>
+using aq_t = std::tuple<std::unique_lock<MutexT>, T>;
 using deleter_t = std::function<void(void*)>;
 using storage_val = std::unique_ptr<void, deleter_t>;
 using storage_t = std::map<std::string, storage_val>;
@@ -95,7 +95,7 @@ class InstrumentationService {
   std::map<u8*, hook::Hook>& hooks();
   // TODO: separate storage class
   aq_t<std::map<u8*, hook::Hook>*> aq_hooks();
-  aq_t<storage_t*> aq_storage();
+  aq_t<storage_t*, std::recursive_mutex> aq_storage();
   void store_value(const std::string key,
                    std::unique_ptr<void, void (*)(void*)> d);
   void store_value(const std::string key, vecu8* data);
@@ -115,7 +115,7 @@ class InstrumentationService {
   std::map<u8*, hook::Hook> hooks_;
   std::mutex mut_hooks_;
   storage_t storage_;
-  std::mutex mut_storage_;
+  std::recursive_mutex mut_storage_;
 };
 
 }  // namespace yrclient

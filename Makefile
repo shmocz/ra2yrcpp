@@ -57,7 +57,7 @@ test: $(GAMEMD_PATCHED)
 		wine $(BUILDDIR)/$$f; done
 
 test_integration: $(GAMEMD_PATCHED)
-	./scripts/test_gamemd_tunnel.sh
+	COMMAND='sh -c "WINEPREFIX=$${HOME}/project/$${BUILDDIR}/test_instances/$${PLAYER_ID}/.wine ./scripts/run_gamemd.sh"' COMMAND_PYRA2YR='python3 ./pyra2yr/test_sell_mcv.py' $(compose_cmd) up --abort-on-container-exit pyra2yr tunnel wm vnc novnc game-0 game-1
 
 docker_base:
 	docker-compose build --build-arg USER_ID=$(UID)

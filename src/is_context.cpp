@@ -8,7 +8,7 @@ u32 is_context::get_proc_address(const std::string addr) {
       GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), addr.c_str()));
 }
 
-// TODO: utilize in tests
+// TODO(shmocz): utilize in tests
 ProcAddrs is_context::get_procaddrs() {
   ProcAddrs A;
   A.p_LoadLibrary = get_proc_address("LoadLibraryA");
@@ -38,6 +38,7 @@ void is_context::make_is_ctx(Context* c, const unsigned int max_clients,
   });
 }
 
+// TODO(shmocz): rename
 DLLoader::DLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress,
                    const std::string path_dll, const std::string name_init,
                    const unsigned int max_clients, const unsigned int port) {
@@ -53,7 +54,7 @@ DLLoader::DLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress,
   lea(eax, ptr[ebp - sz]);
   push(eax);
   mov(eax, p_LoadLibrary);
-  call(eax);  // TODO: handle errors
+  call(eax);  // TODO(shmocz): handle errors
   // restore stack
   mov(esp, ebp);
   push(eax);                      // save init fn address
@@ -72,7 +73,10 @@ DLLoader::DLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress,
   mov(esp, ebp);
   pop(ebp);
   x86::restore_regs(this);
-  ret();
+  // FIXME: better separation
+  if (port > 0U) {
+    ret();
+  }
 }
 
 void is_context::get_procaddr(Xbyak::CodeGenerator* c, HMODULE m,

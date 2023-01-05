@@ -2,6 +2,7 @@
 #include "instrumentation_service.hpp"
 #include "network.hpp"
 
+#include <memory>
 #include <mutex>
 
 namespace yrclient_dll {
@@ -11,4 +12,4 @@ void deinitialize();
 }  // namespace yrclient_dll
 
 extern "C" void __cdecl init_iservice(const unsigned int max_clients,
-                                      const unsigned int port);
+                                      unsigned int port);

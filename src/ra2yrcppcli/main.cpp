@@ -129,6 +129,12 @@ int main(int argc, char* argv[]) {
       .help("Automatically inject the DLL and run initialization commands")
       .implicit_value(true)
       .default_value(true);
+  A.add_argument("-G", "--generate-dll-loader")
+      .help(
+          "Generate x86 code for loading and initializing the library and "
+          "write result to output")
+      .implicit_value(false)
+      .default_value(false);
 
   A.parse_args(argc, argv);
 
@@ -160,6 +166,17 @@ int main(int argc, char* argv[]) {
     auto client = get_client(opts.host, std::to_string(opts.port));
     send_and_print(
         ra2yrcppcli::send_command(client.get(), A.get("name"), A.get("args")));
+    return 0;
+  }
+
+  if (A.is_used("--generate-dll-loader")) {
+    // TODO: global constants
+    is_context::DLLoader L(is_context::get_proc_address("LoadLibraryA"),
+                           is_context::get_proc_address("GetProcAddress"),
+                           "libyrclient.dll", "init_iservice", cfg::MAX_CLIENTS,
+                           0U);
+    auto p = L.getCode<void __cdecl (*)(void)>();
+    std::cout << std::string(reinterpret_cast<char*>(p), L.getSize());
     return 0;
   }
 

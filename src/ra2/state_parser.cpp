@@ -8,19 +8,19 @@ using namespace ra2::general;
 
 // NOLINT
 struct MemoryReader {
-  explicit MemoryReader(void* base) : base(base) {}
+  explicit MemoryReader(std::uintptr_t base) : base(base) {}
 
   template <typename T>
   void read_item(T* dest, const std::size_t offset) {
-    auto val = serialize::read_obj<T>(reinterpret_cast<u8*>(base) + offset);
+    auto val = serialize::read_obj<T>(base + offset);
     *dest = val;
   }
 
-  void* base;
+  std::uintptr_t base;
 };
 
 ra2::vectors::DynamicVectorClass<void*> ra2::state_parser::get_DVC(
-    void* address) {
+    std::uintptr_t address) {
   ra2::vectors::DynamicVectorClass<void*> res;
   MemoryReader R(address);
   R.read_item(&res.Items, 1 * 0x4);
@@ -34,24 +34,24 @@ ra2::vectors::DynamicVectorClass<void*> ra2::state_parser::get_DVC(
 }
 
 void ra2::state_parser::parse_AbstractClass(
-    ra2::abstract_types::AbstractClass* dest, void* src) {
+    ra2::abstract_types::AbstractClass* dest, std::uintptr_t src) {
   MemoryReader R(src);
   R.read_item(&dest->type_id, 0x4);
   R.read_item(&dest->flags, 0x8);
 }
 
 void ra2::state_parser::parse_AbstractTypeClass(
-    ra2::abstract_types::AbstractTypeClass* dest, void* address) {
+    ra2::abstract_types::AbstractTypeClass* dest, std::uintptr_t address) {
   MemoryReader R(address);
   R.read_item(&dest->p_vtable, 0x0);
   char buf[0x31];
-  std::memcpy(&buf[0], static_cast<char*>(address) + 0x64, sizeof(buf));
+  std::memcpy(&buf[0], ::utility::asptr<char*>(address + 0x64), sizeof(buf));
   dest->name = std::string(buf, sizeof(buf) - 1);
   dest->name = dest->name.substr(0, dest->name.find('\0'));
 }
 
 void ra2::state_parser::parse_BuildingTypeClass(
-    ra2::type_classes::BuildingTypeClass* dest, void* address) {
+    ra2::type_classes::BuildingTypeClass* dest, std::uintptr_t address) {
   parse_TechnoTypeClass(dest, address);
   MemoryReader R(address);
   R.read_item(&dest->foundation, 0xef0);
@@ -59,14 +59,15 @@ void ra2::state_parser::parse_BuildingTypeClass(
 }
 
 // cppcheck-suppress unusedFunction
-std::unique_ptr<ra2::type_classes::SHPStruct> load_SHPStruct(void* address) {
+std::unique_ptr<ra2::type_classes::SHPStruct> load_SHPStruct(
+    std::uintptr_t address) {
   std::unique_ptr<ra2::type_classes::SHPStruct> p;
   parse_SHPStruct(p.get(), address);
   return p;
 }
 
 void ra2::state_parser::parse_TechnoTypeClass(
-    ra2::type_classes::TechnoTypeClass* dest, void* address) {
+    ra2::type_classes::TechnoTypeClass* dest, std::uintptr_t address) {
   parse_ObjectTypeClass(dest, address);
   MemoryReader R(address);
 #define X(f, o) R.read_item(&dest->f, o)
@@ -87,21 +88,21 @@ void ra2::state_parser::parse_TechnoTypeClass(
 }
 
 void ra2::state_parser::parse_ObjectTypeClass(
-    ra2::type_classes::ObjectTypeClass* dest, void* address) {
+    ra2::type_classes::ObjectTypeClass* dest, std::uintptr_t address) {
   parse_AbstractTypeClass(dest, address);
   MemoryReader R(address);
   R.read_item(&dest->armor, 0x9c);
   R.read_item(&dest->strength, 0xa0);
-  dest->pointer_self = reinterpret_cast<u32>(address);
+  dest->pointer_self = address;
 }
 
 void ra2::state_parser::parse_InfantryTypeClass(
-    ra2::type_classes::InfantryTypeClass* dest, void* address) {
+    ra2::type_classes::InfantryTypeClass* dest, std::uintptr_t address) {
   parse_TechnoTypeClass(dest, address);
 }
 
 void ra2::state_parser::parse_AircraftClass(ra2::objects::AircraftClass* dest,
-                                            void* address) {
+                                            std::uintptr_t address) {
   parse_FootClass(dest, address);
   MemoryReader R(address);
   R.read_item(&dest->aircraft_type, 0x6c4);
@@ -109,7 +110,7 @@ void ra2::state_parser::parse_AircraftClass(ra2::objects::AircraftClass* dest,
 }
 
 void ra2::state_parser::parse_HouseClass(ra2::objects::HouseClass* dest,
-                                         void* address) {
+                                         std::uintptr_t address) {
   MemoryReader R(address);
   R.read_item(&dest->start_credits, 0x1dc);
   R.read_item(&dest->current_player, 0x1ec);
@@ -122,57 +123,55 @@ void ra2::state_parser::parse_HouseClass(ra2::objects::HouseClass* dest,
   R.read_item(&dest->is_loser, 0x1f8);
   R.read_item(&dest->power_output, 0x53a4);
   R.read_item(&dest->power_drain, 0x53a8);
-  dest->self = reinterpret_cast<u32>(address);
+  dest->self = address;
   wchar_t buf[21];
-  std::memcpy(&buf[0], static_cast<char*>(address) + 0x1602a, sizeof(buf));
+  std::memcpy(&buf[0], ::utility::asptr<char*>(address + 0x1602a), sizeof(buf));
   std::wstring w = buf;
   dest->name = std::string(w.begin(), w.end());
 }
 
 std::unique_ptr<ra2::objects::HouseClass>
-ra2::state_parser::parse_HouseClassInstance(void* address) {
+ra2::state_parser::parse_HouseClassInstance(std::uintptr_t address) {
   auto p = std::make_unique<ra2::objects::HouseClass>();
   parse_HouseClass(p.get(), address);
   return p;
 }
 
 void ra2::state_parser::parse_AircraftTypeClass(
-    ra2::type_classes::AircraftTypeClass* dest, void* address) {
+    ra2::type_classes::AircraftTypeClass* dest, std::uintptr_t address) {
   parse_TechnoTypeClass(dest, address);
 }
 
 void ra2::state_parser::parse_UnitTypeClass(
-    ra2::type_classes::UnitTypeClass* dest, void* address) {
+    ra2::type_classes::UnitTypeClass* dest, std::uintptr_t address) {
   parse_TechnoTypeClass(dest, address);
 }
 
-// FIXME: possible memleak if parsing fails. use uptr
-ra2::abstract_types::AbstractTypeClass*
-ra2::state_parser::parse_AbstractTypeClassInstance(void* address) {
+std::unique_ptr<ra2::abstract_types::AbstractTypeClass>
+ra2::state_parser::parse_AbstractTypeClassInstance(
+    const std::uintptr_t address) {
   using ra2::abstract_types::AbstractTypeClass;
   using namespace ra2::type_classes;
   MemoryReader R(address);
-  // Reader R(address);
-  u32 p_vtable;
+  u32 p_vtable = 0U;
   try {
     R.read_item(&p_vtable, 0x0);
   } catch (const yrclient::system_error& e) {
-    dprintf("ERROR: {} {}", address, e.what());
+    eprintf("{} {}", address, e.what());
     return nullptr;
   }
-  auto at = ra2::utility::get_AbstractType(reinterpret_cast<void*>(p_vtable));
-#if 1
-#define X(T)                      \
-  case AbstractType::T: {         \
-    auto* p = new T##Class();     \
-    parse_##T##Class(p, address); \
-    return p;                     \
+  auto at = ra2::utility::get_AbstractType(::utility::asptr(p_vtable));
+#define X(T)                               \
+  case AbstractType::T: {                  \
+    auto q = std::make_unique<T##Class>(); \
+    parse_##T##Class(q.get(), address);    \
+    return q;                              \
   }
   switch (at.t) {
     case AbstractType::Abstract: {
-      auto* p = new ra2::abstract_types::AbstractTypeClass();
-      parse_AbstractClass(p, address);
-      return p;
+      auto q = std::make_unique<ra2::abstract_types::AbstractTypeClass>();
+      parse_AbstractClass(q.get(), address);
+      return q;
     }
       X(BuildingType);
       X(AircraftType);
@@ -182,36 +181,27 @@ ra2::state_parser::parse_AbstractTypeClassInstance(void* address) {
       break;
   }
 #undef X
-#endif
   eprintf("failed to parse: {}", at.name);
   return nullptr;
 }
 
-using ra2::vectors::DynamicVectorClass;
-
-template <typename T>
-static void dvc_for_each(DynamicVectorClass<T>* D, std::function<void(T*)> fn) {
-  for (int i = 0; i < D->Count; i++) {
-    fn(reinterpret_cast<T>(D->Items) + i);
-  }
-}
-
 void ra2::state_parser::parse_AbstractTypeClasses(ra2::game_state::GameState* G,
-                                                  void* address) {
-  auto DVC = get_DVC(reinterpret_cast<void*>(address));
+                                                  std::uintptr_t address) {
+  auto DVC = get_DVC(address);
   const auto count_init = DVC.Count;
   for (int i = 0; i < count_init; i++) {
     auto pu_obj =
-        serialize::read_obj<u32>(reinterpret_cast<u32*>(DVC.Items) + i);
-    u32* p_obj = reinterpret_cast<u32*>(pu_obj);
-    auto ATC = std::unique_ptr<abstract_types::AbstractTypeClass>(
-        parse_AbstractTypeClassInstance(p_obj));
+        serialize::read_obj<u32>(::utility::asint(DVC.Items) + i * 0x4);
+    auto ATC = parse_AbstractTypeClassInstance(pu_obj);
+    // TODO(shmocz): just throw?
     if (ATC != nullptr) {
       try {
-        G->add_AbstractTypeClass(std::move(ATC), p_obj);
+        G->add_AbstractTypeClass(std::move(ATC), pu_obj);
       } catch (const std::runtime_error& e) {
         eprintf("not adding AbstractTypeClass with duplicate key {}",
-                reinterpret_cast<void*>(p_obj));
+                ::utility::asptr(pu_obj));
+      } catch (...) {
+        eprintf("fatal error");
       }
     } else {
     }
@@ -219,27 +209,27 @@ void ra2::state_parser::parse_AbstractTypeClasses(ra2::game_state::GameState* G,
 }
 
 void ra2::state_parser::parse_ObjectClass(ra2::objects::ObjectClass* dest,
-                                          void* address) {
+                                          std::uintptr_t address) {
   parse_AbstractClass(dest, address);
   MemoryReader R(address);
   static constexpr auto offset = 28 * 0x4;
-  dest->id = reinterpret_cast<u32>(address);
+  dest->id = address;
   R.read_item(&dest->health, offset);
   R.read_item(&dest->coords, offset + 11 * 0x4);
 }
 
 void ra2::state_parser::parse_MissionClass(ra2::objects::MissionClass* dest,
-                                           void* address) {
+                                           std::uintptr_t address) {
   parse_ObjectClass(dest, address);
 }
 
 void ra2::state_parser::parse_RadioClass(ra2::objects::RadioClass* dest,
-                                         void* address) {
+                                         std::uintptr_t address) {
   parse_MissionClass(dest, address);
 }
 
 void ra2::state_parser::parse_TechnoClass(ra2::objects::TechnoClass* dest,
-                                          void* address) {
+                                          std::uintptr_t address) {
   parse_RadioClass(dest, address);
   MemoryReader R(address);
   R.read_item(&dest->owner, 0x21c);
@@ -252,7 +242,7 @@ void ra2::state_parser::parse_TechnoClass(ra2::objects::TechnoClass* dest,
 }
 
 void ra2::state_parser::parse_FootClass(ra2::objects::FootClass* dest,
-                                        void* address) {
+                                        std::uintptr_t address) {
   parse_TechnoClass(dest, address);
   MemoryReader R(address);
 
@@ -262,14 +252,14 @@ void ra2::state_parser::parse_FootClass(ra2::objects::FootClass* dest,
 }
 
 void ra2::state_parser::parse_UnitClass(ra2::objects::UnitClass* dest,
-                                        void* address) {
+                                        std::uintptr_t address) {
   parse_FootClass(dest, address);
   MemoryReader R(address);
   R.read_item(&dest->p_type, 0x6c4);
 }
 
 void ra2::state_parser::parse_BuildingClass(ra2::objects::BuildingClass* dest,
-                                            void* address) {
+                                            std::uintptr_t address) {
   parse_TechnoClass(dest, address);
   MemoryReader R(address);
   R.read_item(&dest->p_type, 0x520);
@@ -279,79 +269,85 @@ void ra2::state_parser::parse_BuildingClass(ra2::objects::BuildingClass* dest,
 }
 
 void ra2::state_parser::parse_InfantryClass(ra2::objects::InfantryClass* dest,
-                                            void* address) {
+                                            std::uintptr_t address) {
   parse_FootClass(dest, address);
   MemoryReader R(address);
   R.read_item(&dest->p_type, 0x6c0);
 }
 
-template <typename T, typename ParseT>
-static T* get_obj(void* address, T* O, ParseT fn) {
-  if (O == nullptr) {
-    O = new T();
-  }
-  fn(O, address);
-  return O;
+struct Entry {
+  AbstractType t;
+  std::function<std::unique_ptr<ra2::objects::ObjectClass>(void)> fn_create;
+  std::function<void(ra2::objects::ObjectClass*, std::uintptr_t address)>
+      fn_parse;
+};
+
+template <typename T, typename FnT>
+auto get_entry(FnT f) {
+  return Entry{T::atype,
+               []() {
+                 return std::unique_ptr<ra2::objects::ObjectClass>(
+                     std::make_unique<T>());
+               },
+               [f](ra2::objects::ObjectClass* p, std::uintptr_t address) {
+                 f(static_cast<T*>(p), address);
+               }};
 }
 
-static ra2::objects::ObjectClass* parse_ObjectClassFromVtable(
-    void* address, ra2::objects::ObjectClass* O) {
+auto* get_lut() {
+  static const std::array<Entry, 4> lut = {
+      {get_entry<ra2::objects::BuildingClass>(
+           &ra2::state_parser::parse_BuildingClass),
+       get_entry<ra2::objects::InfantryClass>(
+           &ra2::state_parser::parse_InfantryClass),
+       get_entry<ra2::objects::UnitClass>(&ra2::state_parser::parse_UnitClass),
+       get_entry<ra2::objects::AircraftClass>(
+           &ra2::state_parser::parse_AircraftClass)}};
+  return &lut;
+}
+
+void get_object(std::unique_ptr<ra2::objects::ObjectClass>& o,  // NOLINT
+                std::uintptr_t address) {
   MemoryReader R(address);
-  u32 p_vtable;
+  u32 p_vtable = 0U;
   R.read_item(&p_vtable, 0x0);
-
-  auto at = ra2::utility::get_AbstractType(reinterpret_cast<void*>(p_vtable));
-
-  switch (at.t) {
-    case AbstractType::Building:
-      return get_obj(address, reinterpret_cast<ra2::objects::BuildingClass*>(O),
-                     &ra2::state_parser::parse_BuildingClass);
-    case AbstractType::Unit:
-      return get_obj(address, reinterpret_cast<ra2::objects::UnitClass*>(O),
-                     &ra2::state_parser::parse_UnitClass);
-    case AbstractType::Infantry:
-      return get_obj(address, reinterpret_cast<ra2::objects::InfantryClass*>(O),
-                     &ra2::state_parser::parse_InfantryClass);
-    case AbstractType::Aircraft:
-      return get_obj(address, reinterpret_cast<ra2::objects::AircraftClass*>(O),
-                     &ra2::state_parser::parse_AircraftClass);
-    default:
-      throw yrclient::general_error("Unknown AbstractType");
+  auto at = ra2::utility::get_AbstractType(::utility::asptr<void*>(p_vtable));
+  const auto* lut = get_lut();
+  const auto* const f = std::find_if(
+      lut->begin(), lut->end(), [&at](const Entry& a) { return a.t == at.t; });
+  if (o == nullptr) {
+    o = f->fn_create();
   }
+  f->fn_parse(o.get(), address);
 }
 
 void ra2::state_parser::parse_DVC_Objects(ra2::game_state::GameState* G,
-                                          void* address) {
+                                          std::uintptr_t address) {
   auto DVC = get_DVC(address);
 
   // 1. for each DVC item
   // 2. if item not in GameState, allocate new object
   // 3. parse object
   // 4. remove objects that were not parsed
-  static std::unordered_set<u32*> parsedd;
-  parsedd.clear();
+  std::unordered_set<decltype(G->objects)::key_type> parsedd;
   for (const auto& [k, v] : G->objects) {
     parsedd.insert(k);
   }
   for (int i = 0; i < DVC.Count; i++) {
-    auto p_obj =
-        serialize::read_obj<u32>(reinterpret_cast<u32*>(DVC.Items) + i);
-    u32* key = reinterpret_cast<u32*>(p_obj);
-    auto it = G->objects.find(key);
-    ra2::objects::ObjectClass* O = nullptr;
+    const auto p_obj =
+        serialize::read_obj<u32>(::utility::asint(DVC.Items) + i * 0x4);
+    auto it = G->objects.find(p_obj);
     try {
-      if (it == G->objects.end()) {
-        G->objects.try_emplace(
-            key, std::unique_ptr<ra2::objects::ObjectClass>(
-                     parse_ObjectClassFromVtable(reinterpret_cast<void*>(p_obj),
-                                                 O)));
-      } else {
-        parse_ObjectClassFromVtable(reinterpret_cast<void*>(p_obj),
-                                    it->second.get());
+      if (it == G->objects.end()) {  // new object
+        std::unique_ptr<ra2::objects::ObjectClass> obj_instance;
+        get_object(obj_instance, p_obj);
+        G->objects.try_emplace(p_obj, std::move(obj_instance));
+      } else {  // existing object
+        get_object(it->second, p_obj);
       }
-      parsedd.erase(key);
-    } catch (const yrclient::system_error& e) {  // FIXME: potential memory leak
-      eprintf("%s", e.what());
+      parsedd.erase(p_obj);
+    } catch (const std::exception& e) {  // FIXME: potential memory leak
+      eprintf("DVC objects failed {}", e.what());
     }
   }
   // remove non-parsed
@@ -360,41 +356,41 @@ void ra2::state_parser::parse_DVC_Objects(ra2::game_state::GameState* G,
   }
 }
 
+// FIXME: dont allocate every time
 void ra2::state_parser::parse_DVC_HouseClasses(ra2::game_state::GameState* G,
-                                               void* address) {
-  auto DVC = get_DVC(reinterpret_cast<void*>(address));
+                                               std::uintptr_t address) {
+  auto DVC = get_DVC(address);
   G->house_classes().clear();
   for (int i = 0; i < DVC.Count; i++) {
-    auto p_obj =
-        serialize::read_obj<u32>(reinterpret_cast<u32*>(DVC.Items) + i);
-    auto H = parse_HouseClassInstance(reinterpret_cast<void*>(p_obj));
+    auto H = parse_HouseClassInstance(
+        serialize::read_obj<u32>(::utility::asint(DVC.Items) + i * 0x4));
 
     if (H != nullptr) {
       try {
         G->add_HouseClass(std::move(H));
-      } catch (const std::runtime_error& e) {
+      } catch (const std::exception& e) {
         eprintf("couldn't add HouseClass");
       }
     } else {
+      eprintf("null houseptr");
     }
   }
 }
 
 std::unique_ptr<ra2::objects::FactoryClass>
-ra2::state_parser::parse_FactoryClassInstance(void* address) {
+ra2::state_parser::parse_FactoryClassInstance(std::uintptr_t address) {
   auto p = std::make_unique<ra2::objects::FactoryClass>();
   parse_FactoryClass(p.get(), address);
   return p;
 }
 
 void ra2::state_parser::parse_DVC_FactoryClasses(ra2::game_state::GameState* G,
-                                                 void* address) {
+                                                 std::uintptr_t address) {
   auto DVC = get_DVC(address);
   G->factory_classes().clear();
   for (int i = 0; i < DVC.Count; i++) {
-    auto p_obj =
-        serialize::read_obj<u32>(reinterpret_cast<u32*>(DVC.Items) + i);
-    auto H = parse_FactoryClassInstance(reinterpret_cast<void*>(p_obj));
+    auto H = parse_FactoryClassInstance(
+        serialize::read_obj<u32>(::utility::asint(DVC.Items) + i * 0x4));
 
     if (H != nullptr) {
       try {
@@ -407,21 +403,20 @@ void ra2::state_parser::parse_DVC_FactoryClasses(ra2::game_state::GameState* G,
 }
 
 void ra2::state_parser::parse_ProgressTimer(ra2::objects::ProgressTimer* dest,
-                                            void* address) {
+                                            std::uintptr_t address) {
   MemoryReader R(address);
   R.read_item(&dest->value, 0x0);
 }
 
-// TODO: ensure we do correct pointer arithmetic everywhere
+// TODO(shmocz): ensure we do correct pointer arithmetic everywhere
 void ra2::state_parser::parse_FactoryClass(ra2::objects::FactoryClass* dest,
-                                           void* address) {
+                                           std::uintptr_t address) {
   parse_AbstractClass(dest, address);
   MemoryReader R(address);
-  get_DVC(reinterpret_cast<u8*>(address) + 0x80);
+  get_DVC(address + 0x80);
   R.read_item(&dest->owner, 0x6c);
   R.read_item(&dest->object, 0x58);
-  parse_ProgressTimer(&dest->production,
-                      reinterpret_cast<u8*>(address) + offset_AbstractClass);
+  parse_ProgressTimer(&dest->production, address + offset_AbstractClass);
 }
 
 struct GetSHPPixelData : Xbyak::CodeGenerator {
@@ -429,14 +424,14 @@ struct GetSHPPixelData : Xbyak::CodeGenerator {
     mov(ecx, ptr[esp + 0x4]);
     mov(eax, ptr[esp + 0x8]);  // object index
     push(eax);
-    mov(eax, 0x69E740u);
+    mov(eax, 0x69E740U);
     call(eax);
     ret();
   }
 };
 
 void ra2::state_parser::parse_SHPStruct(ra2::type_classes::SHPStruct* dest,
-                                        void* address) {
+                                        std::uintptr_t address) {
   MemoryReader R(address);
   R.read_item(&dest->width, 0x2 + 0 * 2);
   R.read_item(&dest->height, 0x2 + 1 * 2);
@@ -461,7 +456,7 @@ void ra2::state_parser::parse_cameos(ra2::game_state::GameState* G) {
       if (key != nullptr) {
         if (G->cameos.find(key) == G->cameos.end()) {
           auto* SHP = new type_classes::SHPStruct();
-          parse_SHPStruct(SHP, key);
+          parse_SHPStruct(SHP, reinterpret_cast<std::uintptr_t>(key));
           G->cameos.try_emplace(key, SHP);
         }
       }

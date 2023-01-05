@@ -36,6 +36,7 @@ using namespace std::chrono_literals;
 class InstrumentationService;
 
 // Hook callback that provides access to InstrumentationService.
+// TODO(shmocz): get rid of polymorphism
 struct ISCallback {
   ISCallback();
   // Callback entry, whose address is stored into Hook's HookCallback object.
@@ -95,6 +96,8 @@ class InstrumentationService {
   // TODO: separate storage class
   aq_t<std::map<u8*, hook::Hook>*> aq_hooks();
   aq_t<storage_t*> aq_storage();
+  void store_value(const std::string key,
+                   std::unique_ptr<void, void (*)(void*)> d);
   void store_value(const std::string key, vecu8* data);
   void store_value(const std::string key, void* data, deleter_t deleter);
   void* get_value(const std::string key, const bool acquire = true);
@@ -102,9 +105,10 @@ class InstrumentationService {
   std::function<std::string(InstrumentationService*)> on_shutdown_;
 
  private:
-  ra2yrproto::Response flush_results(
+  ra2yrproto::PollResults flush_results(
       const u64 queue_id, const std::chrono::milliseconds delay = 1000ms);
   ra2yrproto::Response process_request(connection::Connection* C, vecu8* bytes);
+
   command::CommandManager cmd_manager_;
   server::Server server_;
   std::map<u8*, hook::Hook> hooks_;

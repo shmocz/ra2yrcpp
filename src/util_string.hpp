@@ -24,8 +24,4 @@ inline std::string to_hex(const T i) {
 std::vector<std::string> split_string(const std::string& s,
                                       const std::string delim = "[\\s]+");
 
-// join vector of strings
-std::string join_string(const std::vector<std::string> v,
-                        const std::string delim = " ");
-
 }  // namespace yrclient

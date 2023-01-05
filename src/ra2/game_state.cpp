@@ -3,7 +3,7 @@
 using namespace ra2::game_state;
 
 void GameState::add_AbstractTypeClass(std::unique_ptr<AbstractTypeClass> a,
-                                      const std::uintptr_t* real_address) {
+                                      const std::uintptr_t real_address) {
   // FIXME: use and fix contains
   if (abstract_type_classes_.find((u32)real_address) !=
       abstract_type_classes_.end()) {

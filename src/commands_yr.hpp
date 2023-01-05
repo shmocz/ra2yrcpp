@@ -2,6 +2,7 @@
 #include "protocol/protocol.hpp"
 
 #include "async_queue.hpp"
+#include "auto_thread.hpp"
 #include "command/command.hpp"
 #include "errors.hpp"
 #include "hook.hpp"
@@ -18,6 +19,7 @@
 #include "util_command.hpp"
 #include "util_string.hpp"
 #include "utility.h"
+#include "utility/memtools.hpp"
 #include "utility/serialize.hpp"
 
 #include <algorithm>
@@ -26,6 +28,8 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 namespace commands_yr {

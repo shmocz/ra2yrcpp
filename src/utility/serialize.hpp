@@ -18,6 +18,11 @@ auto read_obj(U* addr) {
   return t;
 }
 
+template <typename T>
+auto read_obj(const std::uintptr_t addr) {
+  return read_obj<T>(reinterpret_cast<void*>(addr));
+}
+
 template <typename T, typename U>
 auto read_obj_le(const U* addr) {
   T t{0};
@@ -25,6 +30,11 @@ auto read_obj_le(const U* addr) {
   auto* a = reinterpret_cast<const u8*>(addr);
   std::copy_backward(a, a + sizeof(T), b + sizeof(T));
   return t;
+}
+
+template <typename T>
+auto read_obj_le(const std::uintptr_t addr) {
+  return read_obj_le<T>(reinterpret_cast<void*>(addr));
 }
 
 }  // namespace serialize

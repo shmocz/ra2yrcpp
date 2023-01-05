@@ -37,6 +37,7 @@ static constexpr std::uintptr_t p_SellBuilding = 0x447110u;
 static constexpr std::uintptr_t p_DeployObject = 0x7393C0u;
 static constexpr std::uintptr_t p_CanBuildingBeSold = 0x4494C0u;
 static constexpr std::uintptr_t p_ClickedEvent = 0x6ffe00;
+constexpr unsigned MAX_PLAYERS = 8U;
 
 struct RectangleStruct {
   i32 x;
@@ -58,13 +59,13 @@ using factoryclass_vec_t = std::vector<std::unique_ptr<objects::FactoryClass>>;
 class GameState {
  public:
   void add_AbstractTypeClass(std::unique_ptr<AbstractTypeClass> a,
-                             const std::uintptr_t* real_address);
+                             const std::uintptr_t real_address);
   void add_HouseClass(std::unique_ptr<objects::HouseClass> h);
   void add_FactoryClass(std::unique_ptr<objects::FactoryClass> f);
   atc_map_t& abstract_type_classes();
   houseclass_vec_t& house_classes();
   factoryclass_vec_t& factory_classes();
-  std::map<u32*, std::unique_ptr<objects::ObjectClass>> objects;
+  std::map<std::uintptr_t, std::unique_ptr<objects::ObjectClass>> objects;
   std::map<u32*, std::unique_ptr<type_classes::SHPStruct>> cameos;
 
  private:

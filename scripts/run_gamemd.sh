@@ -12,11 +12,12 @@ if [ ! -d "$WINEPREFIX" ]; then
     wineserver -w
 fi
 
+: ${WINE_CMD:="wine"}
+
 # Prepare instance directory
 {
     CMAKE_RUNTIME_OUTPUT_DIRECTORY="$BUILDDIR/bin" BUILDDIR="$BUILDDIR" ./scripts/prep_instance_dirs.sh "$RA2YRCPP_TEST_INSTANCES_DIR" "$PLAYER_ID"
     cd "$RA2YRCPP_TEST_INSTANCES_DIR/$PLAYER_ID"
     # Inject and start game
-    ./ra2yrcppcli.exe -p "$RA2YRCPP_PORT" &
-    wine gamemd-spawn.exe -SPAWN 2>err.log
+    $WINE_CMD gamemd-spawn.exe -SPAWN 2>err.log
 } >"$RA2YRCPP_TEST_INSTANCES_DIR/$PLAYER_ID/out.log"

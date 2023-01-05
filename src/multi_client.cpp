@@ -43,8 +43,8 @@ ra2yrproto::Response AutoPollClient::send_command(
   dprintf("ack={}", ack.id());
   try {
     // FIXME: signal if poll_thread dies
-    auto poll_res = results().get(ack.id(), command_timeout_);
-    return yrclient::make_response(yrclient::RESPONSE_OK, poll_res);
+    return yrclient::make_response(results().get(ack.id(), command_timeout_),
+                                   yrclient::RESPONSE_OK);
   } catch (const std::runtime_error& e) {
     throw yrclient::general_error(fmt::format(
         "timeout after {}ms, key={}", command_timeout_.count(), ack.id()));

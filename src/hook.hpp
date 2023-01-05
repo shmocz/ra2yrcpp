@@ -4,6 +4,8 @@
 #include "logging.hpp"
 #include "process.hpp"
 #include "types.h"
+#include "utility/memtools.hpp"
+#include "utility/serialize.hpp"
 #include "utility/time.hpp"
 #include "x86.hpp"
 
@@ -15,9 +17,14 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <vector>
 
 namespace hook {
+
+constexpr unsigned DETOUR_MAX_SIZE = 128U;
+constexpr u8 OP_PUSH = 0x68;
+constexpr u8 OP_RET = 0xc3;
 
 using process::thread_id_t;
 
@@ -149,5 +156,7 @@ class Hook {
   unsigned int count_exit_;
   bool manual_;
 };
+
+std::tuple<u32, std::size_t> get_hook_entry(const u32 target);
 
 }  // namespace hook

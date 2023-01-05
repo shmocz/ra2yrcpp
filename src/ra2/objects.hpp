@@ -19,14 +19,14 @@ struct HouseClass : AbstractClass {
   std::string name;
   std::string faction;
   ra2::type_classes::HouseTypeClass* house_type;
-  ybool defeated;
-  ybool current_player;
+  bool defeated;
+  bool current_player;
   i32 start_credits;
   i32 money;
   u32 self;
-  ybool is_game_over;
-  ybool is_winner;
-  ybool is_loser;
+  bool is_game_over;
+  bool is_winner;
+  bool is_loser;
   i32 power_output;
   i32 power_drain;
   HouseClass();
@@ -57,11 +57,12 @@ struct TechnoClass : public RadioClass {
   double armor_multiplier;
   double firepower_multiplier;
   i32 shielded;
-  ybool deactivated;
+  bool deactivated;
   TechnoClass();
 };
 
 struct BuildingClass : public TechnoClass {
+  static constexpr auto atype = AbstractType::Building;
   ra2::type_classes::BuildingTypeClass* building_type;
   BStateType build_state_type;
   BStateType queue_build_state;
@@ -76,17 +77,20 @@ struct FootClass : public TechnoClass {
 };
 
 struct UnitClass : public FootClass {
+  static constexpr auto atype = AbstractType::Unit;
   ra2::type_classes::UnitTypeClass* unit_type;
   UnitClass();
 };
 
 // NB!!! also inherits from FlasherClass
 struct AircraftClass : public FootClass {
+  static constexpr auto atype = AbstractType::Aircraft;
   ra2::type_classes::AircraftTypeClass* aircraft_type;
   AircraftClass();
 };
 
 struct InfantryClass : public FootClass {
+  static constexpr auto atype = AbstractType::Infantry;
   ra2::type_classes::InfantryTypeClass* infantry_type;
   InfantryClass();
 };

@@ -45,15 +45,6 @@ message GetTypeClasses {
   Result result = 2;
 }
 
-message GetObjects {
-  message Args {}
-  message Result {
-    repeated ra2yrproto.ra2yr.Unit units = 1;
-  }
-  Args args = 1;
-  Result result = 2;
-}
-
 message GetHouses {
   message Args {}
   message Result {

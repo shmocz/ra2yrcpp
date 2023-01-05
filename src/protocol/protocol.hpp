@@ -35,8 +35,9 @@ inline vecu8 to_vecu8(const T& msg) {
 std::string to_json(const google::protobuf::Message& m);
 std::string message_type(const google::protobuf::Any& m);
 std::string message_type(const google::protobuf::Message& m);
-ra2yrproto::Response make_response(const ra2yrproto::ResponseCode code,
-                                   const google::protobuf::Message& body);
+ra2yrproto::Response make_response(
+    const google::protobuf::Message&& body,
+    const ra2yrproto::ResponseCode code = RESPONSE_OK);
 
 template <typename T>
 T from_any(const google::protobuf::Any& a) {
@@ -64,7 +65,7 @@ struct MessageBuilder {
   explicit MessageBuilder(const std::string name);
 };
 
-bool write_message(google::protobuf::Message* M,
+bool write_message(const google::protobuf::Message* M,
                    google::protobuf::io::CodedOutputStream* os);
 bool read_message(google::protobuf::Message* M,
                   google::protobuf::io::CodedInputStream* os);

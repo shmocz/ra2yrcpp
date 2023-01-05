@@ -53,33 +53,13 @@ server::Server& InstrumentationService::server() { return server_; }
 
 std::map<u8*, hook::Hook>& InstrumentationService::hooks() { return hooks_; }
 
-template <typename T>
-ra2yrproto::Response* reply_body(ra2yrproto::Response* R, const T& body) {
-  if (!R->mutable_body()->PackFrom(body)) {
-    throw yrclient::general_error("Couldn't pack response body");
-  }
-  return R;
-}
-
-ra2yrproto::Response reply_error(std::string message) {
-  ra2yrproto::Response R;
+static ra2yrproto::TextResponse text_response(const std::string message) {
   ra2yrproto::TextResponse E;
   E.mutable_message()->assign(message);
-  // E.set_error_message(message);
-  R.set_code(RESPONSE_ERROR);
-
-  return *reply_body(&R, E);
+  return E;
 }
 
-ra2yrproto::Response reply_ok(std::string message) {
-  ra2yrproto::Response R;
-  ra2yrproto::TextResponse T;
-  T.mutable_message()->assign(message);
-  R.set_code(RESPONSE_OK);
-  return *reply_body(&R, T);
-}
-
-ra2yrproto::Response InstrumentationService::flush_results(
+ra2yrproto::PollResults InstrumentationService::flush_results(
     const u64 queue_id, const std::chrono::milliseconds delay) {
   auto results = cmd_manager().flush_results(queue_id, delay, 0);
   ra2yrproto::Response R;
@@ -100,119 +80,87 @@ ra2yrproto::Response InstrumentationService::flush_results(
     results.pop_back();
   }
 
-  R.mutable_body()->PackFrom(P);
-  return R;
+  return P;
 }
 
-// TODO: static as separate commit
-static ra2yrproto::Response handle_cmd_ng(InstrumentationService* I,
-                                          connection::Connection* C,
-                                          vecu8* bytes,
-                                          ra2yrproto::Command* cmd) {
-  (void)bytes;
-  using yrclient::split_string;
+static ra2yrproto::RunCommandAck handle_cmd(InstrumentationService* I,
+                                            connection::Connection* C,
+                                            ra2yrproto::Command* cmd) {
   // TODO: reduce amount of copies we make
   auto client_cmd = cmd->command();
   // schedule command execution
-  uint64_t task_id = 0;
-  const uint64_t queue_id = C->socket();
   auto is_args = new ISArgs;
   is_args->I = I;
   is_args->M.CopyFrom(client_cmd);
 
   // Get trailing portion of protobuf type url
-  auto name = split_string(client_cmd.type_url(), "/").back();
-
-  try {
-    auto c = I->cmd_manager().factory().make_command(
-        name,
-        std::unique_ptr<void, void (*)(void*)>(
-            is_args, [](auto d) { delete reinterpret_cast<ISArgs*>(d); }),
-        queue_id);
-    I->cmd_manager().enqueue_command(std::shared_ptr<command::Command>(c));
-    task_id = c->task_id();
-  } catch (const std::exception& e) {
-    return reply_error(join_string({e.what(), name}));
-  }
-  // write status back (FIXME: use make_response)
-  ra2yrproto::Response presp;
-  presp.set_code(RESPONSE_OK);
+  auto name = yrclient::split_string(client_cmd.type_url(), "/").back();
   ra2yrproto::RunCommandAck ack;
-  ack.set_id(task_id);
-  ack.set_queue_id(queue_id);
-  if (!presp.mutable_body()->PackFrom(ack)) {
-    return reply_error("Packing ACK message failed");
-  }
-  vecu8 result;
-  result.resize(presp.ByteSizeLong());
-  presp.SerializeToArray(result.data(), result.size());
-  return presp;
+
+  auto c =
+      std::shared_ptr<command::Command>(I->cmd_manager().factory().make_command(
+          name,
+          std::unique_ptr<void, void (*)(void*)>(
+              is_args, [](auto d) { delete reinterpret_cast<ISArgs*>(d); }),
+          C->socket()));
+  ack.set_id(c->task_id());
+  I->cmd_manager().enqueue_command(c);
+
+  // write status back
+  ack.set_queue_id(C->socket());
+  return ack;
 }
 
-// 1. parse command message from bytes
-// 2. if cmd found, return ACK as usual and schedule for executin
-// 3. pass command protobuf message as argument to command
-// 4. execute command, store result in protobuf message's field
+// TODO: return just Response body/msg, not the whole Response
 ra2yrproto::Response InstrumentationService::process_request(
     connection::Connection* C, vecu8* bytes) {
   // read command from message
   ra2yrproto::Command cmd;
   if (!cmd.ParseFromArray(bytes->data(), bytes->size())) {
-    return reply_error("Message parse error");
+    throw std::runtime_error("Message parse error");
   }
 
   // execute parsed command & write result
   switch (cmd.command_type()) {
-    case ra2yrproto::CLIENT_COMMAND_OLD: {
-      return reply_error("Deprecated");
-    } break;
-    case ra2yrproto::CLIENT_COMMAND:
-      return handle_cmd_ng(this, C, bytes, &cmd);
+    case ra2yrproto::CLIENT_COMMAND_OLD:
+      throw std::runtime_error("Deprecated");
+    case ra2yrproto::CLIENT_COMMAND: {
+      return yrclient::make_response(handle_cmd(this, C, &cmd));
+    }
     case ra2yrproto::POLL: {
-      try {
-        return flush_results(C->socket());
-      } catch (const std::out_of_range& e) {
-        return reply_error(e.what());
-      }
+      return yrclient::make_response(flush_results(C->socket()));
     }
     case ra2yrproto::POLL_BLOCKING: {
-      try {
-        ra2yrproto::PollResults R;
-        cmd.command().UnpackTo(&R);
-        // TODO: correct check?
-        const u64 queue_id =
-            R.args().queue_id() > 0 ? R.args().queue_id() : (u64)C->socket();
-        const auto timeout = std::chrono::milliseconds(
-            R.args().IsInitialized() ? (u32)R.args().timeout()
-                                     : cfg::POLL_BLOCKING_TIMEOUT_MS);
-        dprintf("queue_id={},timeout={}", queue_id, (u64)timeout.count());
-        // TODO: race condition? what if flush occurs after destroying cmd
-        // manager? server should've been shut down before command manager, so
-        // shouldnt be possible
-        return flush_results(queue_id, timeout);
-      } catch (const std::exception& e) {
-        return reply_error(e.what());
-      }
+      ra2yrproto::PollResults R;
+      cmd.command().UnpackTo(&R);
+      // TODO: correct check?
+      const u64 queue_id =
+          R.args().queue_id() > 0 ? R.args().queue_id() : (u64)C->socket();
+      const auto timeout = std::chrono::milliseconds(
+          R.args().IsInitialized() ? (u32)R.args().timeout()
+                                   : cfg::POLL_BLOCKING_TIMEOUT_MS);
+      dprintf("queue_id={},timeout={}", queue_id, (u64)timeout.count());
+      return yrclient::make_response(flush_results(queue_id, timeout));
     }
-    case ra2yrproto::SHUTDOWN: {
-      try {
-        dprintf("shutdown signal");
-        return reply_ok(on_shutdown_(this));
-      } catch (std::bad_function_call& e) {
-        return reply_error(e.what());
-      }
-    } break;
+    case ra2yrproto::SHUTDOWN:
+      return make_response(text_response(on_shutdown_(this)));
     default:
-      break;
+      throw std::runtime_error("unknown command: " +
+                               std::to_string(cmd.command_type()));
   }
-  eprintf("something is wrong");
-  return reply_error("Unknown command: " + std::to_string(cmd.command_type()));
 }
 
 vecu8 InstrumentationService::on_receive_bytes(connection::Connection* C,
                                                vecu8* bytes) {
-  auto response = process_request(C, bytes);
-  return to_vecu8(response);
+  ra2yrproto::Response R;
+  try {
+    R = process_request(C, bytes);
+    R.set_code(RESPONSE_OK);
+  } catch (const std::exception& e) {
+    eprintf("{}", e.what());
+    R = yrclient::make_response(text_response(e.what()), RESPONSE_ERROR);
+  }
+  return to_vecu8(R);
 }
 
 void InstrumentationService::on_accept(connection::Connection* C) {
@@ -244,6 +192,11 @@ InstrumentationService::InstrumentationService(
   };
   server_.callbacks().accept = [this](auto* c) { this->on_accept(c); };
   server_.callbacks().close = [this](auto* c) { this->on_close(c); };
+}
+
+void InstrumentationService::store_value(
+    const std::string key, std::unique_ptr<void, void (*)(void*)> d) {
+  storage_[key] = std::move(d);
 }
 
 void InstrumentationService::store_value(const std::string key, vecu8* data) {

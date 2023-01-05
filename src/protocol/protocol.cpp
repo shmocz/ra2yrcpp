@@ -18,8 +18,8 @@ std::string yrclient::message_type(const google::protobuf::Message& m) {
 }
 
 ra2yrproto::Response yrclient::make_response(
-    const ra2yrproto::ResponseCode code,
-    const google::protobuf::Message& body) {
+    const google::protobuf::Message&& body,
+    const ra2yrproto::ResponseCode code) {
   ra2yrproto::Response r;
   r.set_code(code);
   if (!r.mutable_body()->PackFrom(body)) {
@@ -33,7 +33,7 @@ CompressedOutputStream::CompressedOutputStream(const std::string path)
       s_f(&os),
       s_g(&s_f) {}
 
-bool yrclient::write_message(google::protobuf::Message* M,
+bool yrclient::write_message(const google::protobuf::Message* M,
                              google::protobuf::io::CodedOutputStream* is) {
   auto l = M->ByteSizeLong();
   is->WriteVarint32(l);

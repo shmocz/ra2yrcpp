@@ -103,25 +103,6 @@ message Coordinates {
   int32 z = 3;
 }
 
-message Unit {
-  string name = 1;
-  int32 health = 2;
-  Coordinates coordinates = 3;
-  int32 cost = 4;
-  int32 soylent = 5;
-  uint32 owner_id = 6;
-  Armor armor = 7;
-  SpeedType speed_type = 8;
-  int32 speed = 9;
-  int32 points = 10;
-  double speed_percentage = 11;
-  double speed_multiplier = 12;
-  uint32 id = 13;  // essentially a pointer
-  string unit_type = 14;
-  BuildingState building_state = 15;
-  BuildingState queue_building_state = 16;
-}
-
 message ObjectTypeClass {
   string name = 1;
   int32 cost = 2;
@@ -160,7 +141,6 @@ enum LoadStage {
 
 message GameState {
   uint32 current_frame = 1;
-  repeated Unit units = 2;
   repeated Factory factories = 3;
   repeated House houses = 4;
   repeated ObjectTypeClass object_types = 5;

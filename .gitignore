@@ -9,6 +9,8 @@
 !/.github/**
 !/docker
 !/docker/**
+!/pyra2yr
+!/pyra2yr/**
 !/scripts
 !/scripts/**
 !/src
@@ -28,3 +30,5 @@
 !README.md
 !docker-compose*.yml
 !integration.env
+# Additional ignores
+*__pycache__*

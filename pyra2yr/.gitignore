@@ -1,0 +1,11 @@
+**
+!.gitignore
+!Makefile
+!/ra2yrproto
+!/ra2yrproto/**
+!/pyra2yr
+!/pyra2yr/**
+!requirements.txt
+!setup.py
+!README.md
+*__pycache__*

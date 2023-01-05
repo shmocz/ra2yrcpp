@@ -7,15 +7,20 @@ RUN apt-get update -y && apt-get upgrade -y
 FROM ubuntu as mingw
 RUN apt-get install -y \
 	--no-install-recommends \
-	ca-certificates \
 	bash \
+	ca-certificates \
 	cmake \
 	cppcheck \
 	g++-mingw-w64-i686-posix \
+	gdb \
 	git \
 	jq \
 	libz-mingw-w64-dev \
 	make
+
+RUN apt-get install -y \
+	gdb-mingw-w64 \
+	gdb-mingw-w64-target
 
 FROM mingw as protobuf
 RUN apt-get install -y \
@@ -44,7 +49,7 @@ RUN apt-get install -y --no-install-recommends clang-tidy
 RUN pip install -U iced-x86
 
 # Free up some space
-RUN apt-get -y autoremove gcc g++ && rm /usr/lib/*.a
+RUN rm /usr/lib/*.a
 
 # Fix some library paths
 RUN ln -s /usr/lib/gcc/i686-w64-mingw32/10-posix/libgcc_s_dw2-1.dll \

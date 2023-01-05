@@ -14,6 +14,7 @@ services:
       - "50000:50000" # tunnel
       - "14521:14521" # ra2yrcpp
       - "14525:14525" # ws proxy
+      - "12340:12340" # debugger
   novnc:
     image: shmocz/vnc:latest
     network_mode: service:vnc
@@ -64,6 +65,7 @@ services:
         python3 -m pip install -r requirements.txt -e .
       else
         source .venv/bin/activate
+        python3 -m pip install -r requirements.txt -e .
       fi
       ${COMMAND_PYRA2YR}'
     stop_signal: SIGKILL

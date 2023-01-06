@@ -13,11 +13,12 @@ constexpr char key_game_state[] = "game_state";
 constexpr char key_raw_game_state[] = "raw_game_state";
 constexpr char key_on_load_game[] = "on_load_game";
 
-template <typename T>
+template <typename T, typename... ArgsT>
 T* ensure_storage_value(yrclient::InstrumentationService* I,
-                        yrclient::storage_t* s, const std::string key) {
+                        yrclient::storage_t* s, const std::string key,
+                        ArgsT... args) {
   if (s->find(key) == s->end()) {
-    I->store_value(key, utility::make_uptr<T>());
+    I->store_value(key, utility::make_uptr<T>(args...));
   }
   return static_cast<T*>(s->at(key).get());
 }

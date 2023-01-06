@@ -220,6 +220,8 @@ void* InstrumentationService::get_value(const std::string key,
   return storage_.at(key).get();
 }
 
+storage_t& InstrumentationService::storage() { return storage_; }
+
 // TODO: remove?
 aq_t<std::map<u8*, hook::Hook>*> InstrumentationService::aq_hooks() {
   return util::acquire(mut_hooks_, &hooks_);

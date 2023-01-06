@@ -103,6 +103,7 @@ class InstrumentationService {
   void* get_value(const std::string key, const bool acquire = true);
   // TODO: don't expose this
   std::function<std::string(InstrumentationService*)> on_shutdown_;
+  storage_t& storage();
 
  private:
   ra2yrproto::PollResults flush_results(

@@ -68,6 +68,7 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
         for (const auto& [k, v] : Q->I()->cmd_manager().results_queue()) {
           state->add_queues()->set_queue_id(k);
         }
+        state->set_directory(process::getcwd());
       }),
       get_cmd<ra2yrproto::commands::GetValue>([](auto* Q) {
         // NB: ensure correct radix

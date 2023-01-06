@@ -126,4 +126,6 @@ class Process {
 };
 
 Process get_current_process();
+std::string getcwd();
+
 }  // namespace process

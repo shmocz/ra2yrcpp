@@ -4,6 +4,7 @@
 
 #include "command/command.hpp"
 #include "instrumentation_service.hpp"
+#include "process.hpp"
 #include "util_command.hpp"
 #include "util_string.hpp"
 #include "utility.h"

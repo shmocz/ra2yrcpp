@@ -4,6 +4,7 @@ using namespace process;
 using yrclient::not_implemented;
 
 #ifdef _WIN32
+#include <io.h>
 #include <memoryapi.h>
 #include <processthreadsapi.h>
 #include <psapi.h>
@@ -377,4 +378,10 @@ std::vector<std::string> Process::list_loaded_modules() const {
   CloseHandle(hProcess);
 #else
 #endif
+}
+
+std::string process::getcwd() {
+  char buf[1024];
+  ::getcwd(buf, sizeof(buf));
+  return std::string(buf, strchr(buf, '\0'));
 }

@@ -199,6 +199,7 @@ void InstrumentationService::store_value(
   storage_[key] = std::move(d);
 }
 
+// FIXME: don't use
 void InstrumentationService::store_value(const std::string key, vecu8* data) {
   store_value(key, reinterpret_cast<void*>(data),
               [](void* data) { delete reinterpret_cast<vecu8*>(data); });

@@ -74,4 +74,5 @@ message SystemState {
   }
   repeated Connection connections = 1;
   repeated CommandQueue queues = 2;
+  string directory = 3;
 }

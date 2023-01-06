@@ -29,6 +29,25 @@ static GameT* ensure_raw_gamestate(yrclient::InstrumentationService* I,
       I, s, static_cast<const char*>(key_raw_game_state));
 }
 
+static auto default_configuration() {
+  ra2yrproto::commands::Configuration C;
+  C.set_debug_log(true);
+  return C;
+}
+
+// FIXME: dont explicitly pass storage
+static ra2yrproto::commands::Configuration* ensure_configuration(
+    yrclient::InstrumentationService* I, yrclient::storage_t* s) {
+  static constexpr char key_configuration[] = "yr_config";
+  if (s->find(key_configuration) == s->end()) {
+    dprintf("replace config!");
+    (void)ensure_storage_value<ra2yrproto::commands::Configuration>(
+        I, s, key_configuration, default_configuration());
+  }
+  return ensure_storage_value<ra2yrproto::commands::Configuration>(
+      I, s, key_configuration);
+}
+
 // Utilities to convert raw in-memory game structures to protobuf messages.
 namespace protobuf_conv {
 
@@ -173,6 +192,7 @@ static void raw_state_to_protobuf(GameT* raw_state,
 struct CBYR : public yrclient::ISCallback {
   yrclient::storage_t* storage{nullptr};
   GameT* raw_game_state_{nullptr};
+  static constexpr char key_configuration[] = "yr_config";
 
   CBYR() = default;
 
@@ -203,6 +223,10 @@ struct CBYR : public yrclient::ISCallback {
   auto* abi() { return storage_value<ra2::abi::ABIGameMD>("abi"); }
 
   virtual void exec() { throw std::runtime_error("Not implemented"); }
+
+  ra2yrproto::commands::Configuration* configuration() {
+    return ensure_configuration(this->I, this->storage);
+  }
 };
 
 static auto* get_callbacks(yrclient::InstrumentationService* I,
@@ -630,6 +654,22 @@ auto get_type_classes() {
   });
 }
 
+// FIXME: setting values not working
+auto inspect_configuration() {
+  return get_cmd<ra2yrproto::commands::InspectConfiguration>([](auto* Q) {
+    auto [mut, s] = Q->I()->aq_storage();
+    auto res = Q->command_data().mutable_result();
+    try {
+      res->mutable_config()->CopyFrom(
+          *ensure_storage_value<ra2yrproto::commands::Configuration>(
+              Q->I(), s, CBYR::key_configuration));
+    } catch (const std::exception& e) {
+      eprintf("error! {}", e.what());
+      throw;
+    }
+  });
+}
+
 }  // namespace cmd
 
 std::map<std::string, command::Command::handler_t> commands_yr::get_commands() {
@@ -638,5 +678,6 @@ std::map<std::string, command::Command::handler_t> commands_yr::get_commands() {
           cmd::create_callbacks(),  //
           cmd::create_hooks(),      //
           cmd::get_game_state(),    //
-          cmd::get_type_classes()};
+          cmd::get_type_classes(),  //
+          cmd::inspect_configuration()};
 }

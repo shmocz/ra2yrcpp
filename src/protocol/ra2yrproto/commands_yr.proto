@@ -82,3 +82,19 @@ message ClickEvent {
   Args args = 1;
   Result result = 2;
 }
+
+message Configuration {
+  bool debug_log = 1;
+  string record_filename = 2;
+}
+
+message InspectConfiguration {
+  message Args {
+    Configuration config = 1;
+  }
+  message Result {
+    Configuration config = 1;
+  }
+  Args args = 1;
+  Result result = 2;
+}

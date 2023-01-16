@@ -818,6 +818,18 @@ auto place_query() {
   });
 }
 
+auto send_message() {
+  return get_cmd<ra2yrproto::commands::AddMessage>([](auto* Q) {
+    auto [mut, s] = Q->I()->aq_storage();
+    auto a = Q->args();
+
+    get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
+        make_work<decltype(a)>(a, [](CBYR* C, auto* args) {
+          C->abi()->AddMessage(1, args->message(), args->color(), 0x4046,
+                               args->duration_frames(), false);
+        }));
+  });
+}
 
 }  // namespace cmd
 
@@ -831,5 +843,6 @@ std::map<std::string, command::Command::handler_t> commands_yr::get_commands() {
           cmd::inspect_configuration(),  //
           cmd::mission_clicked(),        //
           cmd::add_event(),              //
-          cmd::place_query()};
+          cmd::place_query(),            //
+          cmd::send_message()};
 }

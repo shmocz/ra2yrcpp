@@ -133,3 +133,14 @@ message PlaceQuery {
   Args args = 1;
   Result result = 2;
 }
+
+message AddMessage {
+  message Args {
+    string message = 1;
+    uint32 duration_frames = 2;
+    ra2yrproto.ra2yr.ColorScheme color = 3;
+  }
+  message Result {}
+  Args args = 1;
+  Result result = 2;
+}

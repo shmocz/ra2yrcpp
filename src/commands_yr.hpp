@@ -10,6 +10,7 @@
 #include "logging.hpp"
 #include "ra2/abi.hpp"
 #include "ra2/abstract_types.hpp"
+#include "ra2/event.hpp"
 #include "ra2/game_state.hpp"
 #include "ra2/general.h"
 #include "ra2/objects.hpp"

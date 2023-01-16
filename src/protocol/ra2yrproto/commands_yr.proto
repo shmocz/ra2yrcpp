@@ -110,3 +110,13 @@ message InspectConfiguration {
   Args args = 1;
   Result result = 2;
 }
+
+message AddEvent {
+  message Args {
+    ra2yrproto.ra2yr.Event event = 1;
+  }
+  message Result {}
+  Args args = 1;
+  Result result = 2;
+}
+

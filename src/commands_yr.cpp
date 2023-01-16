@@ -722,17 +722,49 @@ auto mission_clicked() {
   });
 }
 
+auto add_event() {
+  return get_cmd<ra2yrproto::commands::AddEvent>([](auto* Q) {
+    auto [mut, s] = Q->I()->aq_storage();
+    auto a = Q->args();
+
+    get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
+        make_work<decltype(a)>(a, [](CBYR* C, auto* args) {
+          ra2::event::EventClass E{
+              .Type = static_cast<ra2::event::EventType>(
+                  args->event().event_type()),
+              .IsExecuted = false,
+              .HouseIndex = static_cast<i8>(args->event().house_index()),
+              .Frame =
+                  serialize::read_obj_le<u32>(ra2::game_state::current_frame),
+              .Data = {.SpaceGap = {}}};
+          if (args->event().has_production()) {
+            auto& ev = args->event().production();
+            E.Data.Production = {.RTTI_ID = ev.rtti_id(),
+                                 .Heap_ID = ev.heap_id(),
+                                 .IsNaval = ev.is_naval()};
+            ra2::event::AddEvent<ra2::event::OutList>(E,
+                                                      C->abi()->timeGetTime());
+          } else if (args->event().has_place()) {
+            auto& ev = args->event().place();
+            auto loc = ev.location();
+            E.Data.Place = {
+                .RTTIType =
+                    static_cast<ra2::general::AbstractType>(ev.rtti_type()),
+                .HeapID = ev.heap_id(),
+                .IsNaval = ev.is_naval(),
+                .Location = ra2::vectors::Coord2Cell(ra2::vectors::CoordStruct{
+                    .x = loc.x(), .y = loc.y(), .z = loc.z()})};
+            ra2::event::AddEvent<ra2::event::OutList>(E,
+                                                      C->abi()->timeGetTime());
+          }
+        }));
+  });
+}
+
 
 }  // namespace cmd
 
 std::map<std::string, command::Command::handler_t> commands_yr::get_commands() {
-  return {cmd::click_event(),       //
-          cmd::unit_command(),      //
-          cmd::create_callbacks(),  //
-          cmd::create_hooks(),      //
-          cmd::get_game_state(),    //
-          cmd::get_type_classes(),  //
-          cmd::inspect_configuration()};
   return {cmd::click_event(),            //
           cmd::unit_command(),           //
           cmd::create_callbacks(),       //
@@ -740,5 +772,6 @@ std::map<std::string, command::Command::handler_t> commands_yr::get_commands() {
           cmd::get_game_state(),         //
           cmd::get_type_classes(),       //
           cmd::inspect_configuration(),  //
-          cmd::mission_clicked()};
+          cmd::mission_clicked(),        //
+          cmd::add_event()};
 }

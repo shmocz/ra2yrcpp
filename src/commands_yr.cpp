@@ -164,6 +164,7 @@ static void get_object_type_class(ra2yrproto::ra2yr::ObjectTypeClass* t,
     t->set_soylent(ttc->soylent);
     t->set_armor_type(static_cast<ra2yrproto::ra2yr::Armor>(ttc->armor));
     t->set_pointer_shp_struct(utility::asint(ttc->p_cameo));
+    t->set_array_index(ttc->array_index);
   }
 }
 

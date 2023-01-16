@@ -39,12 +39,6 @@ static constexpr std::uintptr_t p_CanBuildingBeSold = 0x4494C0u;
 static constexpr std::uintptr_t p_ClickedEvent = 0x6ffe00;
 constexpr unsigned MAX_PLAYERS = 8U;
 
-struct RectangleStruct {
-  i32 x;
-  i32 y;
-  i32 width;
-  i32 height;
-};
 
 struct TacticalClass : public ra2::abstract_types::AbstractClass {
   ra2::vectors::Matrix3D transform;

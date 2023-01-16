@@ -36,6 +36,7 @@ struct ObjectClass : public ra2::abstract_types::AbstractClass {
   static constexpr auto offset = 28 * 0x4;
   i32 health;
   u32 id;  // basically pointer to object
+  bool selected;
   ra2::vectors::CoordStruct coords;
   ObjectClass();
 };
@@ -79,6 +80,9 @@ struct FootClass : public TechnoClass {
 struct UnitClass : public FootClass {
   static constexpr auto atype = AbstractType::Unit;
   ra2::type_classes::UnitTypeClass* unit_type;
+  bool Deployed;
+  bool Deploying;
+  bool Undeploying;
   UnitClass();
 };
 
@@ -107,7 +111,8 @@ struct FactoryClass : public AbstractClass {
   ra2::vectors::DynamicVectorClass<ra2::type_classes::TechnoTypeClass*> queue;
   HouseClass* owner;
   TechnoClass* object;
-  vectors::DynamicVectorClass<type_classes::TechnoTypeClass*> queued_objects;
+  ra2::vectors::DynamicVectorClass<type_classes::TechnoTypeClass*>
+      queued_objects;
 };
 
 }  // namespace objects

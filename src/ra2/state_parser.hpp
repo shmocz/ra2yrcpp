@@ -1,7 +1,11 @@
 #pragma once
+
+#include "protocol/protocol.hpp"
+
 #include "errors.hpp"
 #include "logging.hpp"
 #include "ra2/abstract_types.hpp"
+#include "ra2/event.hpp"
 #include "ra2/game_state.hpp"
 #include "ra2/general.h"
 #include "ra2/objects.hpp"
@@ -109,6 +113,17 @@ void parse_SHPStruct(ra2::type_classes::SHPStruct* dest,
                      std::uintptr_t address);
 
 void parse_cameos(ra2::game_state::GameState* G);
+
+template <typename EventT>
+void parse_event_list(
+    google::protobuf::RepeatedPtrField<ra2yrproto::ra2yr::Event>* dst) {
+  auto* L = ::utility::asptr<EventT*>(EventT::address);
+  dprintf("head={},tail={},size={}", L->Head, L->Tail, L->Count);
+  for (auto i = L->Tail; i > 1; i--) {
+    auto* e = dst->Add();
+    e->set_timing(L->Timings[i - 1]);
+  }
+}
 
 }  // namespace state_parser
 }  // namespace ra2

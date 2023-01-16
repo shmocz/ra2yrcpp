@@ -168,6 +168,54 @@ ENUMDEF(NetworkEvents, unsigned char){
     PlanConnect = 0x2A,  PlanCommit = 0x2B,    PlanNodeDelete = 0x2C,
     AllCheer = 0x2D,     AbandonAll = 0x2E};
 
+ENUMDEF(Mission, int){None = -1,
+                      Sleep = 0,
+                      Attack = 1,
+                      Move = 2,
+                      QMove = 3,
+                      Retreat = 4,
+                      Guard = 5,
+                      Sticky = 6,
+                      Enter = 7,
+                      Capture = 8,
+                      Eaten = 9,
+                      Harvest = 10,
+                      Area_Guard = 11,
+                      Return = 12,
+                      Stop = 13,
+                      Ambush = 14,
+                      Hunt = 15,
+                      Unload = 16,
+                      Sabotage = 17,
+                      Construction = 18,
+                      Selling = 19,
+                      Repair = 20,
+                      Rescue = 21,
+                      Missile = 22,
+                      Harmless = 23,
+                      Open = 24,
+                      Patrol = 25,
+                      ParadropApproach = 26,
+                      ParadropOverfly = 27,
+                      Wait = 28,
+                      AttackMove = 29,
+                      SpyplaneApproach = 30,
+                      SpyplaneOverfly = 31};
+
+struct LTRBStruct {
+  int Left;
+  int Top;
+  int Right;
+  int Bottom;
+};
+
+struct RectangleStruct {
+  i32 x;
+  i32 y;
+  i32 width;
+  i32 height;
+};
+
 #ifdef __cplusplus
 }  // namespace general
 }  // namespace ra2

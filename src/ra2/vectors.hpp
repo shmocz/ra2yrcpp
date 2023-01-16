@@ -10,7 +10,6 @@ namespace vectors {
 
 namespace {
 using namespace ra2::general;
-using serialize::read_obj;
 }  // namespace
 
 template <typename T>
@@ -67,6 +66,8 @@ struct DynamicVectorClass : public VectorClass<T> {
   friend std::ostream& operator<<(std::ostream& os,
                                   const DynamicVectorClass<U>& V);
 };
+
+CellStruct Coord2Cell(const CoordStruct crd);
 
 }  // namespace vectors
 }  // namespace ra2

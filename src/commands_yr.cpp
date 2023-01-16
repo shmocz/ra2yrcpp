@@ -79,6 +79,7 @@ static void get_object(ra2yrproto::ra2yr::Object* u,
   u->set_health(v->health);
   u->set_pointer_house(utility::asint(tc->owner));
   u->set_pointer_initial_owner(utility::asint(tc->originally_owned_by));
+  u->set_selected(v->selected);
 
   if (yrclient::band<i32>(v->flags, ra2::general::AbstractFlags::Techno) != 0) {
     u->set_armor_multiplier(

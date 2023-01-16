@@ -56,6 +56,7 @@ void ra2::state_parser::parse_BuildingTypeClass(
   MemoryReader R(address);
   R.read_item(&dest->foundation, 0xef0);
   R.read_item(&dest->p_foundation_data, 0xdfc);
+  R.read_item(&dest->array_index, 0xdf8);
 }
 
 // cppcheck-suppress unusedFunction
@@ -215,6 +216,7 @@ void ra2::state_parser::parse_ObjectClass(ra2::objects::ObjectClass* dest,
   static constexpr auto offset = 28 * 0x4;
   dest->id = address;
   R.read_item(&dest->health, offset);
+  R.read_item(&dest->selected, 0x7c + 0x4 + 0x3);
   R.read_item(&dest->coords, offset + 11 * 0x4);
 }
 
@@ -256,6 +258,9 @@ void ra2::state_parser::parse_UnitClass(ra2::objects::UnitClass* dest,
   parse_FootClass(dest, address);
   MemoryReader R(address);
   R.read_item(&dest->p_type, 0x6c4);
+  R.read_item(&dest->Deployed, 0x6e0);
+  R.read_item(&dest->Deploying, 0x68c);
+  R.read_item(&dest->Undeploying, 0x6e0 + 2);
 }
 
 void ra2::state_parser::parse_BuildingClass(ra2::objects::BuildingClass* dest,

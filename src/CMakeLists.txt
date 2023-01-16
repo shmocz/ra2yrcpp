@@ -13,8 +13,16 @@ target_link_libraries(dll_inject process)
 add_library(connection OBJECT connection.cpp)
 target_link_libraries(connection PUBLIC network)
 add_library(
-  ra2objects OBJECT ra2/game_state.cpp ra2/state_parser.cpp ra2/utility.cpp
-                    ra2/type_classes.cpp ra2/objects.cpp ra2/abi.cpp)
+  ra2objects OBJECT
+  ra2/game_state.cpp
+  ra2/state_parser.cpp
+  ra2/utility.cpp
+  ra2/type_classes.cpp
+  ra2/objects.cpp
+  ra2/abi.cpp
+  ra2/vectors.cpp
+  ra2/event.cpp
+  ra2/game_screen.cpp)
 target_link_libraries(ra2objects PUBLIC process errors fmt::fmt)
 add_library(instrumentation_service OBJECT instrumentation_service.cpp
                                            instrumentation_client.cpp)

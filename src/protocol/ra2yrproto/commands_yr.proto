@@ -120,3 +120,16 @@ message AddEvent {
   Result result = 2;
 }
 
+// Return coordinates where the input building can be placed
+message PlaceQuery {
+  message Args {
+    uint32 type_class = 1;
+    uint32 house_class = 2;  // if empty, assume current player
+    repeated ra2yrproto.ra2yr.Coordinates coordinates = 3;
+  }
+  message Result {
+    repeated ra2yrproto.ra2yr.Coordinates coordinates = 2;
+  }
+  Args args = 1;
+  Result result = 2;
+}

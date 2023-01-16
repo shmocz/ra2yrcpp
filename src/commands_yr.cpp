@@ -761,6 +761,63 @@ auto add_event() {
   });
 }
 
+auto place_query() {
+  return get_cmd<ra2yrproto::commands::PlaceQuery>([](auto* Q) {
+    auto [mut, s] = Q->I()->aq_storage();
+    auto a = Q->args();
+    auto cmd = Q->c;
+    Q->save_command_result();
+    cmd->pending().store(true);
+
+    get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
+        make_work<decltype(a)>(a, [cmd](CBYR* C, auto* args) {
+          // Get corresponding BuildingTypeClass
+          auto& A = C->raw_game_state()->abstract_type_classes();
+          auto B = std::find_if(A.begin(), A.end(), [args](const auto& it) {
+            return it.first == args->type_class();
+          });
+          // Get HouseClass
+          auto& H = C->raw_game_state()->house_classes();
+          // TODO(shmocz): make helper method
+          auto house = std::find_if(H.begin(), H.end(), [](const auto& h) {
+                         return h->current_player;
+                       })->get();
+          if (args->house_class()) {
+            house = std::find_if(H.begin(), H.end(), [args](const auto& h) {
+                      return h->self == args->house_class();
+                    })->get();
+          }
+
+          ra2yrproto::commands::PlaceQuery r2;
+
+          auto* p = reinterpret_cast<ra2yrproto::CommandResult*>(cmd->result());
+          p->mutable_result()->UnpackTo(&r2);
+          auto r2_res = r2.mutable_result();
+
+          // Call for each cell
+          if (B != A.end()) {
+            for (auto& c : args->coordinates()) {
+              auto coords =
+                  ra2::vectors::CoordStruct{.x = c.x(), .y = c.y(), .z = c.z()};
+              auto cell_s = ra2::vectors::Coord2Cell(coords);
+              auto* q = static_cast<ra2::type_classes::BuildingTypeClass*>(
+                  B->second.get());
+              if (C->abi()->BuildingClass_CanPlaceHere(
+                      utility::asint(q->pointer_self), &cell_s,
+                      utility::asint(house))) {
+                auto* cnew = r2_res->add_coordinates();
+                cnew->CopyFrom(c);
+              }
+            }
+          }
+          // copy results
+          p->mutable_result()->PackFrom(r2);
+
+          cmd->pending().store(false);
+        }));
+  });
+}
+
 
 }  // namespace cmd
 
@@ -773,5 +830,6 @@ std::map<std::string, command::Command::handler_t> commands_yr::get_commands() {
           cmd::get_type_classes(),       //
           cmd::inspect_configuration(),  //
           cmd::mission_clicked(),        //
-          cmd::add_event()};
+          cmd::add_event(),              //
+          cmd::place_query()};
 }

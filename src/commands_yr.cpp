@@ -694,6 +694,34 @@ auto inspect_configuration() {
   });
 }
 
+// NB. CellClicked not called for moving units, but for attack (and what else?)
+// ClickedMission seems to be used for various other events
+// FIXME: need to implement GetCellAt(coords)
+auto mission_clicked() {
+  return get_cmd<ra2yrproto::commands::MissionClicked>([](auto* Q) {
+    auto [mut, s] = Q->I()->aq_storage();
+    auto a = Q->args();
+
+    get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
+        make_work<decltype(a)>(a, [](CBYR* C, auto* args) {
+          auto* objects = &C->raw_game_state()->objects;
+          for (auto k : args->object_addresses()) {
+            if (objects->find(k) != objects->end()) {
+              auto c1 = args->coordinates();
+              auto coords = ra2::vectors::CoordStruct{
+                  .x = c1.x(), .y = c1.y(), .z = c1.z()};
+              auto cell_s = ra2::vectors::Coord2Cell(coords);
+              auto cell = ra2::game_screen::MapClass::TryGetCellAt(cell_s);
+              C->abi()->ClickedMission(
+                  k, static_cast<ra2::general::Mission>(args->event()),
+                  args->target_object(), cell, cell);
+            }
+          }
+        }));
+  });
+}
+
+
 }  // namespace cmd
 
 std::map<std::string, command::Command::handler_t> commands_yr::get_commands() {
@@ -704,4 +732,12 @@ std::map<std::string, command::Command::handler_t> commands_yr::get_commands() {
           cmd::get_game_state(),    //
           cmd::get_type_classes(),  //
           cmd::inspect_configuration()};
+  return {cmd::click_event(),            //
+          cmd::unit_command(),           //
+          cmd::create_callbacks(),       //
+          cmd::create_hooks(),           //
+          cmd::get_game_state(),         //
+          cmd::get_type_classes(),       //
+          cmd::inspect_configuration(),  //
+          cmd::mission_clicked()};
 }

@@ -83,6 +83,18 @@ message ClickEvent {
   Result result = 2;
 }
 
+message MissionClicked {
+  message Args {
+    repeated uint32 object_addresses = 1;
+    ra2yrproto.ra2yr.Mission event = 2;
+    uint32 target_object = 3;
+    ra2yrproto.ra2yr.Coordinates coordinates = 4;
+  }
+  message Result {}
+  Args args = 1;
+  Result result = 2;
+}
+
 message Configuration {
   bool debug_log = 1;
   string record_filename = 2;

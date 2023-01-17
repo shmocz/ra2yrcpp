@@ -97,6 +97,7 @@ class CommandManager {
   std::vector<std::shared_ptr<Command>> flush_results(
       const uint64_t id, const std::chrono::milliseconds timeout = 0ms,
       const std::size_t count = 0u);
+  std::vector<std::shared_ptr<Command>>& pending_commands();
 
  private:
   std::atomic_bool active_{true};
@@ -106,6 +107,8 @@ class CommandManager {
   std::priority_queue<std::shared_ptr<Command>,
                       std::vector<std::shared_ptr<Command>>, QueueCompare>
       work_queue_;
+  std::mutex pending_commands_mut_;
+  std::vector<std::shared_ptr<Command>> pending_commands_;
   std::condition_variable work_queue_cv_;
   std::mutex work_queue_mut_;
   results_queue_t results_queue_;

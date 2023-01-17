@@ -82,6 +82,10 @@ void CommandManager::invoke_user_command(std::shared_ptr<Command> cmd) {
     *cmd->result_code() = ResultCode::ERROR;
   }
   std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
+  if (cmd->pending()) {
+    std::unique_lock<decltype(pending_commands_mut_)> lp(pending_commands_mut_);
+    pending_commands_.push_back(cmd);
+  }
   auto q = results_queue_.at(cmd->queue_id());
   q->push(cmd);
 }
@@ -139,6 +143,11 @@ void CommandManager::worker() {
 // NB. race condition if trying to flush queue, which is being destroyed at the
 // same time (e.g. polling a queue of disconnectin connection). Hence store
 // queues as shared_ptrs.
+//
+// Some commands (like PlaceQuery) are async - their results may not be
+// instantly available. To handle this, add an optional "pending" flag to the
+// command, and only flush the result after it has been cleared. Also ensure
+// thread safety of command's internal state manipulation.
 std::vector<std::shared_ptr<Command>> CommandManager::flush_results(
     const uint64_t id, const std::chrono::milliseconds timeout,
     const std::size_t count) {
@@ -148,7 +157,22 @@ std::vector<std::shared_ptr<Command>> CommandManager::flush_results(
   }
   auto q = results_queue_.at(id);
   l.unlock();
-  auto res = q->pop(count, timeout);
-  dprintf("res_size={}", static_cast<int>(res.size()));
+  // pop all non pending results
+  auto res =
+      q->pop(count, timeout, [](auto& c) { return !c->pending().load(); });
+  std::unique_lock<decltype(pending_commands_mut_)> lk(pending_commands_mut_);
+  auto& p = pending_commands();
+  p.erase(std::remove_if(p.begin(), p.end(),
+                         [&res](auto& c) {
+                           return std::find_if(
+                                      res.begin(), res.end(), [&c](auto& d) {
+                                        return d->task_id() == c->task_id();
+                                      }) != res.end();
+                         }),
+          p.end());
   return res;
+}
+
+std::vector<std::shared_ptr<Command>>& CommandManager::pending_commands() {
+  return pending_commands_;
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include "debug_helpers.h"
 
+#include <atomic>
 #include <functional>
 #include <map>
 #include <memory>
@@ -39,6 +40,7 @@ class Command {
   ResultCode* result_code();
   void set_result(std::unique_ptr<void, void (*)(void*)> p);
   std::string* error_message();
+  std::atomic_bool& pending();
 
  private:
   handler_t handler_;
@@ -54,6 +56,7 @@ class Command {
   std::unique_ptr<void, void (*)(void*)> result_;
   ResultCode result_code_{ResultCode::NONE};
   std::string error_message_;
+  std::atomic_bool pending_;
 };
 
 }  // namespace command

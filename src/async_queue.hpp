@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -70,13 +71,15 @@ class AsyncQueue : public AsyncContainer {
   // Pop items from queue. If count < 1, pop all items. If timeout > 0, block
   // and wait up to that amount for results.
   std::vector<T> pop(const std::size_t count = 1,
-                     const std::chrono::milliseconds timeout = 0ms) {
+                     const std::chrono::milliseconds timeout = 0ms,
+                     std::function<bool(T&)> predicate = nullptr) {
     std::unique_lock<std::mutex> l(a_.get()->m);
 #ifdef LOG_TRACE
     dprintf("locked={},asyncdata={},count={},timeout={}", l.owns_lock(),
             reinterpret_cast<void*>(a_.get()), count, timeout.count());
 #endif
     std::vector<T> res;
+    std::vector<T> pred_false;
     do {
       if (timeout > 0ms) {
         if (!a_.get()->cv.wait_for(l, timeout, [&] { return size() > 0; })) {
@@ -86,10 +89,18 @@ class AsyncQueue : public AsyncContainer {
         return res;
       }
       int num_pop = count < 1 ? size() : std::min(count, size());
+      // TODO: use random access container to avoid popping and pushing back
       while (num_pop-- > 0) {
         auto p = q_.front();
-        res.push_back(p);
+        if (predicate != nullptr && !predicate(p)) {
+          pred_false.push_back(p);
+        } else {
+          res.push_back(p);
+        }
         q_.pop();
+      }
+      for (auto p : pred_false) {
+        q_.push(p);
       }
     } while (res.size() < count);
     return res;

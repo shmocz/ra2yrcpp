@@ -36,10 +36,13 @@ struct ISCommand {
   void set_result(result_t val) { command_data_.set_result(val); }
 
   void save_command_result() {
-    auto* p = reinterpret_cast<ra2yrproto::CommandResult*>(result_q_.get());
-    p->set_command_id(c->task_id());
-    p->mutable_result()->PackFrom(command_data_);
-    c->set_result(std::move(result_q_));
+    // replace result, but only if pending is not set
+    if (!c->pending()) {
+      auto* p = reinterpret_cast<ra2yrproto::CommandResult*>(result_q_.get());
+      p->set_command_id(c->task_id());
+      p->mutable_result()->PackFrom(command_data_);
+      c->set_result(std::move(result_q_));
+    }
   }
 
   auto* I() { return a_->I; }

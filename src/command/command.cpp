@@ -12,7 +12,8 @@ Command::Command(const std::string name, handler_t handler,
       task_id_(task_id),
       name_(name),
       args_(std::move(args)),
-      result_(nullptr, [](auto d) { (void)d; }) {}
+      result_(nullptr, [](auto d) { (void)d; }),
+      pending_(false) {}
 
 Command::~Command() {}
 
@@ -35,3 +36,5 @@ void Command::set_result(std::unique_ptr<void, void (*)(void*)> p) {
 }
 
 std::string* Command::error_message() { return &error_message_; }
+
+std::atomic_bool& Command::pending() { return pending_; }

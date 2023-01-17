@@ -62,21 +62,9 @@ $ make test_integration
 
 ## Usage
 
-Copy `libyrclient.dll` to the CnCNet installation folder (containing `gamemd-spawn.exe`), or ensure some other way that LoadLibrary can locate the DLL by it's base name. Run the main tool:
+Copy `libyrclient.dll` and patched `gamemd-spawn.exe` to the CnCNet installation folder (overwriting the original `gamemd-spawn.exe`), or ensure some other way that LoadLibrary can locate the DLL by it's base name.
 
-```bash
-$ ra2yrcppcli.exe
-```
-
-the tool waits for `gamemd-spawn.exe` process to appear, then injects and initializes the main DLL into game process. It's also possible (though not recommended) to do the initialization into an already active game. The above is essentially a shorthand for:
-
-```
-$ ra2yrcppcli.exe -g 0
-$ ra2yrcppcli.exe -n CreateHooks
-$ ra2yrcppcli.exe -n CreateCallbacks
-```
-
-This spawns a TCP server inside gamemd process bound to port 14520 by default.
+This spawns a TCP server inside gamemd process bound to port 14520 by default. To override this, set environment variable `RA2YRCPP_PORT`.
 
 ### Recording game data
 

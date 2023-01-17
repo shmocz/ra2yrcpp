@@ -31,14 +31,9 @@ static constexpr std::uintptr_t p_DVC_HouseClasses = 0xA80228u;
 static constexpr std::uintptr_t p_DVC_FactoryClasses = 0xA83E30u;
 static constexpr std::uintptr_t p_SHP_GetPixels = 0x69E740u;
 static constexpr std::uintptr_t current_frame = 0xA8ED84u;
-static constexpr std::uintptr_t p_SelectUnit = 0x6FBFA0u;
 static constexpr std::uintptr_t p_SellObject = 0x4D9F70u;
-static constexpr std::uintptr_t p_SellBuilding = 0x447110u;
-static constexpr std::uintptr_t p_DeployObject = 0x7393C0u;
 static constexpr std::uintptr_t p_CanBuildingBeSold = 0x4494C0u;
-static constexpr std::uintptr_t p_ClickedEvent = 0x6ffe00;
 constexpr unsigned MAX_PLAYERS = 8U;
-
 
 struct TacticalClass : public ra2::abstract_types::AbstractClass {
   ra2::vectors::Matrix3D transform;

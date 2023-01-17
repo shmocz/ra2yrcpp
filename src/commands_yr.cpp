@@ -335,12 +335,13 @@ struct CBExecuteGameLoopCommand : public MyCB<CBExecuteGameLoopCommand> {
 struct CBSaveState : public MyCB<CBSaveState> {
   static constexpr char key_name[] = "save_state";
   static constexpr char key_target[] = "on_frame_update";
+  static constexpr char key_record_path[] = "record_path";
   const std::string record_path;
 
   std::unique_ptr<yrclient::CompressedOutputStream> out;
   utility::worker_util<ra2yrproto::ra2yr::GameState> work;
 
-  explicit CBSaveState(const std::string&& record_path)
+  explicit CBSaveState(const std::string record_path)
       : record_path(record_path),
         out(std::make_unique<yrclient::CompressedOutputStream>(record_path)),
         work([this](ra2yrproto::ra2yr::GameState& w) {
@@ -470,6 +471,24 @@ struct CBTunnelSendTo : public CBTunnel<CBTunnelSendTo> {
   }
 };
 
+struct CBDebugPrint : public MyCB<CBDebugPrint> {
+  static constexpr char key_target[] = "cb_debug_print";
+  static constexpr char key_name[] = "debug_print";
+
+  CBDebugPrint() = default;
+
+  // TODO(shmocz): store debug messages in record file
+  void exec() override {
+    if (configuration()->debug_log()) {
+      char buf[1024];
+      std::memset(buf, 'F', sizeof(buf));
+      abi()->sprintf(reinterpret_cast<char**>(&buf), cpu_state->esp + 0x4);
+      fmt::print(stderr, "({}) {}", serialize::read_obj<void*>(cpu_state->esp),
+                 buf);
+    }
+  }
+};
+
 static void init_callbacks(yrclient::InstrumentationService* I) {
   I->store_value(key_callbacks_yr, utility::make_uptr<cb_map_t>());
 
@@ -482,15 +501,19 @@ static void init_callbacks(yrclient::InstrumentationService* I) {
 
   // TODO(shmocz): customizable output path
   const std::string traffic_out = fmt::format("traffic.{}.pb.gz", t);
+  const std::string record_out = fmt::format("record.{}.pb.gz", t);
   std::shared_ptr<yrclient::CompressedOutputStream> out =
       std::make_shared<yrclient::CompressedOutputStream>(traffic_out);
 
+  ensure_configuration(I, &I->storage())->set_record_filename(record_out);
+
   f(std::make_unique<CBTunnelRecvFrom>(out));
   f(std::make_unique<CBTunnelSendTo>(out));
-  f(std::make_unique<CBSaveState>(fmt::format("record.{}.pb.gz", t)));
+  f(std::make_unique<CBSaveState>(record_out));
   f(std::make_unique<CBExitGameLoop>());
   f(std::make_unique<CBExecuteGameLoopCommand>());
   f(std::make_unique<CBUpdateLoadProgress>());
+  f(std::make_unique<CBDebugPrint>());
 }
 
 static inline void unit_action(const u32 p_object,
@@ -602,13 +625,14 @@ auto create_callbacks() {
   });
 }
 
-constexpr std::array<std::pair<const char*, u32>, 6> gg_hooks = {{
+constexpr std::array<std::pair<const char*, u32>, 7> gg_hooks = {{
     {CBExecuteGameLoopCommand::key_target, 0x55de7f},  //
     {CBExitGameLoop::key_target, 0x72dfb0},            //
     {key_on_load_game, 0x686730},                      //
     {CBTunnelSendTo::key_target, 0x7b3d6f},            //
     {CBTunnelRecvFrom::key_target, 0x7b3f15},          //
-    {CBUpdateLoadProgress::key_target, 0x643c62}       //
+    {CBUpdateLoadProgress::key_target, 0x643c62},      //
+    {CBDebugPrint::key_target, 0x4068e0}               //
 }};
 
 auto create_hooks() {

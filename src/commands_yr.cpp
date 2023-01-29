@@ -115,9 +115,12 @@ static void get_object(ra2yrproto::ra2yr::Object* u,
     case AbstractType::InfantryType:
       u->set_object_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_INFANTRY);
       break;
-    case AbstractType::UnitType:
+    case AbstractType::UnitType: {
       u->set_object_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_VEHICLE);
-      break;
+      auto* uc = reinterpret_cast<ra2::objects::UnitClass*>(u);
+      u->set_deployed(uc->Deployed);
+      u->set_deploying(uc->Deploying);
+    } break;
     case AbstractType::AircraftType:
       u->set_object_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_AIRCRAFT);
       break;

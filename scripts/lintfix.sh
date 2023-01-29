@@ -28,5 +28,15 @@ done | while read fname line; do
 	perl -i -pe "$S" "$fname"
 done
 
+# No newline
+echo "$I" | grep -P '\[whitespace/ending_newline\].*' | while read line; do
+	# get fname and lineno
+	echo $line | perl -p -e 's/([^:]+):(\d+):.+$/$1 $2/g'
+done | while read fname line; do
+	S='s/(\s*)(\w+)(\(.+)/$1explicit $2$3/g if $. == '"$line"
+	G="$(cat "$fname")"
+	printf "%s\n" "$G" > "$fname"
+done
+
 # <pat1>(<T>)<var><pat2>
 # <pat1>reinterpret_cast\<T\>(<var>)<pat2>

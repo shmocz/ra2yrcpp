@@ -834,6 +834,25 @@ auto send_message() {
   });
 }
 
+auto read_value() {
+  return get_cmd<ra2yrproto::commands::ReadValue>([](auto* Q) {
+    auto [mut, s] = Q->I()->aq_storage();
+    auto a = Q->args();
+    auto* D = Q->command_data().mutable_result()->mutable_data();
+    if (a.data().has_game_state()) {
+      D->mutable_game_state()->CopyFrom(
+          *ensure_storage_value<ra2yrproto::ra2yr::GameState>(Q->I(), s,
+                                                              key_game_state));
+    } else if (a.data().has_map_data()) {
+      D->mutable_map_data()->CopyFrom(
+          *ensure_storage_value<ra2yrproto::ra2yr::MapData>(Q->I(), s,
+                                                            key_map_data));
+    } else {
+      throw std::runtime_error("invalid target");
+    }
+  });
+}
+
 }  // namespace cmd
 
 std::map<std::string, command::Command::handler_t> commands_yr::get_commands() {
@@ -847,5 +866,6 @@ std::map<std::string, command::Command::handler_t> commands_yr::get_commands() {
           cmd::mission_clicked(),        //
           cmd::add_event(),              //
           cmd::place_query(),            //
-          cmd::send_message()};
+          cmd::send_message(),           //
+          cmd::read_value()};
 }

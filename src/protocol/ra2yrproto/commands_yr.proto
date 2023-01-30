@@ -36,6 +36,24 @@ message GetGameState {
   Result result = 2;
 }
 
+message ReadValue {
+  message Target {
+    oneof data {
+      ra2yrproto.ra2yr.GameState game_state = 1;
+      ra2yrproto.ra2yr.MapData map_data = 2;
+    }
+  }
+
+  message Args {
+    Target data = 1;
+  }
+  message Result {
+    Target data = 1;
+  }
+  Args args = 1;
+  Result result = 2;
+}
+
 message GetTypeClasses {
   message Args {}
   message Result {

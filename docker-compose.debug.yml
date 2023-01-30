@@ -19,6 +19,7 @@ services:
     environment:
       PLAYER_ID: player_0
       RA2YRCPP_PORT: 14521
+      RA2YRCPP_WS_PORT: 14525
       WINE_CMD: wine Z:/usr/share/win32/gdbserver.exe localhost:12340
     network_mode: service:vnc
   game-1:

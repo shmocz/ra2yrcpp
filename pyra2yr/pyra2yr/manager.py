@@ -78,9 +78,6 @@ class Manager:
         return res_o
 
     async def mainloop(self):
-        await self.run_command(commands_yr.CreateHooks())
-        await self.run_command(commands_yr.CreateCallbacks())
-
         while not self._stop.is_set():
             try:
                 s = await self.get_state()

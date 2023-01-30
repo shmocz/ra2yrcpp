@@ -73,6 +73,7 @@ async def mcv_sell(app=None):
     X = Clock()
 
     await M.wait_state(lambda: M.state.stage == ra2yr.STAGE_INGAME)
+    info("state=ingame")
 
     # Get TC's
     res_tc = await M.run(commands_yr.GetTypeClasses())
@@ -220,7 +221,6 @@ async def mcv_sell(app=None):
         color=ra2yr.ColorScheme_Red,
     )
 
-    # input("")
     # sell all buildings
     for p in (o for o in M.state.objects if o.pointer_house == p_player):
         await M.run(
@@ -239,7 +239,7 @@ async def mcv_sell(app=None):
     #     ),
     # )
     debug("wait game to exit")
-    await M.wait_state(lambda: M.state.stage != ra2yr.STAGE_EXIT_GAME)
+    await M.wait_state(lambda: M.state.stage == ra2yr.STAGE_EXIT_GAME)
 
     # verify recording
     cfg = await M.run(commands_yr.InspectConfiguration())
@@ -251,7 +251,6 @@ async def mcv_sell(app=None):
         cfg.result.config.record_filename,
     )
 
-    app["do_stop"].set()
     await M.stop()
     with gzip.open(record_path, "rb") as f:
         m = read_protobuf_messages(f)
@@ -267,17 +266,9 @@ async def mcv_sell(app=None):
                     print("DEPLOY!")
 
 
-async def start(app):
-    t = asyncio.create_task(log_exceptions(mcv_sell(app)))
-    app["task"] = t
-
-
-async def stop(app):
-    await app["task"]
-
-
 async def test_sell_mcv(host: str):
-    await create_app(destination=host, on_startup=[start], on_shutdown=[stop])
+    t = asyncio.create_task(log_exceptions(mcv_sell()))
+    await t
 
 
 if __name__ == "__main__":

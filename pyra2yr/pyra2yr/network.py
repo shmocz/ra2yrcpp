@@ -3,7 +3,6 @@ import logging
 import struct
 import traceback
 import datetime
-import math
 from typing import Any, Dict
 
 import aiohttp
@@ -90,7 +89,7 @@ class WebSocketClient:
         self.out_queue = asyncio.Queue()
         self.timeout = timeout
         self.task = None
-        self._tries = 5
+        self._tries = 15
         self._connect_delay = 1.0
 
     def open(self):
@@ -111,6 +110,8 @@ class WebSocketClient:
             try:
                 debug("connect, try %d %d", i, self._tries)
                 await self._main_session(msg)
+                break
+            except asyncio.exceptions.CancelledError:
                 break
             except:
                 logging.warning(
@@ -218,48 +219,6 @@ class DualClient:
         await self.conns["poll"].close()
 
 
-async def websocket_handler(request):
-    ws = web.WebSocketResponse()
-    await ws.prepare(request)
-
-    args = request.app["args"]
-    tcp_conn = TCPClient(args["destination"], args["game_port"])
-    await tcp_conn.connect()
-
-    async for msg in ws:
-        if msg.type == aiohttp.WSMsgType.BINARY:
-            if msg.data == "close":
-                await ws.close()
-            elif len(msg.data) > 0:
-                await tcp_conn.send_message(msg.data)
-                ack = await tcp_conn.read_message()
-                await ws.send_bytes(ack)
-        elif msg.type == aiohttp.WSMsgType.ERROR:
-            logging.error(
-                "ws connection closed with exception %s", ws.exception()
-            )
-        else:
-            logging.error("invalid type")
-
-    await tcp_conn.aclose()
-    logging.info("websocket connection closed")
-    return ws
-
-
-def websocket_proxy(
-    destination: str = "0.0.0.0",
-    game_port: int = 14521,
-    ws_port: int = 14525,
-    on_startup=[],
-):
-    app = web.Application()
-    app.add_routes([web.get("/ws", websocket_handler)])
-    app.on_startup.extend(on_startup)
-    app["args"] = {"game_port": game_port, "destination": destination}
-    debug("running %s %s", destination, ws_port)
-    web.run_app(app, port=ws_port)
-
-
 async def create_app(
     destination: str = "0.0.0.0",
     game_port: int = 14521,
@@ -267,17 +226,12 @@ async def create_app(
     on_startup=[],
     on_shutdown=[],
 ):
-    """Start websocket proxy"""
     app = web.Application()
-    app.add_routes([web.get("/ws", websocket_handler)])
     app.on_startup.extend(on_startup)
     app.on_shutdown.extend(on_shutdown)
     app["args"] = {"game_port": game_port, "destination": destination}
-    debug("running %s %s", destination, ws_port)
     app["do_stop"] = asyncio.Event()
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, destination, ws_port)
-    await site.start()
     await app["do_stop"].wait()
     await runner.cleanup()

@@ -8,15 +8,18 @@
 #include "errors.hpp"
 #include "hook.hpp"
 #include "logging.hpp"
+#include "process.hpp"
 #include "server.hpp"
 #include "types.h"
 #include "util_string.hpp"
 #include "utility.h"
 #include "utility/sync.hpp"
+#include "websocket_server.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <functional>
+#include <future>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -71,15 +74,17 @@ class InstrumentationService {
   struct IServiceOptions {
     unsigned max_clients;
     unsigned port;
+    unsigned ws_port;
     std::string host;
-
-    IServiceOptions() : max_clients(0u), port(0u) {}
   };
 
   InstrumentationService(const unsigned int max_clients,
                          const unsigned int port,
                          std::function<std::string(InstrumentationService*)>
                              on_shutdown = nullptr);
+  InstrumentationService(
+      IServiceOptions opt,
+      std::function<std::string(InstrumentationService*)> on_shutdown);
   ~InstrumentationService();
   void add_command(std::string name, command::Command::handler_t fn);
 
@@ -104,18 +109,23 @@ class InstrumentationService {
   // TODO: don't expose this
   std::function<std::string(InstrumentationService*)> on_shutdown_;
   storage_t& storage();
+  const InstrumentationService::IServiceOptions& opts() const;
 
  private:
   ra2yrproto::PollResults flush_results(
       const u64 queue_id, const std::chrono::milliseconds delay = 1000ms);
   ra2yrproto::Response process_request(connection::Connection* C, vecu8* bytes);
 
+  IServiceOptions opts_;
   command::CommandManager cmd_manager_;
   server::Server server_;
   std::map<u8*, hook::Hook> hooks_;
   std::mutex mut_hooks_;
   storage_t storage_;
   std::recursive_mutex mut_storage_;
+  std::thread ws_proxy_;
+  process::thread_id_t ws_proxy_tid_;
+  std::mutex mut_ws_proxy_tid_;
 };
 
 }  // namespace yrclient

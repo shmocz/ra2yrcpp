@@ -27,7 +27,7 @@ class MultiClientTest : public ::testing::Test {
   void SetUp() override {
     network::Init();
     I = std::unique_ptr<yrclient::InstrumentationService>(
-        is_context::make_is(cfg::MAX_CLIENTS, cfg::SERVER_PORT));
+        is_context::make_is({cfg::MAX_CLIENTS, cfg::SERVER_PORT, 0U, ""}));
     auto& S = I->server();
     client =
         std::make_unique<AutoPollClient>(S.address(), S.port(), 100ms, 5000ms);

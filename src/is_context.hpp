@@ -5,11 +5,13 @@
 #include "context.hpp"
 #include "dll_inject.hpp"
 #include "instrumentation_service.hpp"
+#include "multi_client.hpp"
 #include "x86.hpp"
 
 #include <xbyak/xbyak.h>
 
 #include <algorithm>
+#include <chrono>
 #include <string>
 #include <vector>
 
@@ -41,7 +43,8 @@ struct ProcAddrs {
 ProcAddrs get_procaddrs();
 vecu8 vecu8cstr(const std::string s);
 void make_is_ctx(Context* c, const unsigned int max_clients = cfg::MAX_CLIENTS,
-                 const unsigned int port = cfg::SERVER_PORT);
+                 const unsigned int port = cfg::SERVER_PORT,
+                 const unsigned ws_port = 0U);
 
 void get_procaddr(Xbyak::CodeGenerator* c, HMODULE m, const std::string name,
                   const u32 p_GetProcAddress);
@@ -50,11 +53,12 @@ struct DLLoader : Xbyak::CodeGenerator {
   DLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress, const std::string path_dll,
            const std::string name_init,
            const unsigned int max_clients = cfg::MAX_CLIENTS,
-           const unsigned int port = cfg::SERVER_PORT);
+           const unsigned int port = cfg::SERVER_PORT,
+           const unsigned int ws_port = 0U);
 };
 
 yrclient::InstrumentationService* make_is(
-    const unsigned int max_clients, const unsigned int port,
+    yrclient::InstrumentationService::IServiceOptions O,
     std::function<std::string(yrclient::InstrumentationService*)> on_shutdown =
         nullptr);
 

@@ -13,7 +13,7 @@ IncludeCategories:
     Priority: 1
   - Regex: '^".+'
     Priority: 2
-  - Regex: "^<(fmt|xbyak|argparse)/.+"
+  - Regex: "^<(fmt|xbyak|argparse|asio|websocketpp)/.+"
     Priority: 3
   - Regex: "<c(stdio|stdint|string)>"
     Priority: 4

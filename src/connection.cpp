@@ -200,6 +200,8 @@ int Connection::send_bytes(const vecu8& bytes) {
   return write_bytes(bytes, &S);
 }
 
+int Connection::send_bytes(const vecu8&& bytes) { return send_bytes(bytes); }
+
 vecu8 Connection::read_bytes() {
   connection::SocketIO S(&socket_);
   return ::read_bytes(&S);

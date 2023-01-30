@@ -1,5 +1,7 @@
 #include "is_context.hpp"
 
+using namespace std::chrono_literals;
+
 using namespace is_context;
 using x86::bytes_to_stack;
 
@@ -23,8 +25,10 @@ vecu8 is_context::vecu8cstr(const std::string s) {
 }
 
 void is_context::make_is_ctx(Context* c, const unsigned int max_clients,
-                             const unsigned int port) {
-  auto* I = is_context::make_is(max_clients, port, [c](auto* X) {
+                             const unsigned int port, const unsigned ws_port) {
+  yrclient::InstrumentationService::IServiceOptions O{max_clients, port,
+                                                      ws_port, ""};
+  auto* I = is_context::make_is(O, [c](auto* X) {
     (void)X;
     return c->on_signal();
   });
@@ -39,9 +43,11 @@ void is_context::make_is_ctx(Context* c, const unsigned int max_clients,
 }
 
 // TODO(shmocz): rename
+// FIXME: Use IServiceOptions
 DLLoader::DLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress,
                    const std::string path_dll, const std::string name_init,
-                   const unsigned int max_clients, const unsigned int port) {
+                   const unsigned int max_clients, const unsigned int port,
+                   const unsigned int ws_port) {
   vecu8 v1(path_dll.begin(), path_dll.end());
   v1.push_back(0x0);
   vecu8 v2(name_init.begin(), name_init.end());
@@ -66,6 +72,7 @@ DLLoader::DLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress,
   mov(eax, p_GetProcAddress);
   call(eax);  // GetProcAddress(hModule, lpProcName)
   // Call init routine
+  push(ws_port);
   push(port);
   push(max_clients);
   call(eax);
@@ -109,11 +116,21 @@ static void add_builtin_commands(yrclient::InstrumentationService* I) {
 }
 
 yrclient::InstrumentationService* is_context::make_is(
-    const unsigned int max_clients, const unsigned int port,
+    yrclient::InstrumentationService::IServiceOptions O,
     std::function<std::string(yrclient::InstrumentationService*)> on_shutdown) {
-  auto* I =
-      new yrclient::InstrumentationService(max_clients, port, on_shutdown);
+  auto* I = new yrclient::InstrumentationService(O, on_shutdown);
   add_builtin_commands(I);
+  // If ws_port is defined, then assume we are in gamemd process and create
+  // hooks/callbacks
+  // FIXME: explicit setting for this
+  if (I->opts().ws_port > 0U) {
+    multi_client::AutoPollClient C(O.host, std::to_string(O.port), 5000ms,
+                                   5000ms);
+    ra2yrproto::commands::CreateHooks C1;
+    (void)C.send_command(C1);
+    ra2yrproto::commands::CreateCallbacks C2;
+    (void)C.send_command(C2);
+  }
   return I;
 }
 

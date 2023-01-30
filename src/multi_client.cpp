@@ -46,6 +46,7 @@ ra2yrproto::Response AutoPollClient::send_command(
     return yrclient::make_response(results().get(ack.id(), command_timeout_),
                                    yrclient::RESPONSE_OK);
   } catch (const std::runtime_error& e) {
+    eprintf("timeout after {}ms, key={}", command_timeout_.count(), ack.id());
     throw yrclient::general_error(fmt::format(
         "timeout after {}ms, key={}", command_timeout_.count(), ack.id()));
   }

@@ -29,6 +29,8 @@ InstrumentationService::get_connection_threads() {
   auto& C = server().connections();
   std::transform(C.begin(), C.end(), std::back_inserter(res),
                  [](const auto& ctx) { return ctx->thread_id; });
+  res.push_back(
+      util::guarded(mut_ws_proxy_tid_, [this]() { return ws_proxy_tid_; }));
   return res;
 }
 
@@ -199,6 +201,32 @@ void InstrumentationService::store_value(
   storage_[key] = std::move(d);
 }
 
+InstrumentationService::InstrumentationService(
+    InstrumentationService::IServiceOptions opt,
+    std::function<std::string(InstrumentationService*)> on_shutdown)
+    : opts_(opt),
+      on_shutdown_(on_shutdown),
+      server_(opt.max_clients, opt.port),
+      ws_proxy_tid_(0u),
+      ws_proxy_([opt, this]() {
+        if (opt.ws_port > 0U) {
+          util::guarded(mut_ws_proxy_tid_, [this]() {
+            ws_proxy_tid_ = process::get_current_tid();
+          });
+          ra2yrcpp::websocket_server::WebsocketProxy W(
+              {"", opt.port, opt.ws_port});
+        }
+      }) {
+  server_.callbacks().receive_bytes = [this](auto* c, auto* b) {
+    return this->on_receive_bytes(c, b);
+  };
+  server_.callbacks().send_bytes = [this](auto* c, auto* b) {
+    this->on_send_bytes(c, b);
+  };
+  server_.callbacks().accept = [this](auto* c) { this->on_accept(c); };
+  server_.callbacks().close = [this](auto* c) { this->on_close(c); };
+}
+
 // FIXME: don't use
 void InstrumentationService::store_value(const std::string key, vecu8* data) {
   store_value(key, reinterpret_cast<void*>(data),
@@ -231,4 +259,9 @@ aq_t<storage_t*, std::recursive_mutex> InstrumentationService::aq_storage() {
   return util::acquire(mut_storage_, &storage_);
 }
 
-InstrumentationService::~InstrumentationService() {}
+InstrumentationService::~InstrumentationService() { ws_proxy_.join(); }
+
+const InstrumentationService::IServiceOptions& InstrumentationService::opts()
+    const {
+  return opts_;
+}

@@ -95,6 +95,7 @@ class Connection {
   /// @exception std::runtime_error on write failure
   ///
   int send_bytes(const vecu8& bytes);
+  int send_bytes(const vecu8&& bytes);
   ///
   /// Read entire message from socket.
   /// @exception std::runtime_error on read failure
@@ -108,4 +109,5 @@ class Connection {
   network::addrinfo hints_;
   network::socket_t socket_{0};
 };
+
 }  // namespace connection

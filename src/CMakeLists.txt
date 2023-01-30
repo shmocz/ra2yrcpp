@@ -72,10 +72,12 @@ add_library(
   command/command_manager.cpp
   command/command.cpp
   connection.cpp
-  manager.cpp
-  ra2yrcppcli/ra2yrcppcli.cpp)
+  ra2yrcppcli/ra2yrcppcli.cpp
+  websocket_server.cpp)
+
 target_link_libraries(yrclient PRIVATE ${Protobuf_LIBRARIES} ZLIB::ZLIB
                                        fmt::fmt ${LIB_WSOCK} psapi)
+target_link_libraries(yrclient PUBLIC wsock32)
 
 add_executable(recordtool recordtool.cpp)
 target_link_libraries(recordtool PUBLIC yrclient)

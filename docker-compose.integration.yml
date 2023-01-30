@@ -19,6 +19,7 @@ services:
     environment:
       PLAYER_ID: player_0
       RA2YRCPP_PORT: 14521
+      RA2YRCPP_WS_PORT: 14525
     network_mode: service:vnc
   game-1:
     stop_signal: SIGKILL

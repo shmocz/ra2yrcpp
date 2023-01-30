@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fmt/core.h>
+#include <fmt/std.h>
 
 #include <cstdint>
 #include <cstdio>

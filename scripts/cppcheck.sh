@@ -2,7 +2,10 @@
 
 out="cppcheck.log"
 
-cppcheck -q --platform=win32W \
+# example override: cppcheck="docker run --user $UID:$UID --rm -v "$(pwd)":/mnt -w /mnt shmocz/cppcheck-action cppcheck"
+: ${CPPCHECK:="cppcheck"}
+
+$CPPCHECK -q --platform=win32W \
 	--enable=warning,style,performance,portability,unusedFunction \
 	-I src/ \
 	--template='{file}:{line},{severity},{id},{message}' \

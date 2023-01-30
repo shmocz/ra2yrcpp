@@ -5,6 +5,7 @@ TESTS := $(patsubst %.cpp,%.exe,$(subst tests/,bin/,$(filter tests/test_%.cpp, $
 PYTHON := python3
 export CMAKE_RUNTIME_OUTPUT_DIRECTORY := $(BUILDDIR)/bin
 
+export CPPCHECK ?= cppcheck
 export PLAYERS_CONFIG := ./test_data/envs.tsv
 export CM_FILES = $(filter %CMakeLists.txt, $(REPO_FILES))
 export CPP_SOURCES = $(filter %.cpp %.hpp, $(REPO_FILES))

@@ -5,17 +5,18 @@ using yrclient::to_json;
 
 InstrumentationClient::InstrumentationClient(
     std::shared_ptr<connection::Connection> conn,
-    const std::chrono::milliseconds poll_timeout,
-    const std::chrono::milliseconds poll_rate)
-    : conn_(conn), poll_timeout_(poll_timeout), poll_rate_(poll_rate) {}
+    const std::chrono::milliseconds poll_timeout)
+    : conn_(conn), poll_timeout_(poll_timeout) {
+  // FIXME: timeout?
+  // network::set_io_timeout(conn_->socket(), poll_timeout_.count());
+}
 
 InstrumentationClient::InstrumentationClient(
     const std::string host, const std::string port,
-    const std::chrono::milliseconds poll_timeout,
-    const std::chrono::milliseconds poll_rate)
+    const std::chrono::milliseconds poll_timeout)
     : InstrumentationClient(std::shared_ptr<connection::Connection>(
                                 new connection::Connection(host, port)),
-                            poll_timeout, poll_rate) {}
+                            poll_timeout) {}
 
 // TODO: get rid of this
 ra2yrproto::Response InstrumentationClient::poll(

@@ -19,9 +19,6 @@ endfunction()
 add_library(test_common OBJECT common.cpp)
 target_link_libraries(test_common gtest_main)
 
-add_library(integration_test OBJECT integration_test.cpp)
-target_link_libraries(integration_test gtest_main stdc++fs)
-
 new_make_test(
   NAME test_process
   SRC test_process.cpp ../src/utility/scope_guard.hpp
@@ -68,8 +65,3 @@ new_make_test(
   NAME test_multi_client
   SRC test_multi_client.cpp
   LIB yrclient)
-
-new_make_test(
-  NAME test_integration_basic_communication
-  SRC test_integration_basic_communication.cpp
-  LIB yrclient integration_test)

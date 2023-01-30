@@ -4,6 +4,7 @@
 #include "network.hpp"
 #include "types.h"
 #include "utility/scope_guard.hpp"
+#include "utility/serialize.hpp"
 
 #include <cstring>
 
@@ -18,28 +19,14 @@ namespace connection {
 using ReaderFn = std::function<vecu8(size_t)>;
 using WriterFn = std::function<size_t(vecu8*)>;
 
-// Deserialize object from byte buffer.
-template <typename T>
-T deserialize_obj(T* dst, const u8* src, bool little_endian = false) {
-  u8* p = reinterpret_cast<u8*>(dst);
-  auto b = src;
-  auto e = src + sizeof(T);
-  if (little_endian) {
-    std::copy_backward(b, e, p);
-  } else {
-    std::copy(b, e, p);
-  }
-  return *dst;
-}
-
+// FIXME: duplicate code?
 template <typename T>
 T read_obj(ReaderFn reader) {
-  T res = 0;
   auto buf = reader(sizeof(T));
   if (buf.size() != sizeof(T)) {
     throw std::runtime_error("Byte buffer too small");
   }
-  return deserialize_obj<T>(&res, buf.data());
+  return serialize::read_obj_le<T>(buf.data());
 }
 
 ///

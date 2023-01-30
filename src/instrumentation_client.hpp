@@ -20,11 +20,9 @@ class InstrumentationClient {
  public:
   explicit InstrumentationClient(
       std::shared_ptr<connection::Connection> conn,
-      const std::chrono::milliseconds poll_timeout = 5000ms,
-      const std::chrono::milliseconds poll_rate = 250ms);
+      const std::chrono::milliseconds poll_timeout = 5000ms);
   InstrumentationClient(const std::string host, const std::string port,
-                        const std::chrono::milliseconds poll_timeout = 5000ms,
-                        const std::chrono::milliseconds poll_rate = 250ms);
+                        const std::chrono::milliseconds poll_timeout = 5000ms);
 
   ///
   /// Send bytes and return number of bytes sent.
@@ -68,7 +66,6 @@ class InstrumentationClient {
  private:
   std::shared_ptr<connection::Connection> conn_;
   const std::chrono::milliseconds poll_timeout_;
-  const std::chrono::milliseconds poll_rate_;
 };
 
 }  // namespace instrumentation_client

@@ -35,7 +35,7 @@ add_library(instrumentation_client STATIC instrumentation_client.cpp
                                           multi_client.cpp)
 target_link_libraries(instrumentation_client PUBLIC protocol errors connection
                                                     fmt::fmt)
-add_library(is_instance INTERFACE is_context.cpp manager.cpp commands_yr.cpp
+add_library(is_instance INTERFACE is_context.cpp commands_yr.cpp
             commands_builtin.cpp)
 target_link_libraries(is_instance INTERFACE instrumentation_service)
 
@@ -84,9 +84,6 @@ add_subdirectory(ra2yrcppcli)
 
 add_custom_target(ra2yrcpp)
 add_dependencies(ra2yrcpp yrclient recordtool ra2yrcppcli-bin)
-
-add_library(manager STATIC manager.cpp)
-target_link_libraries(manager PUBLIC instrumentation_client)
 
 list(TRANSFORM MINGW_LIBS PREPEND "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/"
                                   OUTPUT_VARIABLE MINGW_LIBS_TEST)

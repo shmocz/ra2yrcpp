@@ -38,11 +38,95 @@ enum BuildingState {
 
 enum AbstractType {
   ABSTRACT_TYPE_NONE = 0;
-  ABSTRACT_TYPE_BUILDING = 1;
-  ABSTRACT_TYPE_INFANTRY = 2;
-  ABSTRACT_TYPE_UNIT = 3;
-  ABSTRACT_TYPE_AIRCRAFT = 4;
-  ABSTRACT_TYPE_VEHICLE = 5;
+  ABSTRACT_TYPE_UNIT = 1;
+  ABSTRACT_TYPE_AIRCRAFT = 2;
+  ABSTRACT_TYPE_AIRCRAFTTYPE = 3;
+  ABSTRACT_TYPE_ANIM = 4;
+  ABSTRACT_TYPE_ANIMTYPE = 5;
+  ABSTRACT_TYPE_BUILDING = 6;
+  ABSTRACT_TYPE_BUILDINGTYPE = 7;
+  ABSTRACT_TYPE_BULLET = 8;
+  ABSTRACT_TYPE_BULLETTYPE = 9;
+  ABSTRACT_TYPE_CAMPAIGN = 10;
+  ABSTRACT_TYPE_CELL = 11;
+  ABSTRACT_TYPE_FACTORY = 12;
+  ABSTRACT_TYPE_HOUSE = 13;
+  ABSTRACT_TYPE_HOUSETYPE = 14;
+  ABSTRACT_TYPE_INFANTRY = 15;
+  ABSTRACT_TYPE_INFANTRYTYPE = 16;
+  ABSTRACT_TYPE_ISOTILE = 17;
+  ABSTRACT_TYPE_ISOTILETYPE = 18;
+  ABSTRACT_TYPE_BUILDINGLIGHT = 19;
+  ABSTRACT_TYPE_OVERLAY = 20;
+  ABSTRACT_TYPE_OVERLAYTYPE = 21;
+  ABSTRACT_TYPE_PARTICLE = 22;
+  ABSTRACT_TYPE_PARTICLETYPE = 23;
+  ABSTRACT_TYPE_PARTICLESYSTEM = 24;
+  ABSTRACT_TYPE_PARTICLESYSTEMTYPE = 25;
+  ABSTRACT_TYPE_SCRIPT = 26;
+  ABSTRACT_TYPE_SCRIPTTYPE = 27;
+  ABSTRACT_TYPE_SIDE = 28;
+  ABSTRACT_TYPE_SMUDGE = 29;
+  ABSTRACT_TYPE_SMUDGETYPE = 30;
+  ABSTRACT_TYPE_SPECIAL = 31;
+  ABSTRACT_TYPE_SUPERWEAPONTYPE = 32;
+  ABSTRACT_TYPE_TASKFORCE = 33;
+  ABSTRACT_TYPE_TEAM = 34;
+  ABSTRACT_TYPE_TEAMTYPE = 35;
+  ABSTRACT_TYPE_TERRAIN = 36;
+  ABSTRACT_TYPE_TERRAINTYPE = 37;
+  ABSTRACT_TYPE_TRIGGER = 38;
+  ABSTRACT_TYPE_TRIGGERTYPE = 39;
+  ABSTRACT_TYPE_UNITTYPE = 40;
+  ABSTRACT_TYPE_VOXELANIM = 41;
+  ABSTRACT_TYPE_VOXELANIMTYPE = 42;
+  ABSTRACT_TYPE_WAVE = 43;
+  ABSTRACT_TYPE_TAG = 44;
+  ABSTRACT_TYPE_TAGTYPE = 45;
+  ABSTRACT_TYPE_TIBERIUM = 46;
+  ABSTRACT_TYPE_ACTION = 47;
+  ABSTRACT_TYPE_EVENT = 48;
+  ABSTRACT_TYPE_WEAPONTYPE = 49;
+  ABSTRACT_TYPE_WARHEADTYPE = 50;
+  ABSTRACT_TYPE_WAYPOINT = 51;
+  ABSTRACT_TYPE_ABSTRACT = 52;
+  ABSTRACT_TYPE_TUBE = 53;
+  ABSTRACT_TYPE_LIGHTSOURCE = 54;
+  ABSTRACT_TYPE_EMPULSE = 55;
+  ABSTRACT_TYPE_TACTICALMAP = 56;
+  ABSTRACT_TYPE_SUPER = 57;
+  ABSTRACT_TYPE_AITRIGGER = 58;
+  ABSTRACT_TYPE_AITRIGGERTYPE = 59;
+  ABSTRACT_TYPE_NEURON = 60;
+  ABSTRACT_TYPE_FOGGEDOBJECT = 61;
+  ABSTRACT_TYPE_ALPHASHAPE = 62;
+  ABSTRACT_TYPE_VEINHOLEMONSTER = 63;
+  ABSTRACT_TYPE_NAVYTYPE = 64;
+  ABSTRACT_TYPE_SPAWNMANAGER = 65;
+  ABSTRACT_TYPE_CAPTUREMANAGER = 66;
+  ABSTRACT_TYPE_PARASITE = 67;
+  ABSTRACT_TYPE_BOMB = 68;
+  ABSTRACT_TYPE_RADSITE = 69;
+  ABSTRACT_TYPE_TEMPORAL = 70;
+  ABSTRACT_TYPE_AIRSTRIKE = 71;
+  ABSTRACT_TYPE_SLAVEMANAGER = 72;
+  ABSTRACT_TYPE_DISKLASER = 73;
+}
+
+// TODO: put enums to separate file
+enum LandType {
+  LAND_TYPE_Clear = 0;
+  LAND_TYPE_Road = 1;
+  LAND_TYPE_Water = 2;
+  LAND_TYPE_Rock = 3;
+  LAND_TYPE_Wall = 4;
+  LAND_TYPE_Tiberium = 5;
+  LAND_TYPE_Beach = 6;
+  LAND_TYPE_Rough = 7;
+  LAND_TYPE_Ice = 8;
+  LAND_TYPE_Railroad = 9;
+  LAND_TYPE_Tunnel = 10;
+  LAND_TYPE_Weeds = 11;
 }
 
 message SHPPixelData {
@@ -70,7 +154,9 @@ message BuildState {
 message Factory {
   int32 progress_timer = 1;
   uint32 owner = 2;
-  uint32 object_id = 3;
+  uint32 object = 3;
+  repeated uint32 queued_objects = 4;
+  bool on_hold = 5;
 }
 
 message House {
@@ -103,6 +189,11 @@ message Coordinates {
   int32 z = 3;
 }
 
+message Rectangle {
+  int32 x = 1;
+  int32 y = 2;
+};
+
 message ObjectTypeClass {
   string name = 1;
   int32 cost = 2;
@@ -111,6 +202,8 @@ message ObjectTypeClass {
   uint32 array_index = 5;
   uint32 pointer_self = 6;
   uint32 pointer_shp_struct = 7;
+  repeated int32 prerequisites = 8;
+  AbstractType type = 9;
 }
 
 message Object {
@@ -143,6 +236,26 @@ enum LoadStage {
   STAGE_EXIT_GAME = 3;
 }
 
+message Cell {
+  LandType land_type = 1;
+  double radiation_level = 2;
+  int32 height = 3;
+  int32 level = 4;
+  // crate type and some weird data
+  int32 overlay_data = 5;
+  int32 tiberium_value = 6;
+  double tiberium_multiplier = 7;
+  // Objects in this Cell
+  repeated Object objects = 8;
+};
+
+message MapData {
+  // minimum and maximum cell values
+  Coordinates topleft = 1;
+  Coordinates bottomright = 2;
+  repeated Cell cells = 3;
+};
+
 message GameState {
   uint32 current_frame = 1;
   repeated Factory factories = 3;
@@ -151,6 +264,7 @@ message GameState {
   repeated Object objects = 6;
   LoadStage stage = 7;
   repeated double load_progresses = 8;
+  MapData map_data = 9;
 }
 
 enum NetworkEvent {
@@ -322,11 +436,6 @@ message Event {
     bool is_naval = 3;
     Coordinates location = 4;
   }
-
-  //    ra2::general::AbstractType RTTIType;
-  //    int HeapID;
-  //    int IsNaval;
-  //    ra2::vectors::CellStruct Location;
 
   message SpecialPlace {
     int32 id = 1;

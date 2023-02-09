@@ -19,6 +19,8 @@ export UID := $(shell id -u)
 export GID := $(shell id -g)
 
 INTEGRATION_TEST ?= docker-compose.integration.yml
+INTEGRATION_TEST_TARGET ?= ./pyra2yr/test_sell_mcv.py
+COMPOSE_ARGS ?= --abort-on-container-exit pyra2yr tunnel wm vnc novnc game-0 game-1
 compose_cmd := docker-compose -f docker-compose.yml -f $(INTEGRATION_TEST)
 
 doc:
@@ -58,7 +60,7 @@ test: $(GAMEMD_PATCHED)
 		wine $(BUILDDIR)/$$f; done
 
 test_integration: $(GAMEMD_PATCHED)
-	COMMAND='sh -c "WINEPREFIX=$${HOME}/project/$${BUILDDIR}/test_instances/$${PLAYER_ID}/.wine ./scripts/run_gamemd.sh"' COMMAND_PYRA2YR='python3 ./pyra2yr/test_sell_mcv.py' $(compose_cmd) up --abort-on-container-exit pyra2yr tunnel wm vnc novnc game-0 game-1
+	COMMAND='sh -c "WINEPREFIX=$${HOME}/project/$${BUILDDIR}/test_instances/$${PLAYER_ID}/.wine ./scripts/run_gamemd.sh"' COMMAND_PYRA2YR='python3 $(INTEGRATION_TEST_TARGET)' $(compose_cmd) up $(COMPOSE_ARGS)
 
 docker_base:
 	docker-compose build --build-arg USER_ID=$(UID)

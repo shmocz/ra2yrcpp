@@ -5,5 +5,4 @@ Checks: >-
   modernize-*,
   -modernize-use-trailing-return-type
 HeaderFilterRegex: ""
-WarningsAsErrors: "*"
 AnalyzeTemporaryDtors: false

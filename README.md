@@ -4,35 +4,100 @@ Library for interacting with Red Alert 2 Yuri's Revenge game process with protob
 
 ## Building
 
+`ra2yrcpp` depends on following software:
+
+- argparse
+- asio
+- cmake
+- fmt
+- protobuf
+- python3 (iced-x86 library used for patching)
+- websocketpp
+- wine (Optional: see section about cross-compilation and protoc)
+- xbyak
+- zlib
+
+All dependencies except cmake, python, zlib and wine are already included as submodules.
+
 Get the sources and submodules and place `gamemd-spawn.exe` from CnCNet distribution into the project source directory.
 
 ```bash
 $ git clone --recurse-submodules https://github.com/CnCNet/ra2yrcpp.git
 $ cd ra2yrcpp
-$ cp CNCNET_FOLDER/gamemd-spawn.exe .
+$ cp <CNCNET_FOLDER>/gamemd-spawn.exe .
+```
+
+For `clang-cl`, zlib sources are also needed:
+
+```bash
+$ git clone -b v1.2.8 https://github.com/madler/zlib.git 3rdparty/zlib
 ```
 
 ### Build with Docker (recommended)
 
-For convenience, a Docker image is provided with all necessary dependencies to build the application and related components.
+For convenience, a Docker image is provided for both MinGW and clang-cl toolchains with all necessary dependencies to build the application and related components. MinGW toolchain is used by default.
 
 ```bash
-$ make BUILDDIR=build_docker docker_build
+$ make docker_build
 ```
 
-### Regular build
+### General build instructions
 
-Set up a suitable toolchain for building WIN32 executables. Execute:
+Make sure Python 3 is installed, then install iced-x86:
 
 ```bash
+$ pip install --user iced-x86
+```
+
+Pick a toolchain of your choice, release type and run make:
+
+```bash
+$ export CMAKE_TOOLCHAIN_FILE=<toolchain-path>
+$ export CMAKE_RELEASE_TYPE=Release
 $ make build
 ```
 
-This performs the build under `build` folder with `Release` profile. Adjust the settings to your likings, e.g.:
+This performs the build and installation under `cbuild/<toolchain-id>-<release-type>`.
+
+Alternatively invoke cmake directly:
 
 ```bash
-$ make BUILDDIR=build_debug CMAKE_BUILD_TYPE=Debug build
+$ mkdir -p build pkg
+$ cmake \
+  -DCMAKE_INSTALL_PREFIX=pkg \
+  --toolchain <toolchain-path> \
+  -S . -B build \
+  cmake --build build --config Release --target all -j $(nproc) \
+  cmake --build build --config Release --target install
 ```
+
+### Build using clang-cl
+
+clang-cl is the preferred compiler for release packages, as there's no additional runtime DLL dependencies aside from Windows's CRT. You still need MSVC SDK, which will be downloaded when building the `clang-cl-msvc.Dockerfile` image. Once downloaded, modify the toolchain file at `toolchains/clang-cl-msvc.cmake` to point to correct SDK paths.
+
+Also get the static zlib library, and adjust `ZLIB_LIBRARY` in the toolchain file accordingly. On Linux systems the library might be present if MinGW cross compilation toolchain has been installed.
+
+Execute build with:
+
+```bash
+$ export CMAKE_TOOLCHAIN_FILE=toolchains/clang-cl-msvc.cmake
+$ make build
+```
+
+the build and install directories will be performed to `cbuild/<toolchain-name>-$CMAKE_RELEASE_TYPE`, under the names `build` and `pkg` respectively.
+
+### Build using MinGW
+
+The instructions are identical to `clang-cl`, consult the reference toolchain file at `mingw-w64-i686.cmake`.
+
+```bash
+$ export CMAKE_TOOLCHAIN_FILE=toolchains/mingw-w64-i686.cmake
+$ make build
+```
+
+### Cross-compilation on Linux and protobuf compiler
+
+The protobuf compiler is obtained as part of the build process as Windows executable, which will only work on Linux if wine is installed. Alternatively you can grab a pre-built native binary from https://github.com/protocolbuffers/protobuf/tags or build one by yourself and adjust `PROTOC_PATH` in your toolchain file, **provided your external protoc binary matches the version used by the library**.
 
 ### Running tests
 
@@ -62,9 +127,9 @@ $ make test_integration
 
 ## Usage
 
-Copy `libyrclient.dll` and patched `gamemd-spawn.exe` to the CnCNet installation folder (overwriting the original `gamemd-spawn.exe`), or ensure some other way that LoadLibrary can locate the DLL by it's base name.
+Copy `libra2yrcpp.dll` and patched `gamemd-spawn.exe` to the CnCNet installation folder (overwriting the original `gamemd-spawn.exe`), or ensure some other way that LoadLibrary can locate the DLL by it's base name.
 
-This spawns a TCP server inside gamemd process bound to port 14520 by default. To override this, set environment variable `RA2YRCPP_PORT`.
+This spawns a TCP server bound to port 14520 and WebSocket proxy to it on port 14525. To override these, set the environment variables `RA2YRCPP_PORT` and `RA2YRCPP_WS_PORT`.
 
 ### Recording game data
 

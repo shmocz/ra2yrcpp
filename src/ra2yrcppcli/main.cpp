@@ -1,5 +1,6 @@
 #include "protocol/protocol.hpp"
 
+#include "config.hpp"
 #include "instrumentation_service.hpp"
 #include "ra2yrcppcli.hpp"
 
@@ -107,7 +108,7 @@ int main(int argc, char* argv[]) {
       .default_value(false);
   A.add_argument("-D", "--dll-file")
       .help("Name of DLL to be injected")
-      .default_value(std::string("libyrclient.dll"));
+      .default_value(std::string(cfg::DLL_NAME));
   A.add_argument("-N", "--process-name")
       .help("target process name")
       .default_value(std::string("gamemd-spawn.exe"));
@@ -135,6 +136,18 @@ int main(int argc, char* argv[]) {
           "write result to output")
       .implicit_value(false)
       .default_value(false);
+  A.add_argument("-agp", "--address-GetProcAddr")
+      .help("Address of GetProcAddr function")
+      .default_value(0u)
+      .scan<'x', unsigned>();
+  A.add_argument("-all", "--address-LoadLibraryA")
+      .help("Address of LoadLibraryA function")
+      .default_value(0u)
+      .scan<'x', unsigned>();
+  A.add_argument("-nia", "--no-indirect-address")
+      .help("Don't treat addresses as indirect")
+      .implicit_value(false)
+      .default_value(true);
 
   A.parse_args(argc, argv);
 
@@ -171,10 +184,20 @@ int main(int argc, char* argv[]) {
 
   if (A.is_used("--generate-dll-loader")) {
     // TODO: global constants
-    is_context::DLLoader L(is_context::get_proc_address("LoadLibraryA"),
-                           is_context::get_proc_address("GetProcAddress"),
-                           "libyrclient.dll", "init_iservice", cfg::MAX_CLIENTS,
-                           0U);
+    is_context::ProcAddrs PA;
+    if (A.is_used("--address-GetProcAddr")) {
+      PA.p_GetProcAddress = A.get<unsigned>("--address-GetProcAddr");
+    } else {
+      PA.p_GetProcAddress = is_context::get_proc_address("GetProcAddress");
+    }
+    if (A.is_used("--address-LoadLibraryA")) {
+      PA.p_LoadLibrary = A.get<unsigned>("--address-LoadLibraryA");
+    } else {
+      PA.p_LoadLibrary = is_context::get_proc_address("LoadLibraryA");
+    }
+    is_context::DLLoader L(PA.p_LoadLibrary, PA.p_GetProcAddress, cfg::DLL_NAME,
+                           cfg::INIT_NAME, cfg::MAX_CLIENTS, 0U, 0U,
+                           A.get<bool>("--no-indirect-address"));
     auto p = L.getCode<void __cdecl (*)(void)>();
     std::cout << std::string(reinterpret_cast<char*>(p), L.getSize());
     return 0;

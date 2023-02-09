@@ -1,12 +1,11 @@
 import asyncio
+import datetime
 import logging
 import struct
 import traceback
-import datetime
 from typing import Any, Dict
 
 import aiohttp
-from aiohttp import web
 from ra2yrproto import core
 
 from .async_container import AsyncDict
@@ -17,7 +16,7 @@ debug = logging.debug
 async def log_exceptions(coro):
     try:
         return await coro
-    except Exception as e:
+    except Exception:
         logging.error("%s", traceback.format_exc())
 
 
@@ -45,7 +44,7 @@ class TCPClient:
             try:
                 self.reader, self.writer = await self._try_connect()
                 return
-            except:
+            except Exception:
                 logging.warning(
                     "connect failed, retrying (timeout in %ds)",
                     round(self._timeout - d),
@@ -113,7 +112,7 @@ class WebSocketClient:
                 break
             except asyncio.exceptions.CancelledError:
                 break
-            except:
+            except Exception:
                 logging.warning(
                     "connect failed (try %d/%d)", i + 1, self._tries
                 )
@@ -217,21 +216,3 @@ class DualClient:
         await self._poll_task
         await self.conns["command"].close()
         await self.conns["poll"].close()
-
-
-async def create_app(
-    destination: str = "0.0.0.0",
-    game_port: int = 14521,
-    ws_port: int = 14525,
-    on_startup=[],
-    on_shutdown=[],
-):
-    app = web.Application()
-    app.on_startup.extend(on_startup)
-    app.on_shutdown.extend(on_shutdown)
-    app["args"] = {"game_port": game_port, "destination": destination}
-    app["do_stop"] = asyncio.Event()
-    runner = web.AppRunner(app)
-    await runner.setup()
-    await app["do_stop"].wait()
-    await runner.cleanup()

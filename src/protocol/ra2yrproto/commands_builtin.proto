@@ -3,6 +3,7 @@ syntax = "proto3";
 package ra2yrproto.commands;
 
 import "google/protobuf/any.proto";
+import "ra2yrproto/ra2yr.proto";
 import "ra2yrproto/core.proto";
 
 message GetSystemState {
@@ -40,16 +41,22 @@ message StoreValue {
     string key = 1;
     string value = 2;
   }
+  message Result {
+    string result = 1;
+  }
   Args args = 1;
-  string result = 2;
+  Result result = 2;
 }
 
 message GetValue {
   message Args {
     string key = 1;
   }
+  message Result {
+    string result = 1;
+  }
   Args args = 1;
-  string result = 2;
+  Result result = 2;
 }
 
 message HookableCommand {

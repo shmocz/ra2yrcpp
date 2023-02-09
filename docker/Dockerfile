@@ -1,65 +1,34 @@
-FROM ubuntu:latest as ubuntu
-ARG PROTOBUF_VERSION
+FROM ubuntu:22.10 as mingw
 
 RUN dpkg --add-architecture i386
-RUN apt-get update -y && apt-get upgrade -y
-
-FROM ubuntu as mingw
-RUN apt-get install -y \
-	--no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt \
+	apt-get update -y && apt-get install --no-install-recommends -y \
 	bash \
 	ca-certificates \
 	cmake \
 	cppcheck \
 	g++-mingw-w64-i686-posix \
-	gdb \
 	git \
-	jq \
-	libz-mingw-w64-dev \
+	clang-tidy \
 	make
 
-RUN apt-get install -y \
+RUN --mount=type=cache,target=/var/cache/apt \
+	apt-get install -y \
+	libz-mingw-w64-dev \
 	gdb-mingw-w64 \
-	gdb-mingw-w64-target
+	gdb-mingw-w64-target \
+	gdb \
+	python2 \
+	python3 \
+	python3-pip \
+	wine32
 
-FROM mingw as protobuf
-RUN apt-get install -y \
-	--no-install-recommends \
-	autoconf \
-	automake \
-	g++ \
-	libtool
-
-WORKDIR /tmp
-RUN git clone --depth 1 -b $PROTOBUF_VERSION --shallow-submodules --recurse-submodules https://github.com/protocolbuffers/protobuf.git
-WORKDIR /tmp/protobuf
-# Build and install the compiler
-RUN ./autogen.sh && ./configure --with-protoc=/usr/bin/protoc --prefix=/usr && make -j$(nproc)
-# Copy files and remove unnecessary
-RUN make DESTDIR=/tmp/proto install
-
-# Build the library
-RUN make clean && ./autogen.sh && CXX=i686-w64-mingw32-g++-posix ./configure --with-protoc=/usr/bin/protoc --prefix=/usr/i686-w64-mingw32 --host=i686-w64-mingw32 && make -j$(nproc) && make DESTDIR=/tmp/proto install
-
-FROM mingw
-COPY --from=protobuf /tmp/proto/ /
-RUN apt-get install -y --install-recommends wine32
-RUN apt-get install -y --no-install-recommends python3 python3-pip
-RUN apt-get install -y --no-install-recommends clang-tidy
 RUN pip install -U iced-x86
-
-# Free up some space
-RUN rm /usr/lib/*.a
-
 # Fix some library paths
-RUN ln -s /usr/lib/gcc/i686-w64-mingw32/10-posix/libgcc_s_dw2-1.dll \
-	/usr/lib/gcc/i686-w64-mingw32/10-posix/libstdc++-6.dll \
+RUN ln -s /usr/lib/gcc/i686-w64-mingw32/*-posix/libgcc_s_dw2-1.dll \
+	/usr/lib/gcc/i686-w64-mingw32/*-posix/libstdc++-6.dll \
 	/usr/i686-w64-mingw32/lib
 
+# FIXME: rm atp stuff
 # Create user and necessary folders
-RUN useradd -m user
-RUN mkdir -p /home/user/project /home/user/.wine
-RUN chmod -R 0777 /home/user
-
-USER user
-WORKDIR /home/user/project
+RUN useradd -m user && mkdir -p /home/user/project /home/user/.wine && chmod -R 0777 /home/user

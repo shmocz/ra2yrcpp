@@ -59,8 +59,8 @@ void network::set_io_timeout(socket_t s, const unsigned long timeout,
   setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, pt, sizeof(timeout));
   if (nodelay) {
     DWORD e = 1;
-    setsockopt(s, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&e),
-               sizeof(e));
+    ::setsockopt(s, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&e),
+                 sizeof(e));
   }
 }
 

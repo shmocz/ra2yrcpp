@@ -4,9 +4,6 @@
 #include "config.hpp"
 #include "connection.hpp"
 #include "context.hpp"
-#include "google/protobuf/any.pb.h"
-#include "google/protobuf/descriptor.h"
-#include "google/protobuf/message.h"
 #include "gtest/gtest.h"
 #include "instrumentation_client.hpp"
 #include "instrumentation_service.hpp"
@@ -56,7 +53,7 @@ class NewCommandsTest : public ra2yrcpp::tests::InstrumentationServiceTest {
     auto r = client->run_one(g);
     decltype(g) aa;
     r.result().UnpackTo(&aa);
-    ASSERT_EQ(aa.result(), v);
+    ASSERT_EQ(aa.result().result(), v);
   }
 
   void do_run(google::protobuf::Message* M) {
@@ -77,14 +74,14 @@ TEST_F(NewCommandsTest, FetchManySizes) {
     {
       auto S = ::get_storeval(key, v);
       do_run(&S);
-      ASSERT_EQ(S.result(), v);
+      ASSERT_EQ(S.result().result(), v);
     }
     {
       auto G = ::get_getval(key);
       do_run(&G);
       // auto r = client->run_one(G);
       // r.result().UnpackTo(&G);
-      ASSERT_EQ(G.result(), v);
+      ASSERT_EQ(G.result().result(), v);
     }
   }
 }
@@ -114,7 +111,7 @@ TEST_F(NewCommandsTest, FetchOne) {
   auto res2 = client->run_one(g);
   ra2yrproto::commands::GetValue v;
   res2.result().UnpackTo(&v);
-  ASSERT_EQ(v.result(), val);
+  ASSERT_EQ(v.result().result(), val);
 }
 
 TEST_F(NewCommandsTest, BasicCommandTest) {

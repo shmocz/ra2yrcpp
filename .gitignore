@@ -25,8 +25,10 @@
 !3rdparty/argparse
 !3rdparty/asio
 !3rdparty/fmt
+!3rdparty/protobuf
 !3rdparty/websocketpp
 !3rdparty/xbyak
+!3rdparty/YRpp
 !CMakeLists.txt
 !Doxyfile
 !LICENSE.md

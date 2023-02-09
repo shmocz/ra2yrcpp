@@ -12,7 +12,7 @@ class ExProcess {
   const std::string directory_;
 
 #ifdef _WIN32
-  STARTUPINFO si_;
+  STARTUPINFOA si_;
   PROCESS_INFORMATION pi_;
 #endif
 

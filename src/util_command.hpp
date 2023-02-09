@@ -10,6 +10,11 @@
 
 namespace util_command {
 
+//
+// Wrapper which takes Protobuf Message and constructs a command function
+// compatible with that message type, and provides access to
+// InstrumentationService.
+//
 template <typename T>
 struct ISCommand {
   using result_t = decltype(std::declval<T>().result());

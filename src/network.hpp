@@ -1,7 +1,7 @@
 #pragma once
 #include "config.hpp"
 #include "errors.hpp"
-#ifdef _WIN32
+#ifdef __MINGW32__
 #include <_bsd_types.h>
 #include <psdk_inc/_ip_types.h>
 #endif
@@ -11,6 +11,10 @@
 /// Common API for network functions, intended to hide platform specific
 /// implementation details, such as windows typedefs.
 ///
+
+#ifdef _MSC_VER
+typedef int ssize_t;
+#endif
 
 struct sockaddr;
 struct addrinfo;
@@ -23,9 +27,9 @@ typedef unsigned int socket_t;
 // wsock2.h
 #define AF_UNSPEC 0
 #define SOCK_STREAM 1
-#define IPPROTO_TCP 6
 #define AF_INET 2
 #define SOMAXCONN 0x7fffffff
+constexpr int IPPROTO_TCP = 6;
 constexpr int ETIMEOUT = 10060;
 constexpr int SOL_SOCKET = 0xffff;
 constexpr int SO_REUSEADDR = 0x0004;

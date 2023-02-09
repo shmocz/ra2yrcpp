@@ -46,12 +46,12 @@ TEST_F(IServiceDaemonTest, BasicSetup) {
     s.mutable_args()->set_key(key);
     s.mutable_args()->set_value(flag1);
     auto res0 = client_utils::run(s, client.get());
-    std::cerr << res0 << std::endl;
+    std::cerr << res0.result() << std::endl;
     ra2yrproto::commands::GetValue g;
     g.mutable_args()->set_key(key);
 
     auto res1 = client_utils::run(g, client.get());
-    ASSERT_EQ(res1, flag1);
+    ASSERT_EQ(res1.result(), flag1);
     auto r = client->shutdown();
     std::cerr << r << std::endl;
     ctx.join();

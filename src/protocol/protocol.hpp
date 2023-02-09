@@ -1,8 +1,4 @@
 #pragma once
-#include "ra2yrproto/commands_builtin.pb.h"
-#include "ra2yrproto/commands_yr.pb.h"
-#include "ra2yrproto/core.pb.h"
-#include "ra2yrproto/game.pb.h"
 #include "types.h"
 #include "util_string.hpp"
 
@@ -14,6 +10,10 @@
 #include <google/protobuf/message.h>
 #include <google/protobuf/util/json_util.h>
 #include <map>
+#include <ra2yrproto/commands_builtin.pb.h>
+#include <ra2yrproto/commands_yr.pb.h>
+#include <ra2yrproto/core.pb.h>
+#include <ra2yrproto/game.pb.h>
 #include <string>
 
 namespace yrclient {

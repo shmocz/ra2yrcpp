@@ -47,7 +47,7 @@ void is_context::make_is_ctx(Context* c, const unsigned int max_clients,
 DLLoader::DLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress,
                    const std::string path_dll, const std::string name_init,
                    const unsigned int max_clients, const unsigned int port,
-                   const unsigned int ws_port) {
+                   const unsigned int ws_port, const bool indirect) {
   vecu8 v1(path_dll.begin(), path_dll.end());
   v1.push_back(0x0);
   vecu8 v2(name_init.begin(), name_init.end());
@@ -59,7 +59,11 @@ DLLoader::DLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress,
   auto sz = bytes_to_stack(this, v1);
   lea(eax, ptr[ebp - sz]);
   push(eax);
-  mov(eax, p_LoadLibrary);
+  if (indirect) {
+    mov(eax, ptr[p_LoadLibrary]);
+  } else {
+    mov(eax, p_LoadLibrary);
+  }
   call(eax);  // TODO(shmocz): handle errors
   // restore stack
   mov(esp, ebp);
@@ -69,7 +73,11 @@ DLLoader::DLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress,
   push(eax);  // &lpProcName
   mov(eax, ptr[ebp - 0x4]);
   push(eax);  // hModule
-  mov(eax, p_GetProcAddress);
+  if (indirect) {
+    mov(eax, ptr[p_GetProcAddress]);
+  } else {
+    mov(eax, p_GetProcAddress);
+  }
   call(eax);  // GetProcAddress(hModule, lpProcName)
   // Call init routine
   push(ws_port);
@@ -164,10 +172,18 @@ void is_context::inject_dll(
              reinterpret_cast<void*>(addrs.p_LoadLibrary),
              reinterpret_cast<void*>(addrs.p_GetProcAddress), options.port);
   is_context::DLLoader L(addrs.p_LoadLibrary, addrs.p_GetProcAddress, path_dll,
-                         "init_iservice", options.max_clients, options.port);
+                         cfg::INIT_NAME, options.max_clients, options.port);
   auto p = L.getCode<u8*>();
   vecu8 sc(p, p + L.getSize());
   dll_inject::suspend_inject_resume(
       P.handle(), sc, std::chrono::milliseconds(dll.delay_post), 1000ms,
       std::chrono::milliseconds(dll.delay_pre));
+}
+
+void* is_context::get_context(unsigned int max_clients, unsigned int port,
+                              unsigned ws_port) {
+  network::Init();
+  auto* context = new is_context::Context();
+  is_context::make_is_ctx(context, max_clients, port, ws_port);
+  return context;
 }

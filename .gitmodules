@@ -13,3 +13,9 @@
 [submodule "3rdparty/asio"]
 	path = 3rdparty/asio
 	url = https://github.com/chriskohlhoff/asio.git
+[submodule "3rdparty/YRpp"]
+	path = 3rdparty/YRpp
+	url = https://github.com/shmocz/YRpp.git
+[submodule "3rdparty/protobuf"]
+	path = 3rdparty/protobuf
+	url = https://github.com/shmocz/protobuf.git

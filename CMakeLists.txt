@@ -1,6 +1,3 @@
-# CMakeLists files in this project can refer to the root source directory of the
-# project as ${HELLO_SOURCE_DIR} and to the root binary directory of the project
-# as ${HELLO_BINARY_DIR}.
 cmake_minimum_required(VERSION 3.0)
 project(app)
 
@@ -10,13 +7,18 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
 endif()
 
 if(MSVC)
-  add_compile_options(/W4 /WX)
+
+elseif(MINGW)
+  add_compile_definitions(__MINGW_FORCE_SYS_INTRINS)
+  add_compile_options(-masm=intel)
 else()
-  add_compile_options(-Wall -Wextra -Werror)
+  message(FATAL_ERROR "No compiler found")
 endif()
-add_compile_definitions(__MINGW_FORCE_SYS_INTRINS)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+# FIXME: conditional if native protoc present
+set(PROTOC_PATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/protoc.exe)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -30,36 +32,61 @@ set(gtest_force_shared_crt
     CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-find_library(LIB_WSOCK ws2_32)
+if(MINGW)
+  find_library(LIB_WSOCK ws2_32)
+else()
+  set(LIB_WSOCK ws2_32)
+endif()
 
-# find MinGW libraries
-set(MINGW_LIBS libgcc_s_dw2-1.dll libstdc++-6.dll libwinpthread-1.dll zlib1.dll)
-set(MINGW_LIBS_FULL "")
-foreach(X IN LISTS MINGW_LIBS)
-  find_file(LIB_OUT ${X} PATHS ${CMAKE_SYSROOT}/lib NO_CACHE REQUIRED)
-  list(APPEND MINGW_LIBS_FULL ${LIB_OUT})
-  unset(LIB_OUT)
-endforeach()
+if(MINGW)
+  # find MinGW libraries
+  set(MINGW_LIBS libgcc_s_dw2-1.dll libstdc++-6.dll libwinpthread-1.dll
+                 zlib1.dll)
+  set(MINGW_LIBS_FULL "")
+  foreach(X IN LISTS MINGW_LIBS)
+    find_file(LIB_OUT ${X} PATHS ${CMAKE_SYSROOT}/lib ${CMAKE_SYSROOT}/bin
+                                 NO_CACHE REQUIRED)
+    list(APPEND MINGW_LIBS_FULL ${LIB_OUT})
+    unset(LIB_OUT)
+  endforeach()
+endif()
 
 find_package(ZLIB REQUIRED)
 add_compile_definitions(protobuf_MSVC_STATIC_RUNTIME=OFF)
 # Find protobuf and generate sources
 add_compile_definitions(protobuf_WITH_ZLIB=ON)
-add_compile_definitions(_WEBSOCKETPP_CPP11_THREAD_)
+if(MINGW)
+  add_compile_definitions(_WEBSOCKETPP_CPP11_THREAD_)
+endif()
 add_compile_definitions(ASIO_STANDALONE)
 set(Protobuf_USE_STATIC_LIBS ON)
-find_package(Protobuf REQUIRED)
-set(Protobuf_PROTOC_EXECUTABLE ${PROTOBUF_PATH})
-include_directories(${Protobuf_INCLUDE_DIRS})
+if(ZLIB_INCLUDE_DIR)
+  include_directories(${ZLIB_INCLUDE_DIR})
+endif()
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/src/protocol
-                    ${Protobuf_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/src/protocol)
 include_directories(src)
+set(protobuf_BUILD_EXAMPLES
+    OFF
+    CACHE BOOL "" FORCE)
+set(protobuf_BUILD_TESTS
+    OFF
+    CACHE BOOL "" FORCE)
+set(protobuf_MODULE_COMPATIBLE
+    ON
+    CACHE BOOL "" FORCE)
+set(protobuf_INSTALL
+    ON
+    CACHE BOOL "" FORCE)
+add_subdirectory(3rdparty/protobuf ${CMAKE_CURRENT_BINARY_DIR}/bin)
+include_directories(3rdparty/protobuf/src)
 include_directories(3rdparty/xbyak)
 include_directories(3rdparty/argparse/include)
 include_directories(3rdparty/fmt/include)
 include_directories(3rdparty/asio/asio/include)
 include_directories(3rdparty/websocketpp)
+include_directories(3rdparty/YRpp SYSTEM)
 add_subdirectory(3rdparty/fmt)
+add_subdirectory(3rdparty/YRpp SYSTEM)
 add_subdirectory(src)
 add_subdirectory(tests)

@@ -14,7 +14,7 @@ std::unique_ptr<void, void (*)(void*)> make_uptr(Args... args) {
 template <typename T, typename... Args>
 std::shared_ptr<void> make_sptr(Args... args) {
   return std::shared_ptr<void>(new T(args...),
-                               [](auto d) { delete d; });  // NOLINT
+                               [](auto* d) { delete d; });  // NOLINT
 }
 
 template <typename T = std::uintptr_t, typename S = void*>

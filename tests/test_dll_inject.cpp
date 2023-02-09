@@ -27,9 +27,9 @@ class DLLInjectTest : public ::testing::Test {
     p_GetProcAddress = is_context::get_proc_address("GetProcAddress");
   }
 
-  std::string path_dll{"libyrclient.dll"};
-  std::string name_init{"init_iservice"};
   // FIXME: avoid hardcoding
+  std::string path_dll{cfg::DLL_NAME};
+  std::string name_init{cfg::INIT_NAME};
   u32 p_LoadLibrary;
   u32 p_GetProcAddress;
   // void TearDown() override {}
@@ -123,11 +123,11 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
     s.mutable_args()->set_key(key);
     s.mutable_args()->set_value(f1);
     auto r1 = client_utils::run(s, client.get());
-    std::cerr << r1 << std::endl;
+    std::cerr << r1.result() << std::endl;
 
     ra2yrproto::commands::GetValue g;
     g.mutable_args()->set_key(key);
-    auto r2 = client_utils::run(g, client.get());
+    auto r2 = client_utils::run(g, client.get()).result();
     ASSERT_EQ(r2, f1);
   }
   dprintf("joining\n");

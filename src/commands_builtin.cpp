@@ -36,7 +36,7 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
         auto v = new vecu8(a.value().begin(), a.value().end());
         auto [lk, s] = Q->I()->aq_storage();
         Q->I()->store_value(a.key(), v);
-        Q->set_result(a.value());
+        Q->command_data().mutable_result()->set_result(a.value());
       }),
       get_cmd<ra2yrproto::commands::GetSystemState>([](auto* Q) {
         std::lock_guard<std::mutex> lk(Q->I()->server().connections_mut);
@@ -74,9 +74,8 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
         // NB: ensure correct radix
         // FIXME: proper locking
         auto [lk, s] = Q->I()->aq_storage();
-        auto val =
-            yrclient::as<vecu8*>(Q->I()->get_value(Q->args().key(), false));
-        Q->set_result(yrclient::to_string(*val));
+        Q->command_data().mutable_result()->set_result(yrclient::to_string(
+            *yrclient::as<vecu8*>(Q->I()->get_value(Q->args().key(), false))));
       }),
       get_cmd<ra2yrproto::commands::HookableCommand>([](auto* Q) {
         static TestProgram t;

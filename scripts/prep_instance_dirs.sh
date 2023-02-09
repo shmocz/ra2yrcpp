@@ -5,6 +5,16 @@ PLAYER_ID=${2:-""}
 
 set -o nounset
 
+# Path to directory containing RA2 game data files
+p_main="$RA2YRCPP_GAME_DIR"
+# ra2yrcpp library files (FXIME)
+p_libs="$RA2YRCPP_PKG_DIR"
+
+[ -d "$p_libs" ] || {
+    echo "$p_libs not found"
+    exit 1
+}
+
 paths=(
     BINKW32.DLL
     spawner.xdp
@@ -114,7 +124,6 @@ function mklink() {
     done
 }
 
-p_main="$RA2YRCPP_GAME_DIR"
 for i in ${!cfgs[@]}; do
     if [ ! -z "$PLAYER_ID" ] && [[ "$PLAYER_ID" != "player_${i}" ]]; then
         continue
@@ -126,7 +135,7 @@ for i in ${!cfgs[@]}; do
     done
 
     # link files
-    cd "$CMAKE_RUNTIME_OUTPUT_DIRECTORY"
+    cd "$p_libs"
     mklink "gamemd-spawn-patched.exe" "$ifolder"/gamemd-spawn.exe
     mklink ra2yrcppcli.exe *.dll "$ifolder"
     cd -

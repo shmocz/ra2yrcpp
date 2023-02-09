@@ -9,7 +9,6 @@
 
 #include <memory>
 #include <thread>
-#include <unistd.h>
 #include <vector>
 
 static const std::string T_MESSAGE = "CLIENT";

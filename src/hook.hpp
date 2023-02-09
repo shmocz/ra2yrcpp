@@ -4,7 +4,6 @@
 #include "logging.hpp"
 #include "process.hpp"
 #include "types.h"
-#include "utility/memtools.hpp"
 #include "utility/serialize.hpp"
 #include "utility/time.hpp"
 #include "x86.hpp"

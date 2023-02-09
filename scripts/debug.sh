@@ -21,7 +21,7 @@ function dcmd_integration() {
 		game-$PLAYER_ID bash -c "$cmd"
 }
 
-GDB_COMMAND='x86_64-w64-mingw32-gdb -ex "target extended-remote localhost:12340" -ex "set pagination off" -ex "set logging overwrite on" -ex "set logging on" -ex "c" -ex "set disassembly-flavor intel"'
+GDB_COMMAND='x86_64-w64-mingw32-gdb -ex "target extended-remote localhost:12340" -ex "set pagination off" -ex "set logging overwrite on" -ex "set logging on" -ex "set disassembly-flavor intel"'
 
 function gdb_connect() {
 	dcmd_integration "$(printf '%s %s' "$GDB_COMMAND" "$1")"

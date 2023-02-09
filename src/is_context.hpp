@@ -54,7 +54,7 @@ struct DLLoader : Xbyak::CodeGenerator {
            const std::string name_init,
            const unsigned int max_clients = cfg::MAX_CLIENTS,
            const unsigned int port = cfg::SERVER_PORT,
-           const unsigned int ws_port = 0U);
+           const unsigned int ws_port = 0U, const bool indirect = false);
 };
 
 yrclient::InstrumentationService* make_is(
@@ -65,5 +65,8 @@ yrclient::InstrumentationService* make_is(
 void inject_dll(unsigned pid, const std::string path_dll,
                 yrclient::InstrumentationService::IServiceOptions options,
                 DLLInjectOptions dll);
+
+__declspec(dllexport) void* get_context(unsigned int max_clients,
+                                        unsigned int port, unsigned ws_port);
 
 };  // namespace is_context

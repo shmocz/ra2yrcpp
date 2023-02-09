@@ -15,17 +15,30 @@ foreach(X IN LISTS PROTO_FILES)
   unset(FN_S)
 endforeach()
 
+set(BDIR "${CMAKE_CURRENT_BINARY_DIR}")
+set(SDIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(PROTOBUF_SOURCES "${protobuf_SOURCE_DIR}/src")
+
+# Convert to Windows path for protoc.exe if cross-compiling
+if(CMAKE_CROSSCOMPILING)
+  string(REPLACE "/" "\\\\" BDIR "${BDIR}")
+  string(REPLACE "/" "\\\\" SDIR "${SDIR}")
+  string(REPLACE "/" "\\\\" PROTOBUF_SOURCES "${PROTOBUF_SOURCES}")
+  string(PREPEND BDIR "Z:")
+  string(PREPEND SDIR "Z:")
+  string(PREPEND PROTOBUF_SOURCES "Z:")
+endif()
+
 add_custom_target(compile-protobuf ALL DEPENDS ${PROTO_SRCS} ${PROTO_HDRS})
 add_custom_command(
   OUTPUT ${PROTO_SRCS} ${PROTO_HDRS}
   COMMAND
-    ${Protobuf_PROTOC_EXECUTABLE} -I${CMAKE_CURRENT_SOURCE_DIR}
-    --pyi_out=${CMAKE_CURRENT_BINARY_DIR}
-    --python_out=${CMAKE_CURRENT_BINARY_DIR}
-    --cpp_out=${CMAKE_CURRENT_BINARY_DIR} ${PROTO_FILES}
+    ${PROTOC_PATH} -I=. -I="${SDIR}" -I="${PROTOBUF_SOURCES}" --pyi_out=${BDIR}
+    --python_out=${BDIR} --cpp_out=${BDIR} ${PROTO_FILES}
   DEPENDS ${PROTO_FILES})
+add_dependencies(compile-protobuf protoc)
 
-add_library(protocol_o OBJECT protocol.cpp ${PROTO_SRCS} ${PROTO_HDRS}
-                              ../util_string.cpp)
+add_library(protocol_o OBJECT protocol.cpp ${PROTO_SRCS} ../util_string.cpp)
 add_library(protocol INTERFACE protocol.cpp)
+add_dependencies(protocol_o compile-protobuf)
 target_link_libraries(protocol INTERFACE protocol_o)

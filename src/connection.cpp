@@ -136,7 +136,7 @@ Connection::Connection(std::string host, std::string port)
   memset(&hints_, 0, sizeof(hints_));
   hints_.ai_family = AF_UNSPEC;
   hints_.ai_socktype = SOCK_STREAM;
-  hints_.ai_protocol = IPPROTO_TCP;
+  hints_.ai_protocol = network::IPPROTO_TCP;
   socket_ = network::BAD_SOCKET;
   {
     network::addrinfo* result;
@@ -162,13 +162,13 @@ Connection::Connection(std::string port) : port_(port) {
   memset(&hints_, 0, sizeof(hints_));
   hints_.ai_family = AF_INET;
   hints_.ai_socktype = SOCK_STREAM;
-  hints_.ai_protocol = IPPROTO_TCP;
+  hints_.ai_protocol = network::IPPROTO_TCP;
   hints_.ai_flags = AI_PASSIVE;
   network::addrinfo* result;
   network::getaddrinfo("", port_, &hints_, &result);
   socket_ = network::socket(result);
   int s = 1;
-  network::setsockopt(socket_, network::SOL_SOCKET, network::SO_REUSEADDR,
+  network::setsockopt(socket_, (network::SOL_SOCKET), network::SO_REUSEADDR,
                       reinterpret_cast<const char*>(&s), sizeof(int));
   if (network::bind(socket_, result->ai_addr, result->ai_addrlen)) {
     throw yrclient::system_error("bind()");

@@ -12,6 +12,10 @@ using yrclient::not_implemented;
 #include <windows.h>
 constexpr int TD_ALIGN = 16;
 
+#ifdef _MSC_VER
+#include <direct.h>  // _getcwd
+#endif
+
 #pragma pack(16)
 
 struct TData {
@@ -252,7 +256,7 @@ void Process::write_memory(void* dest, const void* src, const size_t size,
     auto m = get_mem_info(dest);
     DWORD prot_old =
         vprotect(m.BaseAddress, m.RegionSize, PAGE_EXECUTE_READWRITE);
-    memcpy(dest, src, size);
+    std::memcpy(dest, src, size);
     (void)vprotect(m.BaseAddress, m.RegionSize, prot_old);
   } else {
     if (WriteProcessMemory(handle_, dest, src, size, nullptr) == 0) {
@@ -382,6 +386,10 @@ std::vector<std::string> Process::list_loaded_modules() const {
 
 std::string process::getcwd() {
   char buf[1024];
+#ifndef _MSC_VER
   ::getcwd(buf, sizeof(buf));
+#else
+  _getcwd(buf, sizeof(buf));
+#endif
   return std::string(buf, strchr(buf, '\0'));
 }

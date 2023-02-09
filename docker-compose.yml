@@ -32,8 +32,6 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-      args:
-        PROTOBUF_VERSION: "v3.21.1"
     volumes:
       - .:/home/user/project
       - ./wine-dir:/home/user/.wine
@@ -42,6 +40,17 @@ services:
     env_file:
       - integration.env
     command: "${COMMAND}"
+    working_dir: /home/user/project
+  clang-cl:
+    image: shmocz/clang-cl:latest
+    build:
+      context: .
+      dockerfile: docker/clang-cl-msvc.Dockerfile
+    volumes:
+      - .:/home/user/project
+      - gamedata:/home/user/RA2
+    command: "${COMMAND}"
+    working_dir: /home/user/project
   tunnel:
     build:
       context: .
@@ -77,5 +86,5 @@ volumes:
     driver: local
     driver_opts:
       type: none
-      device: /home/jba/prog/ra2yrcpp/maingame # path to CnCNet files
+      device: /home/user/project/maingame # path to CnCNet files
       o: bind

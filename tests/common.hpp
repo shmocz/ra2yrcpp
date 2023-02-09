@@ -1,5 +1,4 @@
 #pragma once
-#include "gtest/gtest.h"
 #include "instrumentation_client.hpp"
 #include "instrumentation_service.hpp"
 #include "is_context.hpp"
@@ -7,6 +6,7 @@
 #include <cstdio>
 
 #include <chrono>
+#include <gtest/gtest.h>
 #include <iostream>
 #include <memory>
 #include <vector>

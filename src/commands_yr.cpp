@@ -1,17 +1,18 @@
 #include "commands_yr.hpp"
 
 using namespace std::chrono_literals;
-using util_command::get_cmd;
-using GameT = ra2::game_state::GameState;
 using google::protobuf::RepeatedPtrField;
+using util_command::get_cmd;
 using cb_map_t = std::map<std::string, std::unique_ptr<yrclient::ISCallback>>;
 
 // TODO(shmocz): smarter way to define these
 // static keys for callbacks, hooks and misc. data
 constexpr char key_callbacks_yr[] = "callbacks_yr";
 constexpr char key_game_state[] = "game_state";
+constexpr char key_object_type_classes[] = "object_type_classes";
 constexpr char key_raw_game_state[] = "raw_game_state";
 constexpr char key_on_load_game[] = "on_load_game";
+constexpr char key_map_data[] = "map_data";
 
 template <typename T, typename... ArgsT>
 T* ensure_storage_value(yrclient::InstrumentationService* I,
@@ -21,12 +22,6 @@ T* ensure_storage_value(yrclient::InstrumentationService* I,
     I->store_value(key, utility::make_uptr<T>(args...));
   }
   return static_cast<T*>(s->at(key).get());
-}
-
-static GameT* ensure_raw_gamestate(yrclient::InstrumentationService* I,
-                                   yrclient::storage_t* s) {
-  return ensure_storage_value<GameT>(
-      I, s, static_cast<const char*>(key_raw_game_state));
 }
 
 static auto default_configuration() {
@@ -48,154 +43,8 @@ static ra2yrproto::commands::Configuration* ensure_configuration(
       I, s, key_configuration);
 }
 
-// Utilities to convert raw in-memory game structures to protobuf messages.
-namespace protobuf_conv {
-
-static void get_factories(GameT* G,
-                          RepeatedPtrField<ra2yrproto::ra2yr::Factory>* res) {
-  for (auto& v : G->factory_classes()) {
-    auto* f = res->Add();
-    f->set_object_id(utility::asint(v->object));
-    f->set_owner(utility::asint(v->owner));
-    f->set_progress_timer(v->production.value);
-  }
-}
-
-static void get_houses(GameT* G,
-                       RepeatedPtrField<ra2yrproto::ra2yr::House>* res) {
-  for (auto& v : G->house_classes()) {
-    if (!(v->start_credits > 0)) {
-      continue;
-    }
-    auto* h = res->Add();
-    h->set_array_index(v->array_index);
-    h->set_current_player(v->current_player);
-    h->set_defeated(v->defeated);
-    h->set_money(v->money);
-    h->set_start_credits(v->start_credits);
-    h->set_name(v->name);
-    h->set_self(v->self);
-    h->set_defeated(v->defeated);
-    h->set_is_game_over(v->is_game_over);
-    h->set_is_loser(v->is_loser);
-    h->set_is_winner(v->is_winner);
-    h->set_power_output(v->power_output);
-    h->set_power_drain(v->power_drain);
-  }
-}
-
-static void get_object(ra2yrproto::ra2yr::Object* u,
-                       ra2::abstract_types::AbstractTypeClass* atc,
-                       ra2::objects::ObjectClass* v) {
-  using ra2::general::AbstractType;
-  auto* tc = static_cast<ra2::objects::TechnoClass*>(v);
-  if (v->id == 0U) {
-    eprintf("object has NULL id");
-  }
-  u->set_pointer_self(v->id);
-  u->set_pointer_technotypeclass(
-      static_cast<ra2::type_classes::TechnoTypeClass*>(atc)->pointer_self);
-  u->set_health(v->health);
-  u->set_pointer_house(utility::asint(tc->owner));
-  u->set_pointer_initial_owner(utility::asint(tc->originally_owned_by));
-  u->set_selected(v->selected);
-
-  if (yrclient::band<i32>(v->flags, ra2::general::AbstractFlags::Techno) != 0) {
-    u->set_armor_multiplier(
-        static_cast<ra2::objects::TechnoClass*>(v)->armor_multiplier);
-  }
-
-  auto at = ra2::utility::get_AbstractType(utility::asptr(atc->p_vtable));
-  // TODO(shmocz): static LUT
-  switch (at.t) {
-    case AbstractType::BuildingType:
-      u->set_object_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_BUILDING);
-      u->set_owner_country_index(tc->owner_country_index);
-      break;
-    case AbstractType::InfantryType:
-      u->set_object_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_INFANTRY);
-      break;
-    case AbstractType::UnitType: {
-      u->set_object_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_VEHICLE);
-      auto* uc = reinterpret_cast<ra2::objects::UnitClass*>(u);
-      u->set_deployed(uc->Deployed);
-      u->set_deploying(uc->Deploying);
-    } break;
-    case AbstractType::AircraftType:
-      u->set_object_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_AIRCRAFT);
-      break;
-    default:
-      eprintf("no match for type {}", at.name);
-      break;
-  }
-
-  if (yrclient::band<i32>(v->flags, ra2::general::AbstractFlags::Foot) != 0) {
-    const auto* fc = static_cast<ra2::objects::FootClass*>(tc);
-    u->set_speed_multiplier(fc->speed_multiplier);
-    u->set_speed_percentage(fc->speed_percentage);
-  }
-  auto* coords = u->mutable_coordinates();
-  coords->set_x(tc->coords.x);
-  coords->set_y(tc->coords.y);
-  coords->set_z(tc->coords.z);
-}
-
-static void get_objects(GameT* G,
-                        RepeatedPtrField<ra2yrproto::ra2yr::Object>* res) {
-  for (const auto& [k, v] : G->objects) {
-    auto* tc = static_cast<ra2::objects::TechnoClass*>(v.get());
-    try {
-      auto* atc =
-          G->abstract_type_classes().at(utility::asint(tc->p_type)).get();
-      auto* u = res->Add();  // FIXME: potential memory leak
-      protobuf_conv::get_object(u, atc, v.get());
-    } catch (const std::exception& e) {
-      eprintf("tc={}, p_type_class={}, what={}", static_cast<void*>(tc),
-              static_cast<void*>(tc->p_type), e.what());
-      continue;
-    }
-  }
-}
-
-static void get_object_type_class(ra2yrproto::ra2yr::ObjectTypeClass* t,
-                                  const ra2::objects::AbstractTypeClass* v) {
-  t->set_name(v->name);
-  if (ra2::utility::is_technotypeclass(utility::asptr(v->p_vtable))) {
-    auto* ttc = static_cast<const ra2::type_classes::TechnoTypeClass*>(v);
-    t->set_pointer_self(ttc->pointer_self);
-    t->set_cost(ttc->cost);
-    t->set_soylent(ttc->soylent);
-    t->set_armor_type(static_cast<ra2yrproto::ra2yr::Armor>(ttc->armor));
-    t->set_pointer_shp_struct(utility::asint(ttc->p_cameo));
-    t->set_array_index(ttc->array_index);
-  }
-}
-
-static void get_object_type_classes(
-    GameT* G, RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* r) {
-  for (auto& [k, v] : G->abstract_type_classes()) {
-    auto* tc = r->Add();
-    protobuf_conv::get_object_type_class(tc, v.get());
-  }
-}
-
-static void raw_state_to_protobuf(GameT* raw_state,
-                                  ra2yrproto::ra2yr::GameState* state,
-                                  const bool type_classes = false) {
-  if (type_classes) {
-    protobuf_conv::get_object_type_classes(raw_state,
-                                           state->mutable_object_types());
-  }
-  protobuf_conv::get_factories(raw_state, state->mutable_factories());
-  protobuf_conv::get_houses(raw_state, state->mutable_houses());
-  protobuf_conv::get_objects(raw_state, state->mutable_objects());
-}
-
-}  // namespace protobuf_conv
-
 struct CBYR : public yrclient::ISCallback {
   yrclient::storage_t* storage{nullptr};
-  GameT* raw_game_state_{nullptr};
   static constexpr char key_configuration[] = "yr_config";
 
   CBYR() = default;
@@ -209,7 +58,6 @@ struct CBYR : public yrclient::ISCallback {
       eprintf("FATAL: {}", e.what());
     }
     storage = nullptr;
-    raw_game_state_ = nullptr;
   }
 
   template <typename T>
@@ -217,11 +65,13 @@ struct CBYR : public yrclient::ISCallback {
     return ensure_storage_value<T>(this->I, this->storage, key);
   }
 
-  GameT* raw_game_state() {
-    if (raw_game_state_ == nullptr) {
-      raw_game_state_ = storage_value<GameT>(key_raw_game_state);
-    }
-    return raw_game_state_;
+  auto* game_state() {
+    return storage_value<ra2yrproto::ra2yr::GameState>(key_game_state);
+  }
+
+  auto* type_classes() {
+    return storage_value<RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>>(
+        key_object_type_classes);
   }
 
   auto* abi() { return storage_value<ra2::abi::ABIGameMD>("abi"); }
@@ -300,16 +150,16 @@ struct CBUpdateLoadProgress : public MyCB<CBUpdateLoadProgress> {
 
   void exec() override {
     // this = ESI
+    auto* P = reinterpret_cast<ProgressScreenClass*>(cpu_state->esi);
+    auto* B = P->PlayerProgresses;
     auto* local_state = storage_value<ra2yrproto::ra2yr::GameState>(key_state);
     if (local_state->load_progresses().empty()) {
-      for (auto i = 0U; i < ra2::game_state::MAX_PLAYERS; i++) {
+      for (auto i = 0U; i < (sizeof(*B) / sizeof(B)); i++) {
         local_state->add_load_progresses(0.0);
       }
     }
     for (int i = 0; i < local_state->load_progresses().size(); i++) {
-      local_state->set_load_progresses(
-          i, serialize::read_obj<double>(cpu_state->esi + 0x8 +
-                                         i * sizeof(double)));
+      local_state->set_load_progresses(i, B[i]);
     }
     storage_value<ra2yrproto::ra2yr::GameState>(key_game_state)
         ->set_stage(ra2yrproto::ra2yr::LoadStage::STAGE_LOADING);
@@ -362,9 +212,99 @@ struct CBSaveState : public MyCB<CBSaveState> {
     }
   }
 
+  void parse_Objects(ra2yrproto::ra2yr::GameState* G) {
+    auto* D = TechnoClass::Array.get();
+    auto* H = G->mutable_objects();
+    if (H->size() != D->Count) {
+      H->Clear();
+      for (int i = 0; i < D->Count; i++) {
+        H->Add();
+      }
+    }
+    for (int i = 0; i < D->Count; i++) {
+      auto* I = D->Items[i];
+      auto& O = H->at(i);
+      ra2::ClassParser P({abi(), I}, &O);
+      P.parse();
+    }
+  }
+
+  void parse_Factories(ra2yrproto::ra2yr::GameState* G) {
+    auto* D = FactoryClass::Array.get();
+    auto* H = G->mutable_factories();
+    if (H->size() != D->Count) {
+      H->Clear();
+      for (int i = 0; i < D->Count; i++) {
+        H->Add();
+      }
+    }
+
+    for (int i = 0; i < D->Count; i++) {
+      auto* I = D->Items[i];
+      auto& O = H->at(i);
+      O.set_object(reinterpret_cast<u32>(I->Object));
+      O.set_owner(reinterpret_cast<u32>(I->Owner));
+      O.set_progress_timer(I->Production.Value);
+      O.set_on_hold(I->OnHold);
+      auto A = utility::ArrayIterator(I->QueuedObjects.Items,
+                                      I->QueuedObjects.Count);
+      for (auto* p : A) {
+        O.add_queued_objects(reinterpret_cast<u32>(p));
+      }
+    }
+  }
+
+  void parse_HouseClasses(ra2yrproto::ra2yr::GameState* G) {
+    auto* D = HouseClass::Array.get();
+    auto* H = G->mutable_houses();
+    if (H->size() != D->Count) {
+      H->Clear();
+      for (int i = 0; i < D->Count; i++) {
+        H->Add();
+      }
+    }
+    for (int i = 0; i < D->Count; i++) {
+      auto* I = D->Items[i];
+      auto& O = H->at(i);
+      O.set_array_index(I->ArrayIndex);
+      O.set_current_player(I->IsInPlayerControl);
+      O.set_defeated(I->Defeated);
+      O.set_is_game_over(I->IsGameOver);
+      O.set_is_loser(I->IsLoser);
+      O.set_is_winner(I->IsWinner);
+      O.set_money(I->Balance);
+      O.set_power_drain(I->PowerDrain);
+      O.set_power_output(I->PowerOutput);
+      O.set_start_credits(I->StartingCredits);
+      O.set_self(reinterpret_cast<std::uintptr_t>(I));
+      O.set_name(I->PlainName);
+    }
+  }
+
+  void parse_AbstractTypeClasses(
+      RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* T) {
+    auto* D = AbstractTypeClass::Array.get();
+
+    // Initialize if no types haven't been parsed yet
+    if (T->size() != D->Count) {
+      T->Clear();
+      for (int i = 0; i < D->Count; i++) {
+        T->Add();
+      }
+    }
+
+    // Parse the types
+    for (int i = 0; i < D->Count; i++) {
+      auto* I = D->Items[i];
+      auto& A = T->at(i);
+      // TODO: UB?
+      ra2::TypeClassParser P({abi(), I}, &A);
+      P.parse();
+    }
+  }
+
   ra2yrproto::ra2yr::GameState state_to_protobuf(
       const bool do_type_classes = false) {
-    using namespace ra2::game_state;
     auto* gbuf = storage_value<ra2yrproto::ra2yr::GameState>(key_game_state);
     gbuf->Clear();
 
@@ -376,36 +316,67 @@ struct CBSaveState : public MyCB<CBSaveState> {
 
     // Parse type classes only once
     if (do_type_classes) {
-      ra2::state_parser::parse_AbstractTypeClasses(raw_game_state(),
-                                                   p_DVC_AbstractTypeClasses);
-      ra2::state_parser::parse_cameos(raw_game_state());
+      parse_AbstractTypeClasses(type_classes());
+      gbuf->mutable_object_types()->CopyFrom(*type_classes());
     }
 
-    // Save raw objects
-    ra2::state_parser::parse_DVC_HouseClasses(raw_game_state(),
-                                              p_DVC_HouseClasses);
-    ra2::state_parser::parse_DVC_Objects(raw_game_state(), p_DVC_TechnoClasses);
-    ra2::state_parser::parse_DVC_FactoryClasses(raw_game_state(),
-                                                p_DVC_FactoryClasses);
+    parse_HouseClasses(gbuf);
+    parse_Objects(gbuf);
+    parse_Factories(gbuf);
 
     // At this point we're free to leave the callback
     gbuf->set_stage(ra2yrproto::ra2yr::LoadStage::STAGE_INGAME);
-    gbuf->set_current_frame(
-        serialize::read_obj_le<u32>(ra2::game_state::current_frame));
+    gbuf->set_current_frame(Unsorted::CurrentFrame);
 
-    protobuf_conv::raw_state_to_protobuf(raw_game_state(), gbuf,
-                                         do_type_classes);
+    if (gbuf->current_frame() > 0U) {
+      auto* M = MapClass::Instance.get();
+      auto L = M->MapCoordBounds;
+      auto sz = (L.Right + 1) * (L.Bottom + 1);
+      auto* m = storage_value<ra2yrproto::ra2yr::MapData>(key_map_data)
+                    ->mutable_cells();
+      if (m->size() != sz) {
+        m->Clear();
+        for (int i = 0; i < sz; i++) {
+          m->Add();
+        }
+      }
+      for (int i = 0; i <= L.Right; i++) {
+        for (int j = 0; j <= L.Bottom; j++) {
+          CellStruct coords{static_cast<i16>(i), static_cast<i16>(j)};
+          auto* src_cell = M->TryGetCellAt(coords);
+
+          if (src_cell != nullptr) {
+            auto& c = m->at((L.Bottom + 1) * j + i);
+            c.set_land_type(
+                static_cast<ra2yrproto::ra2yr::LandType>(src_cell->LandType));
+            c.set_height(src_cell->Height);
+            c.set_level(src_cell->Level);
+            c.set_radiation_level(src_cell->RadLevel);
+            c.set_overlay_data(src_cell->OverlayData);
+            if (src_cell->FirstObject != nullptr) {
+              c.mutable_objects()->Clear();
+              auto* o = c.add_objects();
+              o->set_pointer_self(reinterpret_cast<u32>(src_cell->FirstObject));
+            }
+            if (c.land_type() ==
+                ra2yrproto::ra2yr::LandType::LAND_TYPE_Tiberium) {
+              c.set_tiberium_value(abi()->CellClass_GetContainedTiberiumValue(
+                  reinterpret_cast<std::uintptr_t>(src_cell)));
+            }
+          }
+        }
+      }
+    }
+
     return {*gbuf};
   }
 
   void exec() override {
-    try {
-      auto st =
-          state_to_protobuf(raw_game_state()->abstract_type_classes().empty());
-      work.push(st);
-    } catch (const std::exception& e) {
-      eprintf("fatal {}", e.what());
-    }
+    // FIXME: more explicit about this
+    // enables event debug logs
+    // *reinterpret_cast<char*>(0xa8ed74) = 1;
+    auto st = state_to_protobuf(type_classes()->empty());
+    work.push(st);
   }
 };
 
@@ -493,6 +464,7 @@ struct CBDebugPrint : public MyCB<CBDebugPrint> {
   }
 };
 
+// FIXME: ensure proper locking
 static void init_callbacks(yrclient::InstrumentationService* I) {
   I->store_value(key_callbacks_yr, utility::make_uptr<cb_map_t>());
 
@@ -520,9 +492,10 @@ static void init_callbacks(yrclient::InstrumentationService* I) {
   f(std::make_unique<CBDebugPrint>());
 }
 
-static inline void unit_action(const u32 p_object,
-                               const ra2yrproto::commands::UnitAction a,
-                               const ra2::abi::ABIGameMD* abi) {
+// FIXME: don't allow deploying of already deployed object
+static void unit_action(const u32 p_object,
+                        const ra2yrproto::commands::UnitAction a,
+                        ra2::abi::ABIGameMD* abi) {
   using ra2yrproto::commands::UnitAction;
   switch (a) {
     case UnitAction::ACTION_DEPLOY:
@@ -532,7 +505,11 @@ static inline void unit_action(const u32 p_object,
       abi->SellBuilding(p_object);
       break;
     case UnitAction::ACTION_SELECT:
+#ifdef _MSC_VER
+      reinterpret_cast<ObjectClass*>(p_object)->Select();
+#else
       (void)abi->SelectObject(p_object);
+#endif
       break;
     default:
       break;
@@ -559,9 +536,11 @@ auto click_event() {
 
     get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
         make_work<decltype(a)>(a, [](CBYR* C, auto* args) {
-          auto* objects = &C->raw_game_state()->objects;
+          auto& O = C->game_state()->objects();
           for (auto k : args->object_addresses()) {
-            if (objects->find(k) != objects->end()) {
+            if (std::find_if(O.begin(), O.end(), [k](auto& v) {
+                  return v.pointer_self() == k;
+                }) != O.end()) {
               dprintf("clickevent {} {}", k, static_cast<int>(args->event()));
               (void)C->abi()->ClickEvent(k, args->event());
             }
@@ -577,9 +556,11 @@ auto unit_command() {
 
     get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
         make_work<decltype(a)>(a, [](CBYR* C, auto* args) {
-          auto* objects = &C->raw_game_state()->objects;
+          auto& O = C->game_state()->objects();
           for (auto k : args->object_addresses()) {
-            if (objects->find(k) != objects->end()) {
+            if (std::find_if(O.begin(), O.end(), [k](auto& v) {
+                  return v.pointer_self() == k;
+                }) != O.end()) {
               unit_action(k, args->action(), C->abi());
             }
           }
@@ -620,6 +601,7 @@ auto create_callbacks() {
 
       dprintf("add hook, target={} cb={}", target, hook_name);
       auto cb = v.get();
+      // FIXME: avoid using wrapper
       h->second.add_callback(
           [cb](hook::Hook* h, void* user_data, X86Regs* state) {
             cb->call(h, user_data, state);
@@ -636,7 +618,7 @@ constexpr std::array<std::pair<const char*, u32>, 7> gg_hooks = {{
     {CBTunnelSendTo::key_target, 0x7b3d6f},            //
     {CBTunnelRecvFrom::key_target, 0x7b3f15},          //
     {CBUpdateLoadProgress::key_target, 0x643c62},      //
-    {CBDebugPrint::key_target, 0x4068e0}               //
+    {CBDebugPrint::key_target, 0x4068e0},              //
 }};
 
 auto create_hooks() {
@@ -662,9 +644,9 @@ auto get_game_state() {
   return get_cmd<ra2yrproto::commands::GetGameState>([](auto* Q) {
     // Copy saved game state
     auto [mut, s] = Q->I()->aq_storage();
-    auto* state = ensure_storage_value<ra2yrproto::ra2yr::GameState>(
-        Q->I(), s, key_game_state);
-    Q->command_data().mutable_result()->mutable_state()->CopyFrom(*state);
+    Q->command_data().mutable_result()->mutable_state()->CopyFrom(
+        *ensure_storage_value<ra2yrproto::ra2yr::GameState>(Q->I(), s,
+                                                            key_game_state));
   });
 }
 
@@ -672,13 +654,10 @@ auto get_type_classes() {
   return get_cmd<ra2yrproto::commands::GetTypeClasses>([](auto* Q) {
     auto [mut, s] = Q->I()->aq_storage();
     auto res = Q->command_data().mutable_result();
-    try {
-      protobuf_conv::get_object_type_classes(ensure_raw_gamestate(Q->I(), s),
-                                             res->mutable_classes());
-    } catch (const std::exception& e) {
-      eprintf("error! {}", e.what());
-      throw;
-    }
+    res->mutable_classes()->CopyFrom(
+        *ensure_storage_value<
+            RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>>(
+            Q->I(), s, key_object_type_classes));
   });
 }
 
@@ -687,19 +666,14 @@ auto inspect_configuration() {
   return get_cmd<ra2yrproto::commands::InspectConfiguration>([](auto* Q) {
     auto [mut, s] = Q->I()->aq_storage();
     auto res = Q->command_data().mutable_result();
-    try {
-      res->mutable_config()->CopyFrom(
-          *ensure_storage_value<ra2yrproto::commands::Configuration>(
-              Q->I(), s, CBYR::key_configuration));
-    } catch (const std::exception& e) {
-      eprintf("error! {}", e.what());
-      throw;
-    }
+    res->mutable_config()->CopyFrom(
+        *ensure_storage_value<ra2yrproto::commands::Configuration>(
+            Q->I(), s, CBYR::key_configuration));
   });
 }
 
-// NB. CellClicked not called for moving units, but for attack (and what else?)
-// ClickedMission seems to be used for various other events
+// NB. CellClicked not called for moving units, but for attack (and what
+// else?) ClickedMission seems to be used for various other events
 // FIXME: need to implement GetCellAt(coords)
 auto mission_clicked() {
   return get_cmd<ra2yrproto::commands::MissionClicked>([](auto* Q) {
@@ -708,17 +682,17 @@ auto mission_clicked() {
 
     get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
         make_work<decltype(a)>(a, [](CBYR* C, auto* args) {
-          auto* objects = &C->raw_game_state()->objects;
+          auto& O = C->game_state()->objects();
           for (auto k : args->object_addresses()) {
-            if (objects->find(k) != objects->end()) {
+            if (std::find_if(O.begin(), O.end(), [k](auto& v) {
+                  return v.pointer_self() == k;
+                }) != O.end()) {
               auto c1 = args->coordinates();
-              auto coords = ra2::vectors::CoordStruct{
-                  .x = c1.x(), .y = c1.y(), .z = c1.z()};
-              auto cell_s = ra2::vectors::Coord2Cell(coords);
-              auto cell = ra2::game_screen::MapClass::TryGetCellAt(cell_s);
-              C->abi()->ClickedMission(
-                  k, static_cast<ra2::general::Mission>(args->event()),
-                  args->target_object(), cell, cell);
+              auto coords = CoordStruct{.X = c1.x(), .Y = c1.y(), .Z = c1.z()};
+              auto cell = MapClass::Instance.get()->TryGetCellAt(coords);
+              auto* p = reinterpret_cast<CellClass*>(cell);
+              C->abi()->ClickedMission(k, static_cast<Mission>(args->event()),
+                                       args->target_object(), p, p);
             }
           }
         }));
@@ -729,36 +703,37 @@ auto add_event() {
   return get_cmd<ra2yrproto::commands::AddEvent>([](auto* Q) {
     auto [mut, s] = Q->I()->aq_storage();
     auto a = Q->args();
+    // FIXME: UAF?
 
     get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
         make_work<decltype(a)>(a, [](CBYR* C, auto* args) {
-          ra2::event::EventClass E{
-              .Type = static_cast<ra2::event::EventType>(
-                  args->event().event_type()),
-              .IsExecuted = false,
-              .HouseIndex = static_cast<i8>(args->event().house_index()),
-              .Frame =
-                  serialize::read_obj_le<u32>(ra2::game_state::current_frame),
-              .Data = {.SpaceGap = {}}};
+          // TODO: these may not be needed
+          EventClass E(static_cast<EventType>(args->event().event_type()),
+                       false, static_cast<char>(args->event().house_index()),
+                       static_cast<u32>(Unsorted::CurrentFrame));
           if (args->event().has_production()) {
             auto& ev = args->event().production();
             E.Data.Production = {.RTTI_ID = ev.rtti_id(),
                                  .Heap_ID = ev.heap_id(),
                                  .IsNaval = ev.is_naval()};
-            ra2::event::AddEvent<ra2::event::OutList>(E,
-                                                      C->abi()->timeGetTime());
+            auto ts = static_cast<int>(C->abi()->timeGetTime());
+            if (!EventClass::AddEvent(E, ts)) {
+              throw std::runtime_error("failed to add event");
+            }
           } else if (args->event().has_place()) {
             auto& ev = args->event().place();
             auto loc = ev.location();
+            auto S = CoordStruct{.X = loc.x(), .Y = loc.y(), .Z = loc.z()};
             E.Data.Place = {
-                .RTTIType =
-                    static_cast<ra2::general::AbstractType>(ev.rtti_type()),
+                .RTTIType = static_cast<AbstractType>(ev.rtti_type()),
                 .HeapID = ev.heap_id(),
                 .IsNaval = ev.is_naval(),
-                .Location = ra2::vectors::Coord2Cell(ra2::vectors::CoordStruct{
-                    .x = loc.x(), .y = loc.y(), .z = loc.z()})};
-            ra2::event::AddEvent<ra2::event::OutList>(E,
-                                                      C->abi()->timeGetTime());
+                .Location = CellClass::Coord2Cell(S)};
+            (void)EventClass::AddEvent(E, C->abi()->timeGetTime());
+          } else {
+            // generic event
+            dprintf("generic,house={}", args->event().house_index());
+            (void)EventClass::AddEvent(E, C->abi()->timeGetTime());
           }
         }));
   });
@@ -775,20 +750,23 @@ auto place_query() {
     get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
         make_work<decltype(a)>(a, [cmd](CBYR* C, auto* args) {
           // Get corresponding BuildingTypeClass
-          auto& A = C->raw_game_state()->abstract_type_classes();
-          auto B = std::find_if(A.begin(), A.end(), [args](const auto& it) {
-            return it.first == args->type_class();
+          auto A1 = TechnoTypeClass::Array.get();
+          auto A =
+              utility::ArrayIterator<TechnoTypeClass*>(A1->Items, A1->Count);
+          auto B = std::find_if(A.begin(), A.end(), [args](auto* p) {
+            return utility::asint(p) == args->type_class();
           });
           // Get HouseClass
-          auto& H = C->raw_game_state()->house_classes();
+          auto& H = C->game_state()->houses();
+
           // TODO(shmocz): make helper method
           auto house = std::find_if(H.begin(), H.end(), [](const auto& h) {
-                         return h->current_player;
-                       })->get();
+            return h.current_player();
+          });
           if (args->house_class()) {
             house = std::find_if(H.begin(), H.end(), [args](const auto& h) {
-                      return h->self == args->house_class();
-                    })->get();
+              return h.self() == args->house_class();
+            });
           }
 
           ra2yrproto::commands::PlaceQuery r2;
@@ -799,19 +777,26 @@ auto place_query() {
 
           // Call for each cell
           if (B != A.end()) {
+            auto* q = static_cast<BuildingTypeClass*>(*B);
             for (auto& c : args->coordinates()) {
-              auto coords =
-                  ra2::vectors::CoordStruct{.x = c.x(), .y = c.y(), .z = c.z()};
-              auto cell_s = ra2::vectors::Coord2Cell(coords);
-              auto* q = static_cast<ra2::type_classes::BuildingTypeClass*>(
-                  B->second.get());
-              if (C->abi()->BuildingClass_CanPlaceHere(
-                      utility::asint(q->pointer_self), &cell_s,
-                      utility::asint(house))) {
+              auto coords = CoordStruct{.X = c.x(), .Y = c.y(), .Z = c.z()};
+              auto cell_s = CellClass::Coord2Cell(coords);
+              auto* cs = reinterpret_cast<CellStruct*>(&cell_s);
+
+              auto p_DisplayClass = 0x87F7E8u;
+              // FIXME. properly get house index!
+              // FIXME: rename BuildingClass to BuildingTypeClass
+              if (C->abi()->DisplayClass_Passes_Proximity_Check(
+                      p_DisplayClass, reinterpret_cast<BuildingTypeClass*>(q),
+                      0u, cs) &&
+                  C->abi()->BuildingClass_CanPlaceHere(utility::asint(q), cs,
+                                                       house->self())) {
                 auto* cnew = r2_res->add_coordinates();
                 cnew->CopyFrom(c);
               }
             }
+          } else {
+            eprintf("could not locate building tc");
           }
           // copy results
           p->mutable_result()->PackFrom(r2);

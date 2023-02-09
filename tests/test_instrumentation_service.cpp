@@ -1,14 +1,15 @@
 #include "protocol/protocol.hpp"
 
 #include "client_utils.hpp"
+#include "commands_builtin.hpp"
 #include "common.hpp"
 #include "gtest/gtest.h"
+#include "instrumentation_service.hpp"
 #include "util_string.hpp"
 #include "utility/time.hpp"
 
 #include <chrono>
 #include <thread>
-#include <unistd.h>
 #include <vector>
 
 using namespace yrclient;
@@ -33,7 +34,7 @@ TEST_F(IServiceTest, HookingGetSetWorks) {
     ra2yrproto::commands::GetValue g;
     g.mutable_args()->set_key(key);
     auto r = run(g);
-    ASSERT_EQ(r, v);
+    ASSERT_EQ(r.result(), v);
   };
 
   ra2yrproto::commands::StoreValue s;

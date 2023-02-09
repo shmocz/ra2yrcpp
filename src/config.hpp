@@ -9,4 +9,6 @@ constexpr unsigned int SERVER_PORT = 14521;
 constexpr unsigned int MAX_MESSAGE_LENGTH = 1e7;
 constexpr unsigned int POLL_BLOCKING_TIMEOUT_MS = 2500;
 constexpr char SERVER_ADDRESS[] = "127.0.0.1";
+constexpr char DLL_NAME[] = "libra2yrcpp.dll";
+constexpr char INIT_NAME[] = "init_iservice";
 };  // namespace cfg

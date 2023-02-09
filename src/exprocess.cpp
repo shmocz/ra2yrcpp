@@ -2,9 +2,7 @@
 
 #include "errors.hpp"
 
-#include <processthreadsapi.h>
 #include <synchapi.h>
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 using namespace exprocess;
@@ -40,7 +38,7 @@ ExProcess::ExProcess(const std::string cmdline, const std::string directory)
 void* ExProcess::handle() { return pi_.hProcess; }
 
 void ExProcess::join() {
-  if (WaitForSingleObject(handle(), INFINITE) == WAIT_FAILED) {
+  if (WaitForSingleObject(handle(), 5000) == WAIT_FAILED) {
     throw yrclient::system_error("WaitForSingleObject");
   }
 }

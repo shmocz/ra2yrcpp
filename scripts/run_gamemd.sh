@@ -2,6 +2,7 @@
 
 set -o nounset
 
+export WINEPREFIX="$RA2YRCPP_TEST_INSTANCES_DIR/$PLAYER_ID/.wine"
 # Initialize wine env if not done
 if [ ! -d "$WINEPREFIX" ]; then
     mkdir -p "$WINEPREFIX"
@@ -13,11 +14,12 @@ if [ ! -d "$WINEPREFIX" ]; then
 fi
 
 : ${WINE_CMD:="wine"}
+idir="$RA2YRCPP_TEST_INSTANCES_DIR/$PLAYER_ID"
+mkdir -p "$idir"
 
 # Prepare instance directory
 {
-    CMAKE_RUNTIME_OUTPUT_DIRECTORY="$BUILDDIR/bin" ./scripts/prep_instance_dirs.sh "$RA2YRCPP_TEST_INSTANCES_DIR" "$PLAYER_ID"
-    cd "$RA2YRCPP_TEST_INSTANCES_DIR/$PLAYER_ID"
-    # Inject and start game
+    RA2YRCPP_PKG_DIR="$DEST_DIR/bin" ./scripts/prep_instance_dirs.sh "$RA2YRCPP_TEST_INSTANCES_DIR" "$PLAYER_ID"
+    cd "$idir"
     $WINE_CMD gamemd-spawn.exe -SPAWN 2>err.log
-} >"$RA2YRCPP_TEST_INSTANCES_DIR/$PLAYER_ID/out.log"
+} >"$idir/out.log"

@@ -1,13 +1,15 @@
 # FIXME: find better way to include protocol stuff
-include_directories(${CMAKE_BINARY_DIR}/src)
 
 include_directories(../src)
 
 function(new_make_test)
   cmake_parse_arguments(MY_FN "" "NAME" "SRC;LIB" ${ARGN})
   add_executable("${MY_FN_NAME}" ${MY_FN_SRC})
-  target_link_libraries("${MY_FN_NAME}" gtest_main ${MY_FN_LIB})
+  target_link_libraries("${MY_FN_NAME}" PUBLIC gtest_main ${MY_FN_LIB})
+  # FIXME: this is just ugly hack to ensure protoc is present
+  add_dependencies("${MY_FN_NAME}" protoc)
   add_test(NAME ${MY_FN_NAME} COMMAND ${MY_FN_NAME})
+  install(TARGETS "${MY_FN_NAME}" RUNTIME)
 endfunction()
 
 function(make_test test_name)
@@ -17,16 +19,16 @@ function(make_test test_name)
 endfunction()
 
 add_library(test_common OBJECT common.cpp)
-target_link_libraries(test_common gtest_main)
+target_link_libraries(test_common gtest_main yrclient)
 
 new_make_test(
   NAME test_process
   SRC test_process.cpp ../src/utility/scope_guard.hpp
-  LIB process)
+  LIB yrclient)
 
 new_make_test(
   NAME test_hooks
-  SRC test_hooks.cpp $<TARGET_OBJECTS:errors> ../src/util_string.cpp
+  SRC test_hooks.cpp ../src/util_string.cpp
   LIB yrclient fmt::fmt)
 
 new_make_test(
@@ -45,6 +47,7 @@ new_make_test(
   LIB yrclient)
 
 add_executable(dummy_program dummy_program.cpp)
+install(TARGETS dummy_program RUNTIME)
 
 new_make_test(
   NAME test_dll_inject

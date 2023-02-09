@@ -4,3 +4,5 @@ additional_commands:
       "NAME": '1'
       "SRC": '*'
       "LIB": '1'
+autosort: True
+enable_sort: True

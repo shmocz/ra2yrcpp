@@ -16,7 +16,7 @@ fi
 
 # Prepare instance directory
 {
-    CMAKE_RUNTIME_OUTPUT_DIRECTORY="$BUILDDIR/bin" BUILDDIR="$BUILDDIR" ./scripts/prep_instance_dirs.sh "$RA2YRCPP_TEST_INSTANCES_DIR" "$PLAYER_ID"
+    CMAKE_RUNTIME_OUTPUT_DIRECTORY="$BUILDDIR/bin" ./scripts/prep_instance_dirs.sh "$RA2YRCPP_TEST_INSTANCES_DIR" "$PLAYER_ID"
     cd "$RA2YRCPP_TEST_INSTANCES_DIR/$PLAYER_ID"
     # Inject and start game
     $WINE_CMD gamemd-spawn.exe -SPAWN 2>err.log

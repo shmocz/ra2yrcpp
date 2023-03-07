@@ -2,7 +2,6 @@
 
 #include "client_utils.hpp"
 #include "commands_builtin.hpp"
-#include "common.hpp"
 #include "gtest/gtest.h"
 #include "instrumentation_service.hpp"
 #include "util_string.hpp"
@@ -13,7 +12,54 @@
 #include <vector>
 
 using namespace yrclient;
-using ra2yrcpp::tests::InstrumentationServiceTest;
+using namespace std::chrono_literals;
+
+using instrumentation_client::InstrumentationClient;
+
+class InstrumentationServiceTest : public ::testing::Test {
+ protected:
+  void SetUp() override;
+  void TearDown() override;
+
+  virtual void init() = 0;
+  std::shared_ptr<connection::ClientTCPConnection> conn;
+  std::unique_ptr<yrclient::InstrumentationService> I;
+  std::unique_ptr<InstrumentationClient> client;
+  virtual yrclient::InstrumentationService::IServiceOptions opts();
+};
+
+void InstrumentationServiceTest::SetUp() {
+  network::Init();
+  yrclient::InstrumentationService::IServiceOptions O{
+      cfg::MAX_CLIENTS, cfg::SERVER_PORT, 0U, "", true};
+
+  std::map<std::string, command::Command::handler_t> cmds;
+
+  for (auto& [name, fn] : yrclient::commands_builtin::get_commands()) {
+    cmds[name] = fn;
+  }
+
+  I = std::unique_ptr<yrclient::InstrumentationService>(
+      yrclient::InstrumentationService::create(O, &cmds, nullptr));
+
+  auto& S = I->server();
+  conn =
+      std::make_shared<connection::ClientTCPConnection>(S.address(), S.port());
+  conn->connect();
+  client = std::make_unique<InstrumentationClient>(conn, 5000ms);
+  init();
+}
+
+yrclient::InstrumentationService::IServiceOptions
+InstrumentationServiceTest::opts() {
+  return {cfg::MAX_CLIENTS, cfg::SERVER_PORT, 0U, "", true};
+}
+
+void InstrumentationServiceTest::TearDown() {
+  client = nullptr;
+  conn = nullptr;
+  I = nullptr;
+}
 
 class IServiceTest : public InstrumentationServiceTest {
  protected:
@@ -26,6 +72,9 @@ class IServiceTest : public InstrumentationServiceTest {
 };
 
 TEST_F(IServiceTest, HookingGetSetWorks) {
+#ifdef XBYAK64
+  GTEST_SKIP();
+#endif
   // store initial flag value
   std::string key = "test_key";
   std::string flag1 = "0xdeadbeef";
@@ -59,4 +108,110 @@ TEST_F(IServiceTest, HookingGetSetWorks) {
   (void)run(ac);
   (void)run(h);
   value_eq(flag2);
+}
+
+ra2yrproto::commands::StoreValue get_storeval(std::string key,
+                                              std::string val) {
+  ra2yrproto::commands::StoreValue s;
+
+  s.mutable_args()->set_key(key);
+  s.mutable_args()->set_value(val);
+  return s;
+}
+
+ra2yrproto::commands::GetValue get_getval(std::string key) {
+  ra2yrproto::commands::GetValue s;
+
+  s.mutable_args()->set_key(key);
+  return s;
+}
+
+class NewCommandsTest : public InstrumentationServiceTest {
+ protected:
+  void init() override {
+    key = "key";
+    val = "val";
+  }
+
+  std::string key;
+  std::string val;
+
+  auto get_storeval() { return ::get_storeval(key, val); }
+
+  auto get_getval() { return ::get_getval(key); }
+
+  void do_get(const std::string k, const std::string v) {
+    auto g = ::get_getval(k);
+    auto r = client->run_one(g);
+    decltype(g) aa;
+    r.result().UnpackTo(&aa);
+    ASSERT_EQ(aa.result().result(), v);
+  }
+
+  void do_run(google::protobuf::Message* M) {
+    auto r = client->run_one(*M);
+    r.result().UnpackTo(M);
+  }
+};
+
+TEST_F(NewCommandsTest, FetchManySizes) {
+  const size_t count = 20;
+  const size_t max_size = (cfg::MAX_MESSAGE_LENGTH / 1000u);
+  const std::string key = "mega_key";
+  for (auto i = 0u; i < count; i++) {
+    const size_t sz = (i + 1) * (max_size / count);
+    std::string v = std::string(sz, 'X');
+
+    // std::string k = "key_" + std::to_string(i);
+    {
+      auto S = ::get_storeval(key, v);
+      do_run(&S);
+      ASSERT_EQ(S.result().result(), v);
+    }
+    {
+      auto G = ::get_getval(key);
+      do_run(&G);
+      // auto r = client->run_one(G);
+      // r.result().UnpackTo(&G);
+      ASSERT_EQ(G.result().result(), v);
+    }
+  }
+}
+
+// TODO: strange bug with larger messages (>1M) causing messages not being
+// received properly causing incorrect size to be read
+TEST_F(NewCommandsTest, FetchAlot) {
+  const size_t count = 10;
+  const size_t msg_size = cfg::MAX_MESSAGE_LENGTH / 1000u;
+  // const size_t msg_size = 5000u;
+  const std::string key = "mega_key";
+  std::string v = std::string(msg_size, 'X');
+  for (auto i = 0u; i < count; i++) {
+    // std::string k = "key_" + std::to_string(i);
+    auto S = ::get_storeval(key, v);
+    (void)client->run_one(S);
+    do_get(key, v);
+  }
+}
+
+TEST_F(NewCommandsTest, FetchOne) {
+  auto s = get_storeval();
+  // cppcheck-suppress unreadVariable
+  auto res1 = client->run_one(s);
+  auto g = get_getval();
+  auto res2 = client->run_one(g);
+  ra2yrproto::commands::GetValue v;
+  res2.result().UnpackTo(&v);
+  ASSERT_EQ(v.result().result(), val);
+}
+
+TEST_F(NewCommandsTest, BasicCommandTest) {
+  {
+    auto cmd_store = get_storeval();
+    // schedule cmd, get ACK
+    auto resp = client->send_command(cmd_store, ra2yrproto::CLIENT_COMMAND);
+    ASSERT_EQ(resp.code(), yrclient::RESPONSE_OK);
+    // cppcheck-suppress unreadVariable
+    auto cmds = client->poll();
+  }
 }

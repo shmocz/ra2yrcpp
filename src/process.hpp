@@ -55,6 +55,11 @@ struct ThreadData {
   size_t size;
 };
 
+#ifndef _WIN32
+constexpr unsigned int TD_SIZE = 1;
+constexpr unsigned int TD_ALIGN = 16;
+#endif
+
 #pragma pack(push, 16)
 
 class Thread {

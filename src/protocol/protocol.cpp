@@ -29,9 +29,10 @@ ra2yrproto::Response yrclient::make_response(
 }
 
 CompressedOutputStream::CompressedOutputStream(const std::string path)
-    : os(path, std::ios_base::out | std::ios_base::binary),
-      s_f(&os),
-      s_g(&s_f) {}
+    : fd(std::unique_ptr<FILE, void (*)(FILE*)>(fopen(path.c_str(), "wb"),
+                                                [](FILE* fp) { fclose(fp); })),
+      s_fo(fileno(fd.get())),
+      s_g(&s_fo) {}
 
 bool yrclient::write_message(const google::protobuf::Message* M,
                              google::protobuf::io::CodedOutputStream* is) {

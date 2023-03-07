@@ -2,6 +2,16 @@
 
 include_directories(../src)
 
+set(YRCLIENT_LIB yrclient)
+# MinGW exports everything automatically, so we can link to DLL for better
+# performance
+if(MINGW)
+  message("LINKAGE SHARED")
+  set(YRCLIENT_LIB ra2yrcpp_dll)
+endif()
+
+set(NATIVE_TARGETS "")
+
 function(new_make_test)
   cmake_parse_arguments(MY_FN "" "NAME" "SRC;LIB" ${ARGN})
   add_executable("${MY_FN_NAME}" ${MY_FN_SRC})
@@ -10,61 +20,57 @@ function(new_make_test)
   add_dependencies("${MY_FN_NAME}" protoc)
   add_test(NAME ${MY_FN_NAME} COMMAND ${MY_FN_NAME})
   install(TARGETS "${MY_FN_NAME}" RUNTIME)
+  list(APPEND NATIVE_TARGETS "${MY_FN_NAME}")
 endfunction()
 
-function(make_test test_name)
-  add_executable(${test_name} ${ARGV})
-  target_link_libraries(${test_name} gtest_main)
-  add_test(NAME ${test_name} COMMAND test_name)
-endfunction()
+if(BUILD_MAIN_LIBRARY)
+  new_make_test(
+    NAME test_process
+    SRC test_process.cpp ../src/utility/scope_guard.hpp
+    LIB ${YRCLIENT_LIB})
 
-add_library(test_common OBJECT common.cpp)
-target_link_libraries(test_common gtest_main yrclient)
+  new_make_test(
+    NAME test_hooks
+    SRC test_hooks.cpp ../src/util_string.cpp
+    LIB ${YRCLIENT_LIB} fmt::fmt)
 
-new_make_test(
-  NAME test_process
-  SRC test_process.cpp ../src/utility/scope_guard.hpp
-  LIB yrclient)
+  add_executable(dummy_program dummy_program.cpp)
+  install(TARGETS dummy_program RUNTIME)
 
-new_make_test(
-  NAME test_hooks
-  SRC test_hooks.cpp ../src/util_string.cpp
-  LIB yrclient fmt::fmt)
+  new_make_test(
+    NAME test_dll_inject
+    SRC test_dll_inject.cpp
+    LIB ${YRCLIENT_LIB} fmt::fmt)
+endif()
 
-new_make_test(
-  NAME test_server
-  SRC test_server.cpp
-  LIB yrclient)
+add_library(common_multi STATIC common_multi.cpp)
+target_link_libraries(common_multi PUBLIC ra2yrcpp_core)
 
 new_make_test(
   NAME test_instrumentation_service
   SRC test_instrumentation_service.cpp
-  LIB yrclient test_common)
+  LIB ra2yrcpp_core)
 
 new_make_test(
-  NAME test_instrumentation_service_daemon
-  SRC test_instrumentation_service_daemon.cpp
-  LIB yrclient)
-
-add_executable(dummy_program dummy_program.cpp)
-install(TARGETS dummy_program RUNTIME)
+  NAME test_server
+  SRC test_server.cpp
+  LIB ra2yrcpp_core)
+new_make_test(
+  NAME test_multi_client
+  SRC test_multi_client.cpp
+  LIB common_multi)
 
 new_make_test(
-  NAME test_dll_inject
-  SRC test_dll_inject.cpp
-  LIB yrclient fmt::fmt)
-
-new_make_test(
-  NAME test_new_commands
-  SRC test_new_commands.cpp
-  LIB yrclient test_common)
+  NAME test_is_stress_test
+  SRC test_is_stress_test.cpp
+  LIB common_multi)
 
 new_make_test(
   NAME test_command_manager
   SRC test_command_manager.cpp
-  LIB yrclient)
+  LIB common_multi)
 
-new_make_test(
-  NAME test_multi_client
-  SRC test_multi_client.cpp
-  LIB yrclient)
+add_library(tests_native INTERFACE ${NATIVE_TARGETS})
+
+target_compile_options(tests_native INTERFACE ${EXTRA_FLAGS})
+target_link_options(tests_native INTERFACE ${EXTRA_FLAGS})

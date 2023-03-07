@@ -1,5 +1,6 @@
 #include "client_utils.hpp"
 #include "config.hpp"
+#include "connection.hpp"
 #include "debug_helpers.h"
 #include "dll_inject.hpp"
 #include "exprocess.hpp"
@@ -87,7 +88,8 @@ TEST_F(DLLInjectTest, BasicLoading) {
 
 // TODO: strange error??? this fails if stderr is piped to a file
 TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
-  is_context::DLLoader L(p_LoadLibrary, p_GetProcAddress, path_dll, name_init);
+  is_context::DLLoader L(p_LoadLibrary, p_GetProcAddress, path_dll, name_init,
+                         cfg::MAX_CLIENTS, cfg::SERVER_PORT, 0u, false, true);
   auto p = L.getCode<u8*>();
   vecu8 sc(p, p + L.getSize());
   exprocess::ExProcess P("dummy_program.exe 10 500");
@@ -102,11 +104,14 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
 
   util::call_until(5000ms, 1000ms, [&client]() {
     try {
-      client = std::unique_ptr<InstrumentationClient>(new InstrumentationClient(
-          cfg::SERVER_ADDRESS, std::to_string(cfg::SERVER_PORT)));
+      auto conn = std::make_shared<connection::ClientTCPConnection>(
+          cfg::SERVER_ADDRESS, std::to_string(cfg::SERVER_PORT));
+      conn->connect();
+      // client = std::unique_ptr<InstrumentationClient>(conn);
+      client = std::make_unique<InstrumentationClient>(conn);
       return false;
     } catch (const std::exception& e) {
-      eprintf("fail\n");
+      eprintf("fail: {}", e.what());
       return true;
     }
   });

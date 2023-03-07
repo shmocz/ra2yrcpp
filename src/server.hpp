@@ -5,6 +5,7 @@
 #include "logging.hpp"
 #include "network.hpp"
 #include "process.hpp"
+#include "utility/sync.hpp"
 #include "utility/time.hpp"
 
 #include <algorithm>
@@ -54,6 +55,8 @@ struct Callbacks {
 ///
 class Server {
  public:
+  enum class STATE : i32 { NONE = 0, ACTIVE, CLOSING, CLOSED };
+
   Server() = delete;
   explicit Server(
       unsigned int num_clients = cfg::MAX_CLIENTS,
@@ -69,12 +72,12 @@ class Server {
   void on_send_bytes(connection::Connection* C, vecu8* bytes);
   std::string address() const;
   std::string port() const;
-  bool is_closing() const;
+  bool is_closing();
   Callbacks& callbacks();
-  void signal_close();
   std::vector<uptr<ConnectionCTX>>& connections();
   std::deque<connection::Connection*>& close_queue();
   std::mutex connections_mut;
+  util::AtomicVariable<Server::STATE>& state();
 
  private:
   const unsigned int max_clients_;
@@ -82,7 +85,7 @@ class Server {
   std::string port_;
   Callbacks callbacks_;
   const unsigned int accept_timeout_ms_;
-  std::atomic_bool is_closing_;
+  util::AtomicVariable<Server::STATE> state_;
   std::deque<connection::Connection*> close_queue_;
   connection::Connection listen_connection_;
   std::thread listen_thread_;

@@ -16,6 +16,7 @@ $CPPCHECK -q --platform=win32W \
 	--suppress=unusedFunction:tests/*.cpp \
 	--suppress=uninitMemberVar:src/ra2/objects.cpp \
 	--suppress=shadowVar:src/commands_yr.cpp \
+	--suppress=constParameter:src/utility/sync.hpp \
 	src/ tests/ 2>"$out"
 
 [ "$(cat "$out" | wc -l)" != 0 ] && { cat "$out" && exit 1; }

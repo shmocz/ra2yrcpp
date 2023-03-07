@@ -8,7 +8,7 @@ Server::Server(unsigned int num_clients, unsigned int port, Callbacks callbacks,
       port_(std::to_string(port)),
       callbacks_(callbacks),
       accept_timeout_ms_(accept_timeout_ms),
-      is_closing_(false),
+      state_(STATE::NONE),
       listen_connection_(port_),
       listen_thread_([this]() {
         try {
@@ -20,8 +20,9 @@ Server::Server(unsigned int num_clients, unsigned int port, Callbacks callbacks,
 
 Server::~Server() {
   // Tell all worker threads to shut down
-  is_closing_ = true;
+  state_.store(STATE::CLOSING);
   listen_thread_.join();
+  state_.store(STATE::CLOSED);
 }
 
 void Server::connection_thread(connection::Connection* C) {
@@ -40,13 +41,8 @@ void Server::connection_thread(connection::Connection* C) {
       auto response = on_receive_bytes(C, &msg);
       on_send_bytes(C, &response);
     } catch (const yrclient::timeout& E) {
-    } catch (const yrclient::system_error& E) {
-      eprintf("system error: {}", E.what());
-      // broken connection
-      break;
-    } catch (const std::runtime_error& E) {
-      eprintf("{}, sock={}", E.what(), C->socket());
-      // fatal error
+    } catch (const std::exception& e) {
+      eprintf("fatal error: {}", e.what());
       break;
     }
   } while (!is_closing());
@@ -91,6 +87,7 @@ void Server::clear_closed() {
 
 void Server::listener_thread() {
   dprintf("listening on port {}", port().c_str());
+  state_.store(STATE::ACTIVE);
   do {
     socket_t client = 0;
     // Clear up closed connections
@@ -100,6 +97,8 @@ void Server::listener_thread() {
     if (err == network::ERR_OK) {
       auto conn = std::make_unique<connection::Connection>(client);
       if (connections_.size() >= max_clients_) {
+        eprintf("rejecting connection, max size {} exceeded",
+                connections_.size());
       } else {
         dprintf("new conn, sock={}", conn.get()->socket());
         std::lock_guard<std::mutex> lk(connections_mut);
@@ -142,15 +141,14 @@ std::string Server::address() const { return address_; }
 
 std::string Server::port() const { return port_; }
 
-bool Server::is_closing() const { return is_closing_; }
+bool Server::is_closing() { return state_.get() == STATE::CLOSING; }
 
 server::Callbacks& Server::callbacks() { return callbacks_; }
-
-// cppcheck-suppress unusedFunction
-void Server::signal_close() { is_closing_ = true; }
 
 std::vector<uptr<ConnectionCTX>>& Server::connections() { return connections_; }
 
 std::deque<connection::Connection*>& Server::close_queue() {
   return close_queue_;
 }
+
+util::AtomicVariable<Server::STATE>& Server::state() { return state_; }

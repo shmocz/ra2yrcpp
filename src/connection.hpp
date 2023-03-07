@@ -1,23 +1,32 @@
 #pragma once
+#include "async_queue.hpp"
 #include "errors.hpp"
 #include "logging.hpp"
 #include "network.hpp"
 #include "types.h"
+#include "utility/memtools.hpp"
 #include "utility/scope_guard.hpp"
 #include "utility/serialize.hpp"
+#include "utility/sync.hpp"
 
 #include <cstring>
 
 #include <algorithm>
+#include <atomic>
 #include <functional>
+#include <future>
+#include <memory>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace connection {
 
 using ReaderFn = std::function<vecu8(size_t)>;
 using WriterFn = std::function<size_t(vecu8*)>;
+
+enum State { NONE = 0, CONNECTING, OPEN, CLOSING, CLOSED };
 
 // FIXME: duplicate code?
 template <typename T>
@@ -98,6 +107,7 @@ class Connection {
   int send_bytes(const vecu8&& bytes);
   ///
   /// Read entire message from socket.
+  /// FIXME: rename to read_message
   /// @exception std::runtime_error on read failure
   ///
   vecu8 read_bytes();
@@ -106,8 +116,52 @@ class Connection {
  private:
   std::string host_;
   std::string port_;
-  network::addrinfo hints_;
+  // network::addrinfo hints_;
+  // addrinfo
+  // TODO: remove?
+  std::unique_ptr<void, void (*)(void*)> hints_;
   network::socket_t socket_{0};
+};
+
+class ClientConnection {
+ public:
+  ClientConnection(std::string host, std::string port);
+  virtual ~ClientConnection() = default;
+  virtual void connect() = 0;
+
+  /// Send data with the underlying transport
+  /// if it's a TCP connection, then encode size of the message at the beginning
+  /// of data
+  ///
+  /// if WebSocket, then send blindly
+  virtual bool send_data(const std::vector<u8>& bytes) = 0;
+  bool send_data(std::vector<u8>&& bytes);
+
+  ///
+  /// Read a length-prefixed data message from connection
+  ///
+  /// @exception std::runtime_error on read failure
+  virtual vecu8 read_data() = 0;
+  virtual void stop();
+  connection::State state();
+
+ protected:
+  std::string host;
+  std::string port;
+  std::mutex state_mut_;
+  util::AtomicVariable<connection::State> state_;
+};
+
+class ClientTCPConnection : public ClientConnection {
+ public:
+  ClientTCPConnection(std::string host, std::string port);
+  void connect() override;
+  bool send_data(const std::vector<u8>& bytes) override;
+  ~ClientTCPConnection() override;
+  vecu8 read_data() override;
+
+ private:
+  std::unique_ptr<Connection> c_;
 };
 
 }  // namespace connection

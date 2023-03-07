@@ -144,7 +144,7 @@ class DualClient:
         self.host = host
         self.port = port
         self.conns: Dict[str, WebSocketClient] = {}
-        self.uri = f"http://{host}:{port}/ws"
+        self.uri = f"http://{host}:{port}"
         self.queue_id = -1
         self.timeout = timeout
         self.results = AsyncDict()

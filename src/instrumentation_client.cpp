@@ -4,19 +4,9 @@ using namespace instrumentation_client;
 using yrclient::to_json;
 
 InstrumentationClient::InstrumentationClient(
-    std::shared_ptr<connection::Connection> conn,
+    std::shared_ptr<connection::ClientConnection> conn,
     const std::chrono::milliseconds poll_timeout)
-    : conn_(conn), poll_timeout_(poll_timeout) {
-  // FIXME: timeout?
-  // network::set_io_timeout(conn_->socket(), poll_timeout_.count());
-}
-
-InstrumentationClient::InstrumentationClient(
-    const std::string host, const std::string port,
-    const std::chrono::milliseconds poll_timeout)
-    : InstrumentationClient(std::shared_ptr<connection::Connection>(
-                                new connection::Connection(host, port)),
-                            poll_timeout) {}
+    : conn_(conn), poll_timeout_(poll_timeout) {}
 
 // TODO: get rid of this
 ra2yrproto::Response InstrumentationClient::poll(
@@ -41,7 +31,9 @@ ra2yrproto::PollResults InstrumentationClient::poll_blocking(
     args->set_queue_id(queue_id);
     args->set_timeout((u64)timeout.count());
   }
+
   auto resp = send_command(C, ra2yrproto::POLL_BLOCKING);
+
   if (resp.code() == yrclient::RESPONSE_ERROR) {
     auto msg = yrclient::from_any<ra2yrproto::TextResponse>(resp.body());
     dprintf("{}", to_json(msg).c_str());
@@ -51,16 +43,20 @@ ra2yrproto::PollResults InstrumentationClient::poll_blocking(
 }
 
 size_t InstrumentationClient::send_data(const vecu8& data) {
-  size_t sent = conn_->send_bytes(data);
-  assert(sent == data.size());
-  return sent;
+  (void)conn_->send_data(data);
+  return data.size();
 }
 
 ra2yrproto::Response InstrumentationClient::send_message(const vecu8& data) {
   if (send_data(data) != data.size()) {
-    throw std::runtime_error("msg write failed");
+    throw std::runtime_error("sent data size mismatch");
   }
-  auto resp = conn_->read_bytes();
+
+  auto resp = conn_->read_data();
+  if (resp.size() == 0U) {
+    throw std::runtime_error("empty response, likely connection closed");
+  }
+
   ra2yrproto::Response R;
   R.ParseFromArray(resp.data(), resp.size());
   return R;
@@ -130,4 +126,8 @@ std::string InstrumentationClient::shutdown() {
   ra2yrproto::TextResponse T;
   r.body().UnpackTo(&T);
   return T.message();
+}
+
+connection::ClientConnection* InstrumentationClient::connection() {
+  return conn_.get();
 }

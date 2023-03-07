@@ -8,6 +8,7 @@
 #include "instrumentation_client.hpp"
 #include "logging.hpp"
 #include "network.hpp"
+#include "websocket_connection.hpp"
 
 #include <fmt/core.h>
 
@@ -35,15 +36,34 @@ enum class ClientType : i32 { COMMAND = 0, POLL = 1 };
 
 using ResultMap = AsyncMap<ra2yrproto::CommandResult, u64>;
 
+enum class CONNECTION_TYPE : int { TCP = 1, WEBSOCKET = 2 };
+
 ///
 /// Client that uses two connections to fetch results in real time. One
 /// connection issues command executions and the other polls the results.
 ///
 class AutoPollClient {
  public:
+  struct Options {
+    std::string host;
+    std::string port;
+    std::chrono::milliseconds poll_timeout;
+    std::chrono::milliseconds command_timeout;
+    CONNECTION_TYPE ctype = CONNECTION_TYPE::TCP;
+    void* io_service;
+  };
+
+  ///
+  /// Establishes connection to InstrumentationService. Throws std::exception on
+  /// failure. This function may (and probably will) block until succesful
+  /// connection.
+  ///
   AutoPollClient(const std::string host, const std::string port,
                  const std::chrono::milliseconds poll_timeout = 1000ms,
-                 const std::chrono::milliseconds command_timeout = 250ms);
+                 const std::chrono::milliseconds command_timeout = 250ms,
+                 CONNECTION_TYPE ctype = CONNECTION_TYPE::TCP,
+                 void* io_service = nullptr);
+  explicit AutoPollClient(AutoPollClient::Options o);
   ~AutoPollClient();
   ///
   /// Send command message with command client and poll results with poll client
@@ -55,19 +75,20 @@ class AutoPollClient {
   void poll_thread();
   ResultMap& results();
   InstrumentationClient* get_client(const ClientType type);
-  u64 queue_id() const;
+  u64 get_queue_id(ClientType t) const;
 
  private:
   std::string host_;
   std::string port_;
   const std::chrono::milliseconds poll_timeout_;
   const std::chrono::milliseconds command_timeout_;
+  CONNECTION_TYPE ctype_;
+  void* io_service_;
   std::atomic_bool active_;
+  ResultMap results_;
 
-  std::map<ClientType, std::unique_ptr<connection::Connection>> conns_;
   std::map<ClientType, std::unique_ptr<InstrumentationClient>> is_clients_;
   std::thread poll_thread_;
-  ResultMap results_;
-  u64 queue_id_{(u64)-1};
+  std::map<ClientType, u64> queue_ids_;
 };
 }  // namespace multi_client

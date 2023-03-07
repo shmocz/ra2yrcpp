@@ -19,10 +19,8 @@ using namespace std::chrono_literals;
 class InstrumentationClient {
  public:
   explicit InstrumentationClient(
-      std::shared_ptr<connection::Connection> conn,
+      std::shared_ptr<connection::ClientConnection> conn,
       const std::chrono::milliseconds poll_timeout = 5000ms);
-  InstrumentationClient(const std::string host, const std::string port,
-                        const std::chrono::milliseconds poll_timeout = 5000ms);
 
   ///
   /// Send bytes and return number of bytes sent.
@@ -62,9 +60,10 @@ class InstrumentationClient {
   ///
   ra2yrproto::CommandResult run_one(const google::protobuf::Message& M);
   std::string shutdown();
+  connection::ClientConnection* connection();
 
  private:
-  std::shared_ptr<connection::Connection> conn_;
+  std::shared_ptr<connection::ClientConnection> conn_;
   const std::chrono::milliseconds poll_timeout_;
 };
 

@@ -2,6 +2,8 @@
 
 using namespace yrclient;
 
+using ra2yrcpp::websocket_server::IOService;
+
 yrclient::ISCallback::ISCallback() : I(nullptr) {}
 
 void yrclient::ISCallback::call(hook::Hook* h, void* data, X86Regs* state) {
@@ -29,8 +31,7 @@ InstrumentationService::get_connection_threads() {
   auto& C = server().connections();
   std::transform(C.begin(), C.end(), std::back_inserter(res),
                  [](const auto& ctx) { return ctx->thread_id; });
-  res.push_back(
-      util::guarded(mut_ws_proxy_tid_, [this]() { return ws_proxy_tid_; }));
+  res.push_back(io_service_tid_.get());
   return res;
 }
 
@@ -99,12 +100,13 @@ static ra2yrproto::RunCommandAck handle_cmd(InstrumentationService* I,
   auto name = yrclient::split_string(client_cmd.type_url(), "/").back();
   ra2yrproto::RunCommandAck ack;
 
-  auto c =
-      std::shared_ptr<command::Command>(I->cmd_manager().factory().make_command(
+  auto c = std::shared_ptr<command::Command>(
+      I->cmd_manager().factory().make_command(
           name,
           std::unique_ptr<void, void (*)(void*)>(
               is_args, [](auto d) { delete reinterpret_cast<ISArgs*>(d); }),
-          C->socket()));
+          C->socket()),
+      [](auto* a) { delete a; });
   ack.set_id(c->task_id());
   I->cmd_manager().enqueue_command(c);
 
@@ -141,7 +143,6 @@ ra2yrproto::Response InstrumentationService::process_request(
       const auto timeout = std::chrono::milliseconds(
           R.args().IsInitialized() ? (u32)R.args().timeout()
                                    : cfg::POLL_BLOCKING_TIMEOUT_MS);
-      dprintf("queue_id={},timeout={}", queue_id, (u64)timeout.count());
       return yrclient::make_response(flush_results(queue_id, timeout));
     }
     case ra2yrproto::SHUTDOWN:
@@ -182,20 +183,6 @@ void InstrumentationService::on_send_bytes(connection::Connection* C,
   (void)bytes;
 }
 
-InstrumentationService::InstrumentationService(
-    const unsigned int max_clients, const unsigned int port,
-    std::function<std::string(InstrumentationService*)> on_shutdown)
-    : on_shutdown_(on_shutdown), server_(max_clients, port) {
-  server_.callbacks().receive_bytes = [this](auto* c, auto* b) {
-    return this->on_receive_bytes(c, b);
-  };
-  server_.callbacks().send_bytes = [this](auto* c, auto* b) {
-    this->on_send_bytes(c, b);
-  };
-  server_.callbacks().accept = [this](auto* c) { this->on_accept(c); };
-  server_.callbacks().close = [this](auto* c) { this->on_close(c); };
-}
-
 void InstrumentationService::store_value(
     const std::string key, std::unique_ptr<void, void (*)(void*)> d) {
   storage_[key] = std::move(d);
@@ -204,19 +191,13 @@ void InstrumentationService::store_value(
 InstrumentationService::InstrumentationService(
     InstrumentationService::IServiceOptions opt,
     std::function<std::string(InstrumentationService*)> on_shutdown)
-    : opts_(opt),
-      on_shutdown_(on_shutdown),
+    : on_shutdown_(on_shutdown),
+      opts_(opt),
       server_(opt.max_clients, opt.port),
-      ws_proxy_tid_(0u),
-      ws_proxy_([opt, this]() {
-        if (opt.ws_port > 0U) {
-          util::guarded(mut_ws_proxy_tid_, [this]() {
-            ws_proxy_tid_ = process::get_current_tid();
-          });
-          ra2yrcpp::websocket_server::WebsocketProxy W(
-              {"", opt.port, opt.ws_port});
-        }
-      }) {
+      io_service_tid_(0U),
+      ws_proxy_object_(ws_proxy_t::Options{opt.host, opt.port, opt.ws_port,
+                                           opt.max_clients + 4},
+                       &io_service_.s) {
   server_.callbacks().receive_bytes = [this](auto* c, auto* b) {
     return this->on_receive_bytes(c, b);
   };
@@ -225,6 +206,13 @@ InstrumentationService::InstrumentationService(
   };
   server_.callbacks().accept = [this](auto* c) { this->on_accept(c); };
   server_.callbacks().close = [this](auto* c) { this->on_close(c); };
+  server_.state().wait(server::Server::STATE::ACTIVE);
+
+  // wait until ws proxy is initialized
+  // ws_proxy_object_->ready.wait(true);
+  io_service_.s.post(
+      [this]() { io_service_tid_.store(process::get_current_tid()); });
+  io_service_tid_.wait_pred([](auto v) { return v != 0U; });
 }
 
 // FIXME: don't use
@@ -259,9 +247,24 @@ aq_t<storage_t*, std::recursive_mutex> InstrumentationService::aq_storage() {
   return util::acquire(mut_storage_, &storage_);
 }
 
-InstrumentationService::~InstrumentationService() { ws_proxy_.join(); }
+InstrumentationService::~InstrumentationService() {
+  for (const auto& s : stop_handlers_) {
+    s(nullptr);
+  }
+}
 
 const InstrumentationService::IServiceOptions& InstrumentationService::opts()
     const {
   return opts_;
+}
+
+yrclient::InstrumentationService* InstrumentationService::create(
+    InstrumentationService::IServiceOptions O,
+    std::map<std::string, command::Command::handler_t>* commands,
+    std::function<std::string(yrclient::InstrumentationService*)> on_shutdown) {
+  auto* I = new yrclient::InstrumentationService(O, on_shutdown);
+  for (auto& [name, fn] : *commands) {
+    I->add_command(name, fn);
+  }
+  return I;
 }

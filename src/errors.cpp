@@ -1,6 +1,10 @@
 #include "errors.hpp"
 #ifdef _WIN32
 #include <windows.h>
+#elif __linux__
+#include <cstring>
+
+#include <cerrno>
 #endif
 
 using namespace yrclient;
@@ -8,6 +12,8 @@ using namespace yrclient;
 int yrclient::get_last_error() {
 #ifdef _WIN32
   return GetLastError();
+#elif __linux__
+  return errno;
 #else
 #error Not implemented
 #endif
@@ -33,6 +39,8 @@ std::string yrclient::get_error_message(const int error_code) {
   LocalFree(buf);
   // Remove \r\n
   return message.substr(0, message.find("\r\n"));
+#elif __linux__
+  return strerror(error_code);
 #else
 #error Not Implemented
 #endif
@@ -44,7 +52,7 @@ not_implemented::not_implemented(const std::string message)
 const char* not_implemented::what() const throw() { return message_.c_str(); }
 
 system_error::system_error(const std::string message, const int error_code) {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__linux__)
   auto msg = get_error_message(error_code);
   message_ = message + " " + msg;
 #else

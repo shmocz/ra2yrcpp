@@ -34,6 +34,7 @@ struct worker_util {
   struct work_item {
     bool destroy{false};
     T item;
+    std::function<void(T&)> consume_fn;
   };
 
   async_queue::AsyncQueue<work_item> work;
@@ -48,20 +49,28 @@ struct worker_util {
   worker_util(worker_util&& o) = delete;
   worker_util& operator=(worker_util&& o) = delete;
 
-  ~worker_util() { work.push(work_item{true, {}}); }
+  // FIXME: use push()
+  ~worker_util() { work.push(work_item{true, {}, nullptr}); }
 
-  void push(T item) { work.push(work_item{false, item}); }
+  void push(T item, std::function<void(T&)> cfn = nullptr) {
+    work.push(work_item{false, item, cfn});
+  }
 
   void worker() {
     try {
       while (true) {
+        // FIXME: make sure this is a sane value
         auto V = work.pop(1, 1000ms * (3600));
         auto w = V.back();
         if (w.destroy) {
           break;
         }
         try {
-          consumer_fn(w.item);
+          if (w.consume_fn == nullptr) {
+            consumer_fn(w.item);
+          } else {
+            w.consume_fn(w.item);
+          }
         } catch (const std::exception& e) {
           eprintf("consumer: {}", e.what());
         }

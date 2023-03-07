@@ -2,10 +2,20 @@
 
 using namespace ra2yrcpp::websocket_server;
 
+IOService::IOService()
+    : work_guard(asio::make_work_guard(s)),
+      main_thread([this]() { s.run(); }) {}
+
+IOService::~IOService() {
+  work_guard.reset();
+  main_thread.join();
+}
+
 void WebsocketProxy::add_connection(network::socket_t src,
                                     asio::ip::tcp::socket sock) {
   if (tcp_conns.find(src) == tcp_conns.end()) {
     tcp_conns[src] = std::make_shared<TCPConnection>(std::move(sock), service_);
+
   } else {
     eprintf("duplicate socket: {}", src);
   }
@@ -13,7 +23,7 @@ void WebsocketProxy::add_connection(network::socket_t src,
 
 WebsocketProxy::WebsocketProxy(WebsocketProxy::Options o,
                                websocketpp::lib::asio::io_service* service)
-    : opts(o), service_(service) {
+    : opts(o), service_(service), ready(false) {
   // connect to destination server
   s.set_message_handler([this](auto h, auto msg) {
     if (msg->get_opcode() == websocketpp::frame::opcode::text) {
@@ -29,8 +39,7 @@ WebsocketProxy::WebsocketProxy(WebsocketProxy::Options o,
       auto p = msg->get_payload();
       auto op = msg->get_opcode();
 
-      std::shared_ptr<TCPConnection> conn =
-          tcp_conns[cptr->get_socket().native_handle()];
+      auto* conn = tcp_conns[cptr->get_socket().native_handle()].get();
 
       conn->f_worker.push(
           std::make_shared<work_item>(std::vector<u8>(p.begin(), p.end()), op),
@@ -97,8 +106,7 @@ WebsocketProxy::WebsocketProxy(WebsocketProxy::Options o,
   s.set_fail_handler([this](auto h) {
     asio::error_code ec;
     auto cptr = s.get_con_from_hdl(h, ec);
-    eprintf("fail handle={}, ec={}", cptr->get_socket().native_handle(),
-            ec.message());
+    eprintf("fail handle={}", cptr->get_socket().native_handle());
   });
   s.clear_access_channels(websocketpp::log::alevel::frame_payload |
                           websocketpp::log::alevel::frame_header);
@@ -111,6 +119,10 @@ WebsocketProxy::WebsocketProxy(WebsocketProxy::Options o,
   dprintf("init asio, ws_port={}, dest_port={}", o.websocket_port,
           o.destination_port);
   s.init_asio(service_);
+  s.set_reuse_addr(true);
   s.listen(websocketpp::lib::asio::ip::tcp::v4(), o.websocket_port);
   s.start_accept();
+  service_->post([this]() { ready.store(true); });
 }
+
+WebsocketProxy::~WebsocketProxy() { s.stop_listening(); }

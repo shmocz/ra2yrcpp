@@ -14,7 +14,7 @@ unsigned int num_threads_at_tgt(const process::Process& P, const u8* target,
     }
   });
   unsigned int res = 0;
-  const auto t = reinterpret_cast<unsigned int>(target);
+  const auto t = reinterpret_cast<std::uintptr_t>(target);
   for (auto eip : ips) {
     dprintf("eip,beg,end={},{},{}", eip, t,
             t + static_cast<unsigned int>(length));

@@ -124,6 +124,7 @@ set(MSVC_INCLUDE "${MSVC_BASE}/include")
 set(MSVC_LIB "${MSVC_BASE}/lib")
 set(WINSDK_INCLUDE "${WINSDK_BASE}/Include/${WINSDK_VER}")
 set(WINSDK_LIB "${WINSDK_BASE}/Lib/${WINSDK_VER}")
+set(WINSDK_UM_LIB "${WINSDK_LIB}/um/${WINSDK_ARCH}")
 
 if(NOT EXISTS "${MSVC_BASE}" OR
    NOT EXISTS "${MSVC_INCLUDE}" OR
@@ -230,7 +231,7 @@ set(LINK_FLAGS
     /safeseh:no
     -libpath:"${MSVC_LIB}/${WINSDK_ARCH}"
     -libpath:"${WINSDK_LIB}/ucrt/${WINSDK_ARCH}"
-    -libpath:"${WINSDK_LIB}/um/${WINSDK_ARCH}")
+    -libpath:"${WINSDK_UM_LIB}")
 
 if(case_sensitive_filesystem)
   # Ensure all sub-configures use the top-level symlinks dir instead of generating their own.
@@ -263,7 +264,7 @@ set(CMAKE_C_STANDARD_LIBRARIES "" CACHE STRING "" FORCE)
 set(CMAKE_CXX_STANDARD_LIBRARIES "" CACHE STRING "" FORCE)
 
 # Need these to find headers etc.
-set(CMAKE_FIND_ROOT_PATH "${CMAKE_INSTALL_PREFIX}")
+set(CMAKE_FIND_ROOT_PATH "${WINSDK_LIB}")
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
 

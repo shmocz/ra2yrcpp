@@ -4,6 +4,7 @@
 #include "instrumentation_service.hpp"
 #include "ra2yrcppcli.hpp"
 
+#include <fstream>
 #include <google/protobuf/descriptor.h>
 
 using namespace ra2yrcppcli;
@@ -131,11 +132,10 @@ int main(int argc, char* argv[]) {
       .implicit_value(true)
       .default_value(true);
   A.add_argument("-G", "--generate-dll-loader")
+      .default_value(std::string(""))
       .help(
           "Generate x86 code for loading and initializing the library and "
-          "write result to output")
-      .implicit_value(false)
-      .default_value(false);
+          "write result to destination file");
   A.add_argument("-agp", "--address-GetProcAddr")
       .help("Address of GetProcAddr function")
       .default_value(0u)
@@ -199,7 +199,8 @@ int main(int argc, char* argv[]) {
                            cfg::INIT_NAME, cfg::MAX_CLIENTS, 0U, 0U,
                            A.get<bool>("--no-indirect-address"));
     auto p = L.getCode<void __cdecl (*)(void)>();
-    std::cout << std::string(reinterpret_cast<char*>(p), L.getSize());
+    std::ofstream os(A.get("--generate-dll-loader"), std::ios::binary);
+    os << std::string(reinterpret_cast<char*>(p), L.getSize());
     return 0;
   }
 

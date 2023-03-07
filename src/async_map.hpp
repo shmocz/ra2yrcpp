@@ -21,6 +21,7 @@ bool wait_until(std::unique_lock<LockT>* lock, std::condition_variable* cv,
   return (cv->wait_for(*lock, timeout, pred));
 }
 
+// TODO: size limit
 template <typename T, typename KeyT = std::uint64_t>
 class AsyncMap : public async_queue::AsyncContainer {
  public:
@@ -42,11 +43,18 @@ class AsyncMap : public async_queue::AsyncContainer {
       if (!wait_until(
               &l, &a->cv, [&] { return (data_.find(key) != data_.end()); },
               timeout)) {
-        throw std::runtime_error("timeout");
+        throw std::runtime_error("timeout after " +
+                                 std::to_string(timeout.count()) + "ms");
       }
       return data_[key];
     }
     return data_[key];
+  }
+
+  void erase(const KeyT key) {
+    auto* a = a_.get();
+    std::unique_lock<decltype(a->m)> l(a->m);
+    data_.erase(key);
   }
 
   bool empty() const { return size() == 0; }

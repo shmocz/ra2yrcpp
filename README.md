@@ -99,6 +99,14 @@ $ make build
 
 The protobuf compiler is obtained as part of the build process as Windows executable, which will only work on Linux if wine is installed. Alternatively you can grab a pre-built native binary from https://github.com/protocolbuffers/protobuf/tags or build one by yourself and adjust `PROTOC_PATH` in your toolchain file, **provided your external protoc binary matches the version used by the library**.
 
+### Build core library natively
+
+The core component of the library isn't bound to YRpp or Windows and can be built natively with `BUILD_MAIN_LIBRARY=OFF` cmake option. Specify additional compile/link options for test executables in `EXTRA_FLAGS` variable. For example, the following enables ASan and UBSan for GCC:
+
+```cmake
+set(EXTRA_FLAGS -fsanitize=address -fsanitize=undefined)
+```
+
 ### Running tests
 
 It's recommended to run tests using docker. Execute regular tests with:
@@ -137,7 +145,7 @@ By default, a callback is created to save game state at the beginning of each fr
 
 ## Acknowledgements
 
-[Phobos](https://github.com/Phobos-developers/Phobos) project for providing resources and general help about the game internals.
+- [Phobos](https://github.com/Phobos-developers/Phobos) and YRpp contributors
 
 ## Legal and license
 

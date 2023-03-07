@@ -2,6 +2,8 @@
 #include "types.h"
 #include "util_string.hpp"
 
+#include <cstdio>
+
 #include <fstream>
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/dynamic_message.h>
@@ -10,6 +12,7 @@
 #include <google/protobuf/message.h>
 #include <google/protobuf/util/json_util.h>
 #include <map>
+#include <memory>
 #include <ra2yrproto/commands_builtin.pb.h>
 #include <ra2yrproto/commands_yr.pb.h>
 #include <ra2yrproto/core.pb.h>
@@ -50,8 +53,8 @@ T from_any(const google::protobuf::Any& a) {
 }
 
 struct CompressedOutputStream {
-  std::ofstream os;
-  google::protobuf::io::OstreamOutputStream s_f;
+  std::unique_ptr<FILE, void (*)(FILE*)> fd;
+  google::protobuf::io::FileOutputStream s_fo;
   google::protobuf::io::GzipOutputStream s_g;
   explicit CompressedOutputStream(const std::string path);
 };

@@ -1,6 +1,9 @@
 #pragma once
 #include "config.hpp"
 #include "errors.hpp"
+
+#include <array>
+#include <memory>
 #ifdef __MINGW32__
 #include <_bsd_types.h>
 #include <psdk_inc/_ip_types.h>
@@ -20,6 +23,17 @@ struct sockaddr;
 struct addrinfo;
 
 namespace network {
+
+enum class SOCK_TYPE : std::int32_t { SOCK_STREAM = 0, SOCK_DGRAM, COUNT };
+enum class SOCK_OPT : std::int32_t {
+  REUSEADDR = 0,
+  SNDTIMEO,
+  RCVTIMEO,
+  NODELAY,
+  COUNT
+};
+enum class SOCK_LEVEL : std::int32_t { L_SOL_SOCKET = 0, L_IPPROTO_TCP, COUNT };
+
 #ifdef _WIN32
 typedef unsigned int socket_t;
 #define INVALID_SOCKET (socket_t)(~0)
@@ -29,9 +43,7 @@ typedef unsigned int socket_t;
 #define SOCK_STREAM 1
 #define AF_INET 2
 #define SOMAXCONN 0x7fffffff
-constexpr int IPPROTO_TCP = 6;
 constexpr int ETIMEOUT = 10060;
-constexpr int SOL_SOCKET = 0xffff;
 constexpr int SO_REUSEADDR = 0x0004;
 // ws2tcpip.h
 #define AI_PASSIVE 0x00000001
@@ -40,31 +52,19 @@ constexpr socket_t BAD_SOCKET = INVALID_SOCKET;
 typedef char* recv_buf_t;
 typedef const char* send_buf_t;
 typedef ::sockaddr sockaddr;
-#if 1
-#else
-struct sockaddr {
-  u_short sa_family;
-  char sa_data[14];
-};
-#endif
 
-#if 1
-typedef struct addrinfo {
-  int ai_flags;
-  int ai_family;
-  int ai_socktype;
-  int ai_protocol;
-  size_t ai_addrlen;
-  char* ai_canonname;
-  network::sockaddr* ai_addr;
-  network::addrinfo* ai_next;
-} ADDRINFOA, *PADDRINFOA;
-#endif
 // typedef ::addrinfo addrinfo;
 #elif __linux__
+typedef int socket_t;
+#define INVALID_SOCKET (socket_t)(~0)
+typedef unsigned int DWORD;
+typedef ::sockaddr sockaddr;
 typedef void* recv_buf_t;
 typedef const void* send_buf_t;
 typedef int socket_t;
+
+#define SOMAXCONN 0x7fffffff
+constexpr int ETIMEOUT = 10060;
 constexpr socket_t BAD_SOCKET = -1;
 constexpr socket_t SOCKET_ERROR = -1;
 #else
@@ -80,6 +80,8 @@ struct Init {
   Init();
 };
 
+void Deinit();
+
 ///
 /// Wait and accept incoming connections on a socket. On success, return ERR_OK
 /// and store result socket in dest. In case of no connections within specified
@@ -90,12 +92,14 @@ socket_error bind(socket_t s, const sockaddr* addr, int namelen);
 socket_error connect(socket_t s, const network::sockaddr* name, int namelen);
 void getaddrinfo(const std::string host, std::string port, addrinfo* hints,
                  addrinfo** result);
+std::unique_ptr<addrinfo, void (*)(addrinfo*)> agetaddrinfo(
+    const std::string host, std::string port, addrinfo* hints);
 void freeaddrinfo(addrinfo* info);
 void closesocket(socket_t s);
 socket_error listen(socket_t s, int backlog);
 ssize_t recv(socket_t s, void* buffer, const size_t length, int flags);
 ssize_t send(socket_t s, const void* buffer, const size_t length, int flags);
-int setsockopt(socket_t s, int level, int optname, const char* optval,
+int setsockopt(socket_t s, SOCK_LEVEL, SOCK_OPT optname, const char* optval,
                int optlen);
 void set_io_timeout(socket_t s, const unsigned long timeout,
                     const bool nodelay = true);

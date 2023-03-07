@@ -69,7 +69,7 @@ class Hook {
   // TODO: fail if code is too short
   struct DetourTrampoline : Xbyak::CodeGenerator {
     DetourTrampoline(const u8* target, const size_t code_length) {
-      push(reinterpret_cast<u32>(target));
+      push(reinterpret_cast<std::uintptr_t>(target));
       ret();
       const size_t pad_length = code_length - getSize();
       if (pad_length > 0) {

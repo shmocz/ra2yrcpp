@@ -14,6 +14,7 @@ constexpr char key_raw_game_state[] = "raw_game_state";
 constexpr char key_on_load_game[] = "on_load_game";
 constexpr char key_map_data[] = "map_data";
 
+// TODO: reduce calls to this
 template <typename T, typename... ArgsT>
 T* ensure_storage_value(yrclient::InstrumentationService* I,
                         yrclient::storage_t* s, const std::string key,

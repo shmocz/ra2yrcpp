@@ -9,13 +9,13 @@ using util_command::get_cmd;
 /// Adds two unsigned integers, and returns result in EAX
 struct TestProgram : Xbyak::CodeGenerator {
   TestProgram() {
-    mov(eax, ptr[esp + 0x4]);
-    add(eax, ptr[esp + 0x8]);
+    mov(eax, ptr[esp + 1 * 0x4]);
+    add(eax, ptr[esp + 2 * 0x4]);
     entry_size = getSize();
     ret();
   }
 
-  auto get_code() { return getCode<int __cdecl (*)(const int, const int)>(); }
+  auto get_code() { return getCode<i32 __cdecl (*)(const i32, const i32)>(); }
 
   size_t entry_size;
 };
@@ -81,10 +81,11 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
         static TestProgram t;
         auto t_addr = t.get_code();
         t_addr(3, 3);
+
         // yrclient::HookableCommand::Result res;
         auto res = Q->command_data().mutable_result();
-        res->set_address_test_function(reinterpret_cast<u32>(t_addr));
-        res->set_address_test_callback(reinterpret_cast<u32>(&test_cb));
+        res->set_address_test_function(reinterpret_cast<u64>(t_addr));
+        res->set_address_test_callback(reinterpret_cast<u64>(&test_cb));
         res->set_code_size(t.entry_size);
       }),
       get_cmd<ra2yrproto::commands::InstallHook>([](auto* Q) {

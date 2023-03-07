@@ -48,7 +48,12 @@ void process::save_context(process::Thread* T) {
 }
 #endif
 
+#ifdef __linux__
+#include <unistd.h>
+#endif
+
 std::vector<u32> process::get_process_list() {
+#ifdef _WIN32
   std::vector<u32> res(1024, 0u);
   u32 bytes = 0;
   static_assert(sizeof(DWORD) == sizeof(u32));
@@ -57,9 +62,15 @@ std::vector<u32> process::get_process_list() {
   res.resize(bytes / sizeof(u32));
   // cerr << "Actual list size " << res.size() << endl;
   return res;
+#elif __linux__
+  return {};
+#else
+#error Not implemented
+#endif
 }
 
 std::string process::get_process_name(const u32 pid) {
+#ifdef _WIN32
   TCHAR szProcessName[MAX_PATH] = TEXT("<unknown>");
   HANDLE hProcess =
       OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
@@ -72,21 +83,40 @@ std::string process::get_process_name(const u32 pid) {
   // Print the process name and identifier.
   CloseHandle(hProcess);
   return szProcessName;
+#elif __linux__
+  (void)pid;
+  return "";
+#else
+#error Not implemented
+#endif
 }
 
 ThreadData::ThreadData()
     : data(nullptr), size(yrclient::divup(TD_SIZE, TD_ALIGN) * TD_ALIGN) {
+#ifdef _WIN32
   data = _mm_malloc(size, TD_ALIGN);
   memset(data, 0, size);
+#elif __linux__
+#else
+#error Not implemented
+#endif
 }
 
-ThreadData::~ThreadData() { _mm_free(data); }
+ThreadData::~ThreadData() {
+#ifdef _WIN32
+  _mm_free(data);
+#elif __linux__
+#else
+#error Not implemented
+#endif
+}
 
-Thread::Thread(int thread_id) : id_(thread_id) {
+Thread::Thread(int thread_id) : id_(thread_id), handle_(nullptr) {
 #ifdef _WIN32
   handle_ = process::open_thread(
       THREAD_ALL_ACCESS | THREAD_GET_CONTEXT | THREAD_SUSPEND_RESUME, FALSE,
       thread_id);
+#elif __linux__
 #else
 #error Not implemented
 #endif
@@ -95,6 +125,7 @@ Thread::Thread(int thread_id) : id_(thread_id) {
 Thread::~Thread() {
 #ifdef _WIN32
   CloseHandle(handle_);
+#elif __linux__
 #else
 #error Not implemented
 #endif
@@ -103,6 +134,8 @@ Thread::~Thread() {
 unsigned long process::suspend_thread(void* handle) {
 #ifdef _WIN32
   return SuspendThread(handle);
+#elif __linux__
+  return 1;
 #else
 #error Not implemented
 #endif
@@ -110,16 +143,24 @@ unsigned long process::suspend_thread(void* handle) {
 
 void* process::open_thread(unsigned long access, bool inherit_handle,
                            unsigned long thread_id) {
+#ifdef _WIN32
   void* h = OpenThread(access, inherit_handle, thread_id);
   if (h == nullptr) {
     throw yrclient::system_error("open_thread");
   }
   return h;
+#elif __linux__
+  return nullptr;
+#else
+#error Not implemented
+#endif
 }
 
 void* process::get_current_process_handle() {
 #ifdef _WIN32
   return GetCurrentProcess();
+#elif __linux__
+  return nullptr;
 #else
 #error Not implemented
 #endif
@@ -128,22 +169,32 @@ void* process::get_current_process_handle() {
 int process::get_current_tid() {
 #ifdef _WIN32
   return GetCurrentThreadId();
+#elif __linux__
+  return -1;
 #else
 #error Not implemented
 #endif
 }
 
 void Thread::suspend() {
+#ifdef _WIN32
   dprintf("tid,handle={},{}", id(), handle());
   if (suspend_thread(handle()) == (DWORD)-1) {
     throw yrclient::system_error("suspend_thread");
   }
+#elif __linux__
+  return;
+#else
+#error Not implemented
+#endif
 }
 
 void Thread::resume() {
 #ifdef _WIN32
   dprintf("tid,handle={},{}", id(), handle());
   ResumeThread(handle());
+#elif __linux__
+  return;
 #else
 #error Not implemented
 #endif
@@ -154,6 +205,8 @@ void Thread::set_gpr(const x86Reg reg, const int value) {
   auto* c = get_pgpr(reg);
   *c = value;
   save_context(this);
+#elif __linux__
+  return;
 #else
 #error Not implemented
 #endif
@@ -176,12 +229,14 @@ int* Thread::get_pgpr(const x86Reg reg) {
     I(esp, Esp);
     I(eip, Eip);
 #undef I
+    default:
+      return nullptr;
+  }
+#elif __linux__
+  return nullptr;
 #else
 #error Not implemented
 #endif
-  }
-
-  return nullptr;
 }
 
 void* Thread::handle() { return handle_; }
@@ -192,7 +247,8 @@ ThreadData& Thread::thread_data() { return sysdata_; }
 
 Process::Process(void* handle) : handle_(handle) {}
 
-Process::Process(const u32 pid, const u32 perm) {
+Process::Process(const u32 pid, const u32 perm) : Process(nullptr) {
+#ifdef _WIN32
   u32 p = perm;
   if (p == 0u) {
     p = PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
@@ -202,6 +258,11 @@ Process::Process(const u32 pid, const u32 perm) {
   if (handle_ == nullptr) {
     throw yrclient::system_error("OpenProcess");
   }
+#elif __linux__
+  return;
+#else
+#error Not implemented
+#endif
 }
 
 Process::~Process() {}
@@ -210,6 +271,7 @@ Process process::get_current_process() {
   return Process(process::get_current_process_handle());
 }
 
+#ifdef _WIN32
 static MEMORY_BASIC_INFORMATION get_mem_info(const void* address) {
   MEMORY_BASIC_INFORMATION m;
   if (VirtualQuery(address, &m, sizeof(m)) == 0u) {
@@ -217,7 +279,12 @@ static MEMORY_BASIC_INFORMATION get_mem_info(const void* address) {
   }
   return m;
 }
+#elif __linux__
+#else
+#error Not implemented
+#endif
 
+#ifdef _WIN32
 static DWORD vprotect(void* address, const size_t size,
                       const DWORD protection) {
   DWORD prot_old;
@@ -226,6 +293,10 @@ static DWORD vprotect(void* address, const size_t size,
   }
   return prot_old;
 }
+#elif __linux__
+#else
+#error Not implemented
+#endif
 
 std::string process::proc_basename(const std::string name) {
   auto pos = name.rfind("\\");
@@ -233,7 +304,15 @@ std::string process::proc_basename(const std::string name) {
   return name.substr(pos + 1);
 }
 
-unsigned long process::get_pid(void* handle) { return GetProcessId(handle); }
+unsigned long process::get_pid(void* handle) {
+#ifdef _WIN32
+  return GetProcessId(handle);
+#elif __linux__
+  return 1;
+#else
+#error Not implemented
+#endif
+}
 
 unsigned long process::get_pid(const std::string name) {
   auto plist = process::get_process_list();
@@ -252,6 +331,7 @@ void* Process::handle() const { return handle_; }
 
 void Process::write_memory(void* dest, const void* src, const size_t size,
                            const bool local) {
+#ifdef _WIN32
   if (local) {
     auto m = get_mem_info(dest);
     DWORD prot_old =
@@ -263,20 +343,37 @@ void Process::write_memory(void* dest, const void* src, const size_t size,
       throw yrclient::system_error("WriteProcesMemory");
     }
   }
+#elif __linux__
+  return;
+#else
+#error Not implemented
+#endif
 }
 
 // cppcheck-suppress unusedFunction
 void Process::read_memory(void* dest, const void* src, const size_t size) {
+#ifdef _WIN32
   if (ReadProcessMemory(handle_, src, dest, size, nullptr) == 0) {
     throw yrclient::system_error("ReadProcessMemory src=" +
                                  yrclient::to_hex(reinterpret_cast<u32>(src)) +
                                  ",count=" + std::to_string(size));
   }
+#elif __linux__
+  return;
+#else
+#error Not implemented
+#endif
 }
 
 void* Process::allocate_memory(const size_t size, unsigned long alloc_type,
                                unsigned long alloc_protect) {
+#ifdef _WIN32
   return VirtualAllocEx(handle_, NULL, size, alloc_type, alloc_protect);
+#elif __linux__
+  return nullptr;
+#else
+#error Not implemented
+#endif
 }
 
 void Process::for_each_thread(std::function<void(Thread*, void*)> callback,
@@ -302,6 +399,8 @@ void Process::for_each_thread(std::function<void(Thread*, void*)> callback,
   } else {
     throw yrclient::system_error("Thread32First");
   }
+#elif __linux__
+  return;
 #else
 #error Not implemented
 #endif
@@ -311,7 +410,10 @@ void Process::suspend_threads(const thread_id_t main_tid,
                               const std::chrono::milliseconds delay) const {
 #ifdef _WIN32
   suspend_threads(std::vector<thread_id_t>{main_tid}, delay);
+#elif __linux__
+  return;
 #else
+#error Not implemented
 #endif
 }
 
@@ -327,32 +429,29 @@ void Process::suspend_threads(const std::vector<thread_id_t> no_suspend,
       dprintf("not suspending masked thread {}", T->id());
     }
   });
+#elif __linux__
+  return;
 #else
+#error Not implemented
 #endif
 }
 
 void Process::resume_threads(const thread_id_t main_tid) const {
-#ifdef _WIN32
   for_each_thread([main_tid](Thread* T, void* ctx) {
     (void)ctx;
     if (T->id() != static_cast<int>(main_tid)) {
       T->resume();
     }
   });
-#else
-#endif
 }
 
 void Process::resume_threads(const std::vector<thread_id_t> no_resume) const {
-#ifdef _WIN32
   for_each_thread([&no_resume](Thread* T, void* ctx) {
     (void)ctx;
     if (!yrclient::contains(no_resume, T->id())) {
       T->resume();
     }
   });
-#else
-#endif
 }
 
 // pretty much copypaste from
@@ -380,16 +479,25 @@ std::vector<std::string> Process::list_loaded_modules() const {
   // Release the handle to the process.
 
   CloseHandle(hProcess);
+#elif __linux__
+  return {};
 #else
+#error Not implemented
 #endif
 }
 
 std::string process::getcwd() {
   char buf[1024];
+#ifdef _WIN32
 #ifndef _MSC_VER
   ::getcwd(buf, sizeof(buf));
 #else
   _getcwd(buf, sizeof(buf));
+#endif
+#elif __linux__
+  ::getcwd(buf, sizeof(buf));
+#else
+#error Not implemented
 #endif
   return std::string(buf, strchr(buf, '\0'));
 }

@@ -18,7 +18,7 @@ message GetSystemState {
 message InstallHook {
   message Args {
     string name = 1;
-    uint32 address = 2;
+    uint64 address = 2;
     uint32 code_length = 3;
   }
   message Result {}
@@ -28,8 +28,8 @@ message InstallHook {
 
 message AddCallback {
   message Args {
-    uint32 hook_address = 1;
-    uint32 callback_address = 2;
+    uint64 hook_address = 1;
+    uint64 callback_address = 2;
   }
   message Result {}
   Args args = 1;
@@ -63,9 +63,9 @@ message HookableCommand {
   message Args {}
 
   message Result {
-    uint32 address_test_function = 1;
+    uint64 address_test_function = 1;
     uint32 code_size = 2;
-    uint32 address_test_callback = 3;
+    uint64 address_test_callback = 3;
   }
   Args args = 1;
   Result result = 2;

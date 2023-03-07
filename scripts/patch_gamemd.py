@@ -4,18 +4,22 @@ import re
 import os
 import struct
 from typing import List, Tuple
+from dataclasses import dataclass
 import argparse
 from iced_x86 import *
+
+
+@dataclass
+class Section:
+    name: str
+    size: int
+    vaddr: int
+    paddr: int
+
 
 OFF_TEXT = 0x401000 - 0x1000
 START_P_TEXT = 0xB7A000
 OFF_P_TEXT = 0xB7A000 - 0x47E000
-
-
-def x(s):
-    return bytes(
-        int(s[(i * 2) : ((i + 1) * 2)], base=16) for i in range(int(len(s) / 2))
-    )
 
 
 def patch(b, b1, offset):
@@ -29,10 +33,34 @@ def eprint(*args):
     print(*args, file=sys.stderr)
 
 
-def get_paddr(addr: int):
-    if addr - START_P_TEXT < 0:
-        return addr - OFF_TEXT
-    return addr - OFF_P_TEXT
+def get_section(sections: List[Section], vaddr: int) -> Section:
+    """Locate seciton containing given vaddr"""
+    for s in sections:
+        if vaddr >= s.vaddr and vaddr <= s.vaddr + s.size:
+            return s
+
+
+def get_section_paddr(sections: List[Section], paddr: int) -> Section:
+    """Locate seciton containing given paddr"""
+    for s in sections:
+        if paddr >= s.paddr and paddr <= s.paddr + s.size:
+            return s
+
+
+def map_vaddr(sections: List[Section], vaddr: int) -> int:
+    """Map virtual address to physical address"""
+    s = get_section(sections, vaddr)
+    r = s.paddr + (vaddr - s.vaddr)
+    assert r >= 0
+    return r
+
+
+def map_paddr(sections: List[Section], paddr: int) -> int:
+    """Map physical address to virtual address"""
+    s = get_section(sections, paddr)
+    r = (paddr - s.paddr) + s.vaddr
+    assert r >= 0
+    return r
 
 
 def get_source():
@@ -63,9 +91,33 @@ def decode_until(b: bytes, ip=0, max_ins=10):
 
 
 def create_detour(
-    binary: bytes, address: int, addr_detours: int, code: bytes
+    binary: bytes,
+    address: int,
+    addr_detours: int,
+    code: bytes,
+    sections: List[Section] = None,
 ) -> int:
-    paddr = get_paddr(address)
+    """
+    Parameters
+    ----------
+    binary : bytes
+        PE binary
+    address : int
+        target virtual address
+    addr_detours : int
+        detours virtual address
+    code : bytes
+        code to write
+    sections : List[Section], optional
+
+    Returns
+    -------
+    int
+        Size of newly created detour
+    """
+    paddr = map_vaddr(sections, address)
+    section_detours = get_section(sections, addr_detours)
+    offset_detours = addr_detours - section_detours.vaddr
     # determine numbers of instructions to disassemble
     c = decode_until(binary[paddr : (paddr + 256)], ip=address)
 
@@ -75,25 +127,20 @@ def create_detour(
     if not all(list(str(x) in ["ret", "nop"] for x in bb)):
         to_copy = bytearray(binary[paddr : (paddr + c)])
     else:  # put another return val
-        eprint("fixing ret")
         binary[(paddr + c) : (paddr + c + 1)] = b"\xc3"
         to_copy = bytearray(b"\x90" * 6)
 
     # make detour
     detour = to_copy + code + pushret(address + c)
     # copy bytes to trampoline area
-    patch(binary, detour, addr_detours)
+    patch(binary, detour, section_detours.paddr + offset_detours)
     eprint(
-        "PATCH",
-        hex(address),
-        "DETOUR",
-        hex(addr_detours + OFF_P_TEXT),
-        "SIZE",
-        len(detour),
+        "PATCH", hex(address), "DETOUR", hex(addr_detours), "SIZE", len(detour)
     )
-    pr_1 = pushret(addr_detours + OFF_P_TEXT)
+    pr_1 = pushret(addr_detours)
     assert c - len(pr_1) >= 0
     b = pr_1 + bytearray([0x90] * (c - len(pr_1)))
+    # patch original binary
     patch(binary, b, paddr)
     return len(detour)
 
@@ -102,23 +149,25 @@ def create_detour_trampolines(
     binary: bytes,
     addresses: List[int],
     patches: List[Tuple[str, int, bytes]] = None,
+    sections: List[Section] = None,
+    detour_address: int = 0xB7E6AC,
 ):
     patches = patches or []
-    addr_detours = 0xB7E6AC - OFF_P_TEXT
+    addr_detours = detour_address
     for addr in addresses:
         addr_detours = addr_detours + create_detour(
-            binary, addr, addr_detours, b""
+            binary, addr, addr_detours, b"", sections
         )
 
     for ptype, addr, code in patches:
         if ptype == "d":
             addr_detours = addr_detours + create_detour(
-                binary, addr, addr_detours, code
+                binary, addr, addr_detours, code, sections
             )
         elif ptype == "r":
-            patch(binary, code, get_paddr(addr))
+            patch(binary, code, map_vaddr(sections, addr))
         else:
-            raise RuntimeError(f"Invalid patch type {d}")
+            raise RuntimeError(f"Invalid patch type {ptype}")
 
 
 def write_out(b):
@@ -127,10 +176,27 @@ def write_out(b):
     fp.flush()
 
 
+def auto_int(x):
+    return int(x, 0)
+
+
 def parse_args():
     a = argparse.ArgumentParser(
         description="Patch gamemd executable and output result to stdout",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    a.add_argument(
+        "-s",
+        "--sections",
+        action="append",
+        help="Section information for virtual address conversion in format: <name>:<size>:<vaddr>:<paddr>",
+    )
+    a.add_argument(
+        "-d",
+        "--detour-address",
+        type=auto_int,
+        default=0xB7E6AC,
+        help="Virtual address of section where to write detours",
     )
     a.add_argument(
         "-p",
@@ -145,7 +211,6 @@ def parse_args():
 
 
 def get_patches(patches: List[str]):
-    eprint("patches", patches)
     for ptype, s_addr, path in [
         re.match(r"(d|r)0x([a-fA-F0-9]+):(.+)", p).groups() for p in patches
     ]:
@@ -157,6 +222,14 @@ def get_patches(patches: List[str]):
             yield (ptype, addr, bytearray.fromhex(path))
 
 
+def get_sections(sections: List[str]) -> List[Section]:
+    res = []
+    for s in sections:
+        z = s.split(":")
+        res.append(Section(z[0], *[int(x, 0) for x in z[1:]]))
+    return res
+
+
 def main():
     a = parse_args()
     addrs = get_hook_addresses(get_source())
@@ -164,7 +237,8 @@ def main():
     with open(a.input, "rb") as f:
         b = bytearray(f.read())
         patches = list(get_patches(a.patches))
-        create_detour_trampolines(b, addrs, patches)
+        sections = get_sections(a.sections)
+        create_detour_trampolines(b, addrs, patches, sections, a.detour_address)
         write_out(b)
 
 

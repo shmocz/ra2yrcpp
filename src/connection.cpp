@@ -1,5 +1,14 @@
 #include "connection.hpp"
 
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#elif __linux__
+#include <netdb.h>
+#include <netinet/tcp.h>
+#include <sys/ioctl.h>
+#endif
+
 using namespace connection;
 
 ChunkReaderWriter::ChunkReaderWriter() {
@@ -13,7 +22,7 @@ unsigned int ChunkReaderWriter::buflen() const { return sizeof(buf_); }
 SocketIO::SocketIO(network::socket_t* socket) : socket_(socket) {}
 
 vecu8 SocketIO::read_chunk(const size_t bytes) {
-  size_t to_read = std::min(buflen(), bytes);
+  size_t to_read = std::min(static_cast<size_t>(buflen()), bytes);
   ssize_t res;
 #ifdef DEBUG_SOCKETIO
   dprintf("recv sock={},bytes={}", *socket_, bytes);
@@ -21,7 +30,7 @@ vecu8 SocketIO::read_chunk(const size_t bytes) {
   if ((res = network::recv(*socket_, buf_, bytes, 0)) < 0) {
     auto e = network::get_last_network_error();
     if (e == network::ETIMEOUT) {
-      throw yrclient::timeout();
+      throw yrclient::timeout("read_chunk(): timeout");
     }
     dprintf("neterr={}", e);
     throw yrclient::system_error(std::string("recv() ") + std::to_string(res),
@@ -34,7 +43,7 @@ vecu8 SocketIO::read_chunk(const size_t bytes) {
 }
 
 size_t SocketIO::write_chunk(const vecu8& message) {
-  size_t to_send = std::min(buflen(), message.size());
+  size_t to_send = std::min(static_cast<size_t>(buflen()), message.size());
   ssize_t res;
 #ifdef DEBUG_SOCKETIO
   dprintf("writing, sock={},bytes={}", *socket_, to_send);
@@ -129,18 +138,20 @@ size_t connection::write_bytes(const vecu8& bytes, ChunkReaderWriter* writer,
   return c_sent;
 }
 
+// FIXME
 // TODO: retries
 Connection::Connection(std::string host, std::string port)
-    : host_(host), port_(port) {
+    : host_(host), port_(port), hints_(utility::make_uptr<addrinfo>()) {
   // FIXME: set default hints in all overloads
-  memset(&hints_, 0, sizeof(hints_));
-  hints_.ai_family = AF_UNSPEC;
-  hints_.ai_socktype = SOCK_STREAM;
-  hints_.ai_protocol = network::IPPROTO_TCP;
+  memset(hints_.get(), 0, sizeof(addrinfo));
+  auto* h = reinterpret_cast<addrinfo*>(hints_.get());
+  h->ai_family = AF_INET;
+  h->ai_protocol = IPPROTO_TCP;
+  h->ai_socktype = SOCK_STREAM;
   socket_ = network::BAD_SOCKET;
   {
-    network::addrinfo* result;
-    network::getaddrinfo(host, port, &hints_, &result);
+    addrinfo* result;
+    network::getaddrinfo(host, port, h, &result);
     utility::scope_guard guard = [&result]() { network::freeaddrinfo(result); };
     // Connect until success/fail
     for (auto* ptr = result; ptr != nullptr; ptr = ptr->ai_next) {
@@ -158,18 +169,26 @@ Connection::Connection(std::string host, std::string port)
   dprintf("init_sock={}", socket_);
 }
 
-Connection::Connection(std::string port) : port_(port) {
-  memset(&hints_, 0, sizeof(hints_));
-  hints_.ai_family = AF_INET;
-  hints_.ai_socktype = SOCK_STREAM;
-  hints_.ai_protocol = network::IPPROTO_TCP;
-  hints_.ai_flags = AI_PASSIVE;
-  network::addrinfo* result;
-  network::getaddrinfo("", port_, &hints_, &result);
-  socket_ = network::socket(result);
+Connection::Connection(std::string port)
+    : port_(port), hints_(utility::make_uptr<addrinfo>()) {
+  memset(hints_.get(), 0, sizeof(addrinfo));
+  auto* h = reinterpret_cast<addrinfo*>(hints_.get());
+  h->ai_family = AF_INET;
+  h->ai_protocol = IPPROTO_TCP;
+  h->ai_socktype = SOCK_STREAM;
+  h->ai_flags = AI_PASSIVE;
+
+  auto result = network::agetaddrinfo("", port, h);
+  socket_ = network::socket(result.get());
   int s = 1;
-  network::setsockopt(socket_, (network::SOL_SOCKET), network::SO_REUSEADDR,
-                      reinterpret_cast<const char*>(&s), sizeof(int));
+
+  setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR,
+             reinterpret_cast<const char*>(&s), sizeof(int));
+#ifdef __linux__
+  if (ioctl(socket_, FIONBIO, reinterpret_cast<char*>(&s)) < 0) {
+    throw yrclient::system_error("ioctl() failed");
+  }
+#endif
   if (network::bind(socket_, result->ai_addr, result->ai_addrlen)) {
     throw yrclient::system_error("bind()");
   }
@@ -179,8 +198,9 @@ Connection::Connection(std::string port) : port_(port) {
   }
 }
 
-Connection::Connection(network::socket_t s) : socket_(s) {
-  memset(&hints_, 0, sizeof(hints_));
+Connection::Connection(network::socket_t s)
+    : socket_(s), hints_(utility::make_uptr<addrinfo>()) {
+  memset(hints_.get(), 0, sizeof(addrinfo));
 }
 
 Connection::~Connection() {
@@ -194,7 +214,6 @@ Connection::~Connection() {
 }
 
 // TODO: pass by pointer
-
 int Connection::send_bytes(const vecu8& bytes) {
   connection::SocketIO S(&socket_);
   return write_bytes(bytes, &S);
@@ -208,3 +227,44 @@ vecu8 Connection::read_bytes() {
 }
 
 network::socket_t Connection::socket() { return socket_; }
+
+ClientConnection::ClientConnection(std::string host, std::string port)
+    : host(host), port(port), state_(State::NONE) {}
+
+bool ClientConnection::send_data(std::vector<u8>&& bytes) {
+  return send_data(bytes);
+}
+
+ClientTCPConnection::ClientTCPConnection(std::string host, std::string port)
+    : ClientConnection(host, port) {}
+
+ClientTCPConnection::~ClientTCPConnection() {}
+
+void ClientTCPConnection::connect() {
+  c_ = std::make_unique<Connection>(host, port);
+  // FIXME: dont hardcode
+  network::set_io_timeout(c_->socket(), 10000);
+  state_.store(State::OPEN);
+}
+
+// FIXME: make parent method
+bool ClientTCPConnection::send_data(const std::vector<u8>& bytes) {
+  if (state_ != State::OPEN) {
+    throw std::runtime_error("Connection not open");
+  }
+  c_->send_bytes(bytes);
+  return true;
+}
+
+// FIXME: make parent method
+vecu8 ClientTCPConnection::read_data() {
+  if (state_ != State::OPEN) {
+    throw std::runtime_error("Connection not open");
+  }
+
+  return c_->read_bytes();
+}
+
+void ClientConnection::stop() {}
+
+connection::State ClientConnection::state() { return state_.get(); }

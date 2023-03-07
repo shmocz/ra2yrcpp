@@ -27,7 +27,11 @@ std::vector<Xbyak::Reg32> x86::get_regs(const Xbyak::CodeGenerator& c) {
 }
 
 void x86::restore_regs(Xbyak::CodeGenerator* c) {
+#ifdef XBYAK32
   c->popfd();
+#elif defined(XBYAK64)
+  c->popfq();
+#endif
   for (auto r : get_regs(*c)) {
     c->pop(r);
   }
@@ -38,5 +42,9 @@ void x86::save_regs(Xbyak::CodeGenerator* c) {
   for (auto r = regs.rbegin(); r != regs.rend(); r++) {
     c->push(*r);
   }
+#ifdef XBYAK32
   c->pushfd();
+#elif defined(XBYAK64)
+  c->pushfq();
+#endif
 }

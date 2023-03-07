@@ -39,9 +39,10 @@ struct IOService {
   websocketpp::lib::asio::executor_work_guard<decltype(s)::executor_type>
       work_guard;
 
-  IOService() : work_guard(asio::make_work_guard(s)) {}
+  IOService();
+  ~IOService();
 
-  void stop() { work_guard.reset(); }
+  std::thread main_thread;
 };
 
 struct work_item {
@@ -136,6 +137,7 @@ class WebsocketProxy {
 
   explicit WebsocketProxy(WebsocketProxy::Options o,
                           websocketpp::lib::asio::io_service* service);
+  ~WebsocketProxy();
 
   void add_connection(network::socket_t src, asio::ip::tcp::socket sock);
 
@@ -143,7 +145,7 @@ class WebsocketProxy {
   WebsocketProxy::server s;
   std::map<network::socket_t, std::shared_ptr<TCPConnection>> tcp_conns;
   websocketpp::lib::asio::io_service* service_;
-  util::Event<> ready;
+  util::AtomicVariable<bool> ready;
 };
 }  // namespace websocket_server
 

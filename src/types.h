@@ -16,7 +16,7 @@ X(32);
 X(64);
 #undef X
 
-typedef u32 addr_t;
+typedef std::uintptr_t addr_t;
 
 union X86Regs {
   u32 regs[9];

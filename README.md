@@ -101,7 +101,7 @@ The protobuf compiler is obtained as part of the build process as Windows execut
 
 ### Build core library natively
 
-The core component of the library isn't bound to YRpp or Windows and can be built natively with `BUILD_MAIN_LIBRARY=OFF` cmake option. Specify additional compile/link options for test executables in `EXTRA_FLAGS` variable. For example, the following enables ASan and UBSan for GCC:
+The core component and its related tests do not depend on Windows, and can be built natively using `BUILD_MAIN_LIBRARY=OFF` CMake option. You can specify additional compile/link options for test executables in the `EXTRA_FLAGS` variable. For instance, to enable ASan and UBSan on GCC or Clang:
 
 ```cmake
 set(EXTRA_FLAGS -fsanitize=address -fsanitize=undefined)

@@ -9,6 +9,9 @@ set -o nounset
 p_main="$RA2YRCPP_GAME_DIR"
 # ra2yrcpp library files (FXIME)
 p_libs="$RA2YRCPP_PKG_DIR"
+p_map_path="$MAP_PATH"
+p_ini_override="$INI_OVERRIDE"
+: ${PLAYERS_CONFIG:=test_data/envs.tsv}
 
 [ -d "$p_libs" ] || {
     echo "$p_libs not found"
@@ -38,79 +41,8 @@ paths=(
     Blowfish.dll
     ddraw.dll)
 
-function get_spawn_ini_settings() {
-    echo "[Settings]
-AIPlayers=0
-AlliesAllowed=False
-AttackNeutralUnits=Yes
-Bases=Yes
-BridgeDestroy=False
-BuildOffAlly=False
-Color=$color
-Credits=10000
-FogOfWar=No
-FrameSendRate=2
-GameID=12850
-GameMode=1
-GameSpeed=0
-Host=$is_host
-IsSpectator=False
-MCVRedeploy=True
-MultiEngineer=False
-Name=$name
-PlayerCount=2
-Port=$port
-Protocol=0
-Ra2Mode=False
-Scenario=spawnmap.ini
-Seed=1852262696
-ShortGame=True
-Side=6
-SidebarHack=Yes
-SuperWeapons=False
-UIGameMode=Battle
-UIMapName=[4] Dry Heat
-UnitCount=0"
-}
-
-: ${PLAYERS_CONFIG:=test_data/envs.tsv}
-
 IFS=$'\n' read -d '' -r -a cfgs <"$PLAYERS_CONFIG"
 cfgs=("${cfgs[@]:1}")
-
-function get_others() {
-    for i in ${!cfgs[@]}; do
-        c="${cfgs[$i]}"
-        read -r name color side is_host is_observer port <<<$(echo "$c")
-        if [ $i -eq $1 ]; then
-            continue
-        fi
-        ix=$((i + 1))
-        echo "[Other${ix}]
-Name=$name
-Side=$side
-IsSpectator=False
-Color=$color
-Ip=0.0.0.0
-Port=$port"
-    done
-
-}
-
-function get_spawn_ini() {
-    get_spawn_ini_settings
-    echo "
-[SpawnLocations]
-Multi1=0
-Multi2=1
-
-[Tunnel]
-Ip=0.0.0.0
-Port=50000
-
-"
-    get_others "$1"
-}
 
 function mklink() {
     it=("$@")
@@ -128,6 +60,11 @@ for i in ${!cfgs[@]}; do
     if [ ! -z "$PLAYER_ID" ] && [[ "$PLAYER_ID" != "player_${i}" ]]; then
         continue
     fi
+    cfg="${cfgs[$i]}"
+    read -r name color side is_host is_observer port ai_difficulty <<<$(echo "$cfg")
+    if [ "$ai_difficulty" != "-1" ]; then
+        continue
+    fi
     ifolder="$INSTANCES/player_${i}"
     mkdir -p "$ifolder"
     for p in ${paths[@]}; do
@@ -140,9 +77,25 @@ for i in ${!cfgs[@]}; do
     mklink ra2yrcppcli.exe *.dll "$ifolder"
     cd -
 
-    cp test_data/spawnmap.ini "$ifolder"
+    cp -f "$p_map_path" "$ifolder/spawnmap.ini"
+    if [ -f "$p_ini_override" ]; then
+        cat "$p_ini_override" >>"$ifolder/spawnmap.ini"
+    fi
     # write spawn.ini
-    cfg="${cfgs[$i]}"
-    read -r name color side is_host is_observer port <<<$(echo "$cfg")
-    get_spawn_ini "$i" >"$ifolder/spawn.ini"
+    # get_spawn_ini "$i" >"$ifolder/spawn.ini"
+    game_mode="yr"
+    if [ "$RA2_MODE" == "True" ]; then
+        game_mode="ra2"
+    fi
+
+    ./scripts/generate-spawnini.py \
+        -i "$PLAYERS_CONFIG" \
+        -f "$FRAME_SEND_RATE" \
+        -pr "$PROTOCOL_VERSION" \
+        -g "$game_mode" \
+        -p "$i" \
+        -s "$GAME_SPEED" \
+        -t "$TUNNEL_ADDRESS" \
+        -tp "$TUNNEL_PORT" \
+        >"$ifolder/spawn.ini"
 done

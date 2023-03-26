@@ -14,7 +14,6 @@ export DEST_DIR = $(BASE_DIR)/pkg
 BUILDER ?= builder
 
 export CPPCHECK ?= cppcheck
-export PLAYERS_CONFIG := ./test_data/envs.tsv
 export CM_FILES = $(filter %CMakeLists.txt, $(REPO_FILES))
 export CPP_SOURCES = $(filter %.cpp %.hpp %.c %.h, $(REPO_FILES))
 export W32_FILES := process.cpp state_parser.cpp dll_inject.cpp network.cpp addscn/addscn.cpp

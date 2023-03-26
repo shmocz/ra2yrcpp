@@ -61,3 +61,10 @@ inline void eerror(Args... args) {
   do {                                                                    \
     ra2yrcpp::logging::eerror(fmt, LOCATION_INFO() VA_ARGS(__VA_ARGS__)); \
   } while (0)
+
+#define wrprintf(fmt, ...)                                                   \
+  do {                                                                       \
+    ra2yrcpp::logging::print_message(stderr,                                 \
+                                     ra2yrcpp::logging::Level::WARNING, fmt, \
+                                     LOCATION_INFO() VA_ARGS(__VA_ARGS__));  \
+  } while (0)

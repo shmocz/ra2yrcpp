@@ -13,11 +13,15 @@ from .async_container import AsyncDict
 debug = logging.debug
 
 
-async def log_exceptions(coro):
+async def async_log_exceptions(coro):
     try:
         return await coro
     except Exception:
         logging.error("%s", traceback.format_exc())
+
+
+def logged_task(coro):
+    return asyncio.create_task(async_log_exceptions(coro))
 
 
 class TCPClient:
@@ -92,7 +96,7 @@ class WebSocketClient:
         self._connect_delay = 1.0
 
     def open(self):
-        self.task = asyncio.create_task(log_exceptions(self.main()))
+        self.task = asyncio.create_task(async_log_exceptions(self.main()))
 
     async def close(self):
         await self.in_queue.put(None)
@@ -159,7 +163,9 @@ class DualClient:
             self.conns[k] = WebSocketClient(self.uri, self.timeout)
             self.conns[k].open()
             debug("opened %s", k)
-        self._poll_task = asyncio.create_task(log_exceptions(self._poll_loop()))
+        self._poll_task = asyncio.create_task(
+            async_log_exceptions(self._poll_loop())
+        )
 
     def make_command(self, msg=None, command_type=None) -> core.Command:
         c = core.Command()

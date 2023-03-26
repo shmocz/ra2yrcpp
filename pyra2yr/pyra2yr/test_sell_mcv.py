@@ -2,20 +2,20 @@ import asyncio
 import logging
 import os
 import re
+
 from ra2yrproto import ra2yr
 
 from pyra2yr.manager import Manager, ManagerUtil
-from pyra2yr.network import log_exceptions
+from pyra2yr.network import logged_task
+from pyra2yr.test_util import verify_recording
 from pyra2yr.util import (
+    Clock,
+    coord2cell,
+    coord2tuple,
+    pdist,
     tuple2coord,
     unixpath,
-    coord2cell,
-    pdist,
-    coord2tuple,
-    Clock,
 )
-from pyra2yr.test_util import verify_recording
-
 
 logging.basicConfig(level=logging.DEBUG)
 debug = logging.debug
@@ -37,7 +37,8 @@ async def mcv_sell(app=None):
     await M.wait_state(
         lambda: M.state.stage == ra2yr.STAGE_INGAME
         and M.state.current_frame > 1
-        and len(M.type_classes) > 0
+        and len(M.type_classes) > 0,
+        timeout=60,
     )
     info("state=ingame, players=%s", M.state.houses)
 
@@ -72,7 +73,7 @@ async def mcv_sell(app=None):
     assert len(o_mcv) == 1
     o_mcv = o_mcv[0]
 
-    X.tick()
+    X.tic()
     debug("selecting MCV p=%d", o_mcv.pointer_self)
     await U.select(object_addresses=[o_mcv.pointer_self])
 
@@ -87,7 +88,7 @@ async def mcv_sell(app=None):
         ]
     )
 
-    info("latency(select): %f", X.tock())
+    info("latency(select): %f", X.toc())
 
     # Move one cell down
     cur_coords = coord2tuple(o_mcv.coordinates)
@@ -112,7 +113,7 @@ async def mcv_sell(app=None):
         ]
     )
 
-    X.tick()
+    X.tic()
     await U.deploy(o_mcv.pointer_self)
 
     # wait until there's a MCV
@@ -124,7 +125,7 @@ async def mcv_sell(app=None):
             and o.pointer_house == p_player
         ]
     )
-    info("latency(deploy): %f", X.tock())
+    info("latency(deploy): %f", X.toc())
 
     # Get map data
     res = await U.read_value(map_data=ra2yr.MapData())
@@ -143,7 +144,7 @@ async def mcv_sell(app=None):
     )
 
     res = await U.get_place_locations(
-        cur_coords, tc_tesla.pointer_self, p_player, 5, 5
+        cur_coords, tc_tesla.pointer_self, p_player, 15, 15
     )
 
     # get cell furthest away and place
@@ -187,7 +188,7 @@ async def mcv_sell(app=None):
 
 
 async def test_sell_mcv(host: str):
-    t = asyncio.create_task(log_exceptions(mcv_sell()))
+    t = logged_task(mcv_sell())
     await t
 
 

@@ -12,4 +12,4 @@ $ python3 -m pip install -r requirements.txt .
 
 ## Usage
 
-See `pyra2yr/test_sell_mcv.py` for example integration test.
+See `pyra2yr/test_*.py` files for example usage.

@@ -1,16 +1,103 @@
 import asyncio
-import logging
-from typing import Any, List
-from ra2yrproto import commands_yr, core, ra2yr, commands_builtin
-from pyra2yr.network import DualClient, log_exceptions
-from pyra2yr.util import tuple2coord
+import datetime
+import logging as lg
+import traceback
+from datetime import datetime as dt
+from datetime import timedelta
+from enum import Enum, IntFlag, auto
+from functools import cached_property
+from typing import Any, Dict, List, Set
+
+import numpy as np
+from ra2yrproto import commands_builtin, commands_yr, core, ra2yr
+
+from pyra2yr.network import DualClient, logged_task
+from pyra2yr.util import Clock, tuple2coord
 
 
-error = logging.error
-debug = logging.debug
+class CachedEntry:
+    def __init__(self, s: ra2yr.GameState):
+        self.s = s
+        self.last_updated = 0
+        self.value = None
+
+    def should_update(self) -> bool:
+        return self.last_updated < self.s.current_frame
+
+    def get(self) -> Any:
+        return self.value
+
+    def update(self, x: Any):
+        self.value = x
+        self.last_updated = self.s.current_frame
+
+
+class PrerequisiteCheck(IntFlag):
+    OK = auto()
+    EMPTY_PREREQUISITES = auto()
+    NOT_IN_MYIDS = auto()
+    INVALID_PREQ_GROUP = auto()
+    NOT_PREQ_GROUP_IN_MYIDS = auto()
+    BAD_TECH_LEVEL = auto()
+    NO_STOLEN_TECH = auto()
+    FORBIDDEN_HOUSE = auto()
+    BUILD_LIMIT_REACHED = auto()
+
+
+class NumpyMapData:
+    def __init__(self, data: ra2yr.MapDataSoA):
+        self.data = data
+        self.width = data.map_width
+        self.height = data.map_height
+        self.keys = [
+            "land_type",
+            "height",
+            "level",
+            "overlay_data",
+            "tiberium_value",
+            "shrouded",
+            "passability",
+        ]
+
+        self.dm0 = np.zeros(
+            (self.width * self.height, len(self.keys)), dtype=np.int32
+        )
+
+        self.update(data)
+
+    def update(self, data: ra2yr.MapDataSoA):
+        self.dm0[:, 0] = data.land_type[:]
+        self.dm0[:, 5] = data.shrouded[:]
+        self.dm0[:, 6] = data.passability[:]
+        self.dm = self.dm0.reshape((self.width, self.height, len(self.keys)))
+        self.data = data
+
+
+def check_stolen_tech(ttc: ra2yr.ObjectTypeClass, h: ra2yr.House):
+    return (
+        (ttc.requires_stolen_allied_tech and not h.allied_infiltrated)
+        or (ttc.requires_stolen_soviet_tech and not h.soviet_infiltrated)
+        or (ttc.requires_stolen_third_tech and not h.third_infiltrated)
+    )
+
+
+def check_preq_list(ttc: ra2yr.ObjectTypeClass, myids, prerequisite_map):
+    res = PrerequisiteCheck.OK
+    if not ttc.prerequisites:
+        res |= PrerequisiteCheck.EMPTY_PREREQUISITES
+    for p in ttc.prerequisites:
+        if p >= 0 and p not in myids:
+            res |= PrerequisiteCheck.NOT_IN_MYIDS
+        if p < 0:
+            if p not in prerequisite_map:
+                res |= PrerequisiteCheck.INVALID_PREQ_GROUP
+            if not myids.intersection(prerequisite_map[p]):
+                res |= PrerequisiteCheck.NOT_PREQ_GROUP_IN_MYIDS
+    return res
 
 
 class Manager:
+    # TODO: don't replace the state with new instance, so that other components can look into it safely
     def __init__(
         self, address: str = "0.0.0.0", port: int = 14525, poll_frequency=20
     ):
@@ -30,14 +117,19 @@ class Manager:
         self.poll_frequency = min(max(1, poll_frequency), 60)
         self.state: ra2yr.GameState = ra2yr.GameState()
         self.type_classes: List[ra2yr.ObjectTypeClass] = []
+        self.prerequisite_groups: ra2yr.PrerequisiteGroups = []
         self.callbacks = []
-        self.client: DualClient = DualClient(address, port)
-        self._main_task = asyncio.create_task(log_exceptions(self.mainloop()))
         self.state_updated = asyncio.Condition()
         self._stop = asyncio.Event()
+        self.client: DualClient = DualClient(self.address, self.port)
+        self.t = Clock()
+        self.iters = 0
+        self.show_stats_every = 30
+        self.delta = 0
         # default callbacks
 
     def start(self):
+        self._main_task = logged_task(self.mainloop())
         self.client.connect()
 
     async def stop(self):
@@ -48,16 +140,59 @@ class Manager:
     def add_callback(self, fn):
         self.callbacks.append(fn)
 
+    @cached_property
+    def prerequisite_map(self) -> Dict[int, Set[int]]:
+        items = {
+            "proc": -6,
+            "tech": -5,
+            "radar": -4,
+            "barracks": -3,
+            "factory": -2,
+            "power": -1,
+        }
+        return {
+            v: set(getattr(self.prerequisite_groups, k))
+            for k, v in items.items()
+        }
+
     async def step(self, s: ra2yr.GameState):
         pass
 
-    async def on_state_update(self, s: ra2yr.GameState):
-        if not self.type_classes and self.state.current_frame > 0:
-            res_tc = await self.run(commands_yr.GetTypeClasses())
-            self.type_classes = res_tc.result.classes
-            assert len(self.type_classes) > 0
+    # FIXME: rename
+    async def update_type_classes(self):
+        U = ManagerUtil(self)
+        res_istate = await U.read_value(initial_game_state=ra2yr.GameState())
+        state = res_istate.result.data.initial_game_state
+        self.type_classes = state.object_types
+        self.prerequisite_groups = state.prerequisite_groups
+        assert len(self.type_classes) > 0
 
-        await self.step(s)
+    async def on_state_update(self, s: ra2yr.GameState):
+        if self.iters % self.show_stats_every == 0:
+            delta = self.t.toc()
+            lg.debug(
+                "step=%d interval=%d avg_duration=%f avg_fps=%f",
+                self.iters,
+                self.show_stats_every,
+                delta / self.show_stats_every,
+                self.show_stats_every / delta,
+            )
+            self.t.tic()
+        if s.current_frame > 0:
+            if not self.type_classes:
+                await self.update_type_classes()
+            if not self.prerequisite_groups:
+                self.prerequisite_groups = s.prerequisite_groups
+            try:
+                fn = await self.step(s)
+                if fn:
+                    # await asyncio.create_task(fn)
+                    await fn()
+            except AssertionError:
+                raise
+            except:
+                lg.error("exception on step: %s", traceback.format_exc())
+        self.iters += 1
 
     async def get_state(self) -> ra2yr.GameState:
         cmd = commands_yr.GetGameState()
@@ -78,22 +213,31 @@ class Manager:
                 except:  # FIXME: more explicit check
                     getattr(c.args, k).CopyFrom(v)
         res = await self.run_command(c)
+        if res.result_code == core.ResponseCode.ERROR:
+            lg.error("Failed to run command: %s", res.error_message)
         res_o = type(c)()
         res.result.Unpack(res_o)
         return res_o
 
+    # TODO: dont run async code in same thread as Manager due to performance reasons
     async def mainloop(self):
+        d = 1 / self.poll_frequency
+        deadline = dt.now().timestamp()
         while not self._stop.is_set():
             try:
+                await asyncio.sleep(
+                    min(d, max(deadline - dt.now().timestamp(), 0.0))
+                )
+                deadline = dt.now().timestamp() + d
                 s = await self.get_state()
+                if self.state and s.current_frame == self.state.current_frame:
+                    continue
+                self.state.CopyFrom(s)
                 await self.on_state_update(s)
-                self.state = s
                 async with self.state_updated:
                     self.state_updated.notify_all()
             except asyncio.exceptions.TimeoutError:
-                error("Couldn't fetch result")
-
-            await asyncio.sleep(1 / self.poll_frequency)
+                lg.error("Couldn't fetch result")
 
     async def wait_state(self, cond, timeout=30):
         async with self.state_updated:
@@ -103,32 +247,14 @@ class Manager:
             )
 
 
-class StateUtil:
-    def __init__(self, type_classes: List[ra2yr.TypeClass]):
-        self.type_classes = type_classes
-        self.state = None
-
-    def set_state(self, state: ra2yr.GameState):
-        self.state = state
-
-    def get_house(self, name: str) -> ra2yr.House:
-        return next(h for h in self.state.houses if h.name == name)
-
-    def get_units(self, house_name: str) -> ra2yr.Object:
-        h = self.get_house(house_name)
-        return (u for u in self.state.objects if u.pointer_house == h.self)
-
-    def get_production(self, house_name: str) -> ra2yr.Factory:
-        h = self.get_house(house_name)
-        return (f for f in self.state.factories if f.owner == h.self)
-
-
 class ManagerUtil:
     def __init__(self, manager: Manager):
         self.manager = manager
 
     def make_command(self, c: Any, **kwargs):
         for k, v in kwargs.items():
+            if v is None:
+                continue
             if isinstance(v, list):
                 getattr(c.args, k).extend(v)
             else:
@@ -156,12 +282,14 @@ class ManagerUtil:
         object_addresses=List[int],
         event=ra2yr.Mission,
         coordinates=None,
+        target_object=None,
     ):
         return self.make_command(
             commands_yr.MissionClicked(),
             object_addresses=object_addresses,
             event=event,
             coordinates=coordinates,
+            target_object=target_object,
         )
 
     def click_event(
@@ -204,6 +332,42 @@ class ManagerUtil:
                 object_addresses=object_addresses,
                 event=ra2yr.Mission_Move,
                 coordinates=coordinates,
+            )
+        )
+
+    async def capture(
+        self,
+        object_addresses: List[int] = None,
+        coordinates=None,
+        target_object: int = 0,
+    ):
+        return await self.manager.run(
+            self.mission_clicked(
+                object_addresses=object_addresses,
+                event=ra2yr.Mission_Capture,
+                coordinates=coordinates,
+                target_object=target_object,
+            )
+        )
+
+    async def capture_old(
+        self,
+        house_index: int,
+        whom: int,
+        rtti_whom: ra2yr.AbstractType,
+        rtti: ra2yr.AbstractType,
+        destination: int,
+    ):
+        return await self.manager.run(
+            self.add_event(
+                event_type=ra2yr.NETWORK_EVENT_MegaMission,
+                house_index=house_index,
+                mega_mission=ra2yr.Event.MegaMission(
+                    whom=ra2yr.TargetClass(m_id=whom, m_rtti=rtti_whom),
+                    mission=ra2yr.Mission_Capture,
+                    target=ra2yr.TargetClass(m_id=destination, m_rtti=rtti),
+                    follow=ra2yr.TargetClass(m_id=whom),
+                ),
             )
         )
 
@@ -251,13 +415,19 @@ class ManagerUtil:
             )
         )
 
-    async def produce(self, house_index=0, rtti_id: int = 0, heap_id: int = 0):
+    async def produce(
+        self,
+        house_index=0,
+        rtti_id: int = 0,
+        heap_id: int = 0,
+        is_naval: bool = False,
+    ):
         return await self.manager.run(
             self.add_event(
-                event_type=0xE,
+                event_type=ra2yr.NETWORK_EVENT_Produce,
                 house_index=house_index,
                 production=ra2yr.Event.Production(
-                    rtti_id=rtti_id, heap_id=heap_id
+                    rtti_id=rtti_id, heap_id=heap_id, is_naval=is_naval
                 ),
             )
         )
@@ -288,7 +458,7 @@ class ManagerUtil:
     async def read_value(self, **kwargs):
         return await self.manager.run(
             commands_yr.ReadValue(),
-            data=commands_yr.ReadValue.Target(**kwargs),
+            data=commands_yr.StorageValue(**kwargs),
         )
 
     async def inspect_configuration(self):
@@ -297,12 +467,7 @@ class ManagerUtil:
     async def get_system_state(self):
         return await self.manager.run(commands_builtin.GetSystemState())
 
-    async def can_build_this(self, typeclass_id: int = 0) -> bool:
-        pass
-
-    async def get_place_locations(
-        self, coords, type_class_id: int, house_pointer: int, rx: int, ry: int
-    ):
+    def cell_grid(self, coords, rx: int, ry: int):
         # get potential place locations
         place_query_grid = []
         for i in range(0, rx):
@@ -311,10 +476,18 @@ class ManagerUtil:
                     tuple2coord(
                         tuple(
                             x + y * 256
-                            for x, y in zip(coords, (i - rx, j - ry, 0))
+                            for x, y in zip(
+                                coords, (i - int(rx / 2), j - int(ry / 2), 0)
+                            )
                         )
                     )
                 )
+        return place_query_grid
+
+    async def get_place_locations(
+        self, coords, type_class_id: int, house_pointer: int, rx: int, ry: int
+    ):
+        place_query_grid = self.cell_grid(coords, rx, ry)
 
         res = await self.place_query(
             type_class=type_class_id,
@@ -322,3 +495,20 @@ class ManagerUtil:
             coordinates=place_query_grid,
         )
         return res
+
+
+class ActionTracker:
+    def __init__(self, s: ra2yr.GameState):
+        self.s = s
+        self.rules = {}
+        self.values = {}
+
+    def add_tracker(self, key, frames):
+        self.rules[key] = frames
+        self.values[key] = 0
+
+    def proceed(self, key):
+        if self.s.current_frame - self.values[key] > self.rules[key]:
+            self.values[key] = self.s.current_frame
+            return True
+        return False

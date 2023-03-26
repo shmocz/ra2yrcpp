@@ -1,6 +1,6 @@
 import gzip
-from pyra2yr.util import read_protobuf_messages
-from pyra2yr.manager import StateUtil
+
+from pyra2yr.util import StateUtil, read_protobuf_messages
 
 
 def verify_recording(path: str):

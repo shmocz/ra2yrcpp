@@ -5,6 +5,10 @@
 #include <utility>
 
 namespace util {
+
+template <typename T, typename MutexT = std::mutex>
+using acquire_t = std::tuple<std::unique_lock<MutexT>, T>;
+
 /// Obtain exclusive access to resource @v guarded by mutex @m
 template <typename T, typename MutexT = std::mutex>
 inline auto acquire(MutexT& m, T* v) {  // NOLINT

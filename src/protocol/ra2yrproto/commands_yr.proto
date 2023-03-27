@@ -14,7 +14,9 @@ enum UnitAction {
 }
 
 message CreateHooks {
-  message Args {}
+  message Args {
+    bool no_suspend_threads = 1;
+  }
   message Result {}
   Args args = 1;
   Result result = 2;
@@ -36,37 +38,20 @@ message GetGameState {
   Result result = 2;
 }
 
+message StorageValue {
+  ra2yrproto.ra2yr.GameState game_state = 1;
+  ra2yrproto.ra2yr.MapData map_data = 2;
+  ra2yrproto.ra2yr.GameState initial_game_state = 3;
+  ra2yrproto.ra2yr.EventListsSnapshot event_buffer = 4;
+  ra2yrproto.ra2yr.MapDataSoA map_data_soa = 5;
+}
+
 message ReadValue {
-  message Target {
-    oneof data {
-      ra2yrproto.ra2yr.GameState game_state = 1;
-      ra2yrproto.ra2yr.MapData map_data = 2;
-    }
-  }
-
   message Args {
-    Target data = 1;
+    StorageValue data = 1;
   }
   message Result {
-    Target data = 1;
-  }
-  Args args = 1;
-  Result result = 2;
-}
-
-message GetTypeClasses {
-  message Args {}
-  message Result {
-    repeated ra2yrproto.ra2yr.ObjectTypeClass classes = 1;
-  }
-  Args args = 1;
-  Result result = 2;
-}
-
-message GetHouses {
-  message Args {}
-  message Result {
-    repeated ra2yrproto.ra2yr.House houses = 1;
+    StorageValue data = 1;
   }
   Args args = 1;
   Result result = 2;
@@ -133,7 +118,9 @@ message AddEvent {
   message Args {
     ra2yrproto.ra2yr.Event event = 1;
   }
-  message Result {}
+  message Result {
+    ra2yrproto.ra2yr.Event event = 1;
+  }
   Args args = 1;
   Result result = 2;
 }

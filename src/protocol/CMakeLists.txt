@@ -42,3 +42,5 @@ add_library(protocol_o OBJECT protocol.cpp ${PROTO_SRCS} ../util_string.cpp)
 add_library(protocol INTERFACE protocol.cpp)
 add_dependencies(protocol_o compile-protobuf)
 target_link_libraries(protocol INTERFACE protocol_o)
+
+# TODO: should make generated headers as intall targets

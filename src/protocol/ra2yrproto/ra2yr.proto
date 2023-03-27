@@ -2,6 +2,15 @@ syntax = "proto3";
 
 package ra2yrproto.ra2yr;
 
+enum BuildCategory {
+  BUILD_CATEGORY_DontCare = 0;
+  BUILD_CATEGORY_Tech = 1;
+  BUILD_CATEGORY_Resoure = 2;
+  BUILD_CATEGORY_Power = 3;
+  BUILD_CATEGORY_Infrastructure = 4;
+  BUILD_CATEGORY_Combat = 5;
+}
+
 enum SpeedType {
   SPEED_TYPE_FOOT = 0;
   SPEED_TYPE_TRACK = 1;
@@ -133,6 +142,7 @@ message SHPPixelData {
   uint32 width = 1;
   uint32 height = 2;
   repeated bytes frames = 3;
+  uint32 pointer_self = 4;
 }
 
 message TypeClass {
@@ -174,6 +184,10 @@ message House {
   bool is_loser = 12;
   int32 power_output = 13;
   int32 power_drain = 14;
+  int32 type_array_index = 15;
+  bool allied_infiltrated = 16;
+  bool soviet_infiltrated = 17;
+  bool third_infiltrated = 18;
 }
 
 message Controls {
@@ -204,6 +218,21 @@ message ObjectTypeClass {
   uint32 pointer_shp_struct = 7;
   repeated int32 prerequisites = 8;
   AbstractType type = 9;
+  int32 power_drain = 10;
+  int32 required_houses = 11;
+  int32 forbidden_houses = 12;
+  uint32 owner_flags = 13;
+  int32 tech_level = 14;
+  bool is_base_defense = 15;
+  bool wall = 16;
+  int32 power_bonus = 17;
+  BuildCategory build_category = 18;
+  int32 build_limit = 19;
+  bool naval = 20;
+  bool requires_stolen_allied_tech = 21;
+  bool requires_stolen_soviet_tech = 22;
+  bool requires_stolen_third_tech = 23;
+  uint32 pointer_cameo = 24;
 }
 
 message Object {
@@ -223,6 +252,9 @@ message Object {
   bool deployed = 14;
   bool deploying = 15;
   bool undeploying = 16;
+  Coordinates destination = 17;
+  Mission current_mission = 18;
+  bool in_limbo = 19;
 }
 
 enum LoadStage {
@@ -247,25 +279,43 @@ message Cell {
   double tiberium_multiplier = 7;
   // Objects in this Cell
   repeated Object objects = 8;
+  bool shrouded = 9;
+  uint32 passability = 10;
 };
 
 message MapData {
-  // minimum and maximum cell values
-  Coordinates topleft = 1;
-  Coordinates bottomright = 2;
+  // map bounds
+  uint32 width = 1;
+  uint32 height = 2;
   repeated Cell cells = 3;
+
+  // These are the actual offset to the static cell array
+  uint32 offset_x = 4;
+  uint32 offset_y = 5;
 };
 
-message GameState {
-  uint32 current_frame = 1;
-  repeated Factory factories = 3;
-  repeated House houses = 4;
-  repeated ObjectTypeClass object_types = 5;
-  repeated Object objects = 6;
-  LoadStage stage = 7;
-  repeated double load_progresses = 8;
-  MapData map_data = 9;
-}
+// More efficient "structure of arrays" format for map data
+message MapDataSoA {
+  repeated LandType land_type = 1;
+  repeated double radiation_level = 2;
+  repeated int32 height = 3;
+  repeated int32 level = 4;
+  repeated int32 overlay_data = 5;
+  repeated int32 tiberium_value = 6;
+  repeated bool shrouded = 7;
+  repeated uint32 passability = 8;
+  uint32 map_width = 9;
+  uint32 map_height = 10;
+};
+
+message PrerequisiteGroups {
+  repeated int32 proc = 1;
+  repeated int32 tech = 2;
+  repeated int32 radar = 3;
+  repeated int32 barracks = 4;
+  repeated int32 factory = 5;
+  repeated int32 power = 6;
+};
 
 enum NetworkEvent {
   NETWORK_EVENT_Empty = 0x0;
@@ -315,6 +365,7 @@ enum NetworkEvent {
   NETWORK_EVENT_PlanNodeDelete = 0x2C;
   NETWORK_EVENT_AllCheer = 0x2D;
   NETWORK_EVENT_AbandonAll = 0x2E;
+  NETWORK_EVENT_LastEvent = 0x2F;
 }
 
 enum Mission {
@@ -374,7 +425,7 @@ message TunnelPacket {
 
 message TargetClass {
   int32 m_id = 1;
-  int32 m_RTTI = 2;
+  int32 m_rtti = 2;
 }
 
 message Event {
@@ -395,7 +446,7 @@ message Event {
 
   message MegaMission {
     TargetClass whom = 1;
-    int32 Mission = 2;
+    int32 mission = 2;
     TargetClass target = 3;
     TargetClass destination = 4;
     TargetClass follow = 5;
@@ -404,7 +455,7 @@ message Event {
 
   message MegaMission_F {
     TargetClass whom = 1;
-    int32 Mission = 2;
+    int32 mission = 2;
     TargetClass target = 3;
     TargetClass destination = 4;
     int32 speed = 5;
@@ -450,7 +501,7 @@ message Event {
   bool is_executed = 1;
   int32 house_index = 2;
   uint32 frame = 3;
-  uint32 event_type = 4;
+  NetworkEvent event_type = 4;
   oneof data {
     Animation animation = 5;
     FrameInfo frame_info = 6;
@@ -465,4 +516,35 @@ message Event {
     Specific specific = 15;
   }
   uint32 timing = 16;
+}
+
+message EventLists {
+  repeated Event out_list = 1;
+  repeated Event do_list = 2;
+  repeated Event megamission_list = 3;
+}
+
+message EventListsSnapshot {
+  repeated EventLists lists = 1;
+  repeated uint64 frame = 2;
+}
+
+message ObjectTypes {
+  repeated ObjectTypeClass object_types = 1;
+}
+
+message GameState {
+  uint32 current_frame = 1;
+  repeated Factory factories = 3;
+  repeated House houses = 4;
+  repeated ObjectTypeClass object_types = 5;
+  repeated Object objects = 6;
+  LoadStage stage = 7;
+  repeated double load_progresses = 8;
+  MapData map_data = 9;
+  PrerequisiteGroups prerequisite_groups = 10;
+  repeated Event out_list = 11;
+  repeated Event do_list = 12;
+  repeated Event megamission_list = 13;
+  int32 tech_level = 14;
 }

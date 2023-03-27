@@ -18,6 +18,7 @@
 #include <ra2yrproto/core.pb.h>
 #include <ra2yrproto/game.pb.h>
 #include <string>
+#include <vector>
 
 namespace yrclient {
 
@@ -77,5 +78,13 @@ bool read_message(google::protobuf::Message* M,
 /// in args. If args is empty, field is not set.
 google::protobuf::Message* create_command_message(MessageBuilder* B,
                                                   const std::string args);
+
+// TODO: rename this and above better
+ra2yrproto::Command create_command(
+    const google::protobuf::Message& cmd,
+    ra2yrproto::CommandType type = ra2yrproto::CLIENT_COMMAND);
+
+std::vector<const google::protobuf::FieldDescriptor*> find_set_fields(
+    const google::protobuf::Message& M);
 
 }  // namespace yrclient

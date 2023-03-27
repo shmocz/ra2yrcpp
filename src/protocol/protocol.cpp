@@ -73,3 +73,21 @@ google::protobuf::Message* yrclient::create_command_message(
   }
   return B->m;
 }
+
+ra2yrproto::Command yrclient::create_command(
+    const google::protobuf::Message& cmd, ra2yrproto::CommandType type) {
+  ra2yrproto::Command C;
+  C.set_command_type(type);
+  if (!C.mutable_command()->PackFrom(cmd)) {
+    throw std::runtime_error("Packging message failed");
+  }
+  return C;
+}
+
+std::vector<const google::protobuf::FieldDescriptor*> yrclient::find_set_fields(
+    const google::protobuf::Message& M) {
+  auto* rfl = M.GetReflection();
+  std::vector<const google::protobuf::FieldDescriptor*> out;
+  rfl->ListFields(M, &out);
+  return out;
+}

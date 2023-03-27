@@ -74,7 +74,7 @@ ra2yrproto::PollResults InstrumentationService::flush_results(
     auto* res = PR->add_results();
     res->set_command_id(cmd_result->command_id());
     res->mutable_result()->CopyFrom(cmd_result->result());
-    if (*item->result_code() == command::ResultCode::ERROR) {
+    if (item->result_code().get() == command::ResultCode::ERROR) {
       res->set_result_code(yrclient::RESPONSE_ERROR);
       res->set_error_message(*item->error_message());
     } else {
@@ -190,7 +190,8 @@ void InstrumentationService::store_value(
 
 InstrumentationService::InstrumentationService(
     InstrumentationService::IServiceOptions opt,
-    std::function<std::string(InstrumentationService*)> on_shutdown)
+    std::function<std::string(InstrumentationService*)> on_shutdown,
+    std::function<void(InstrumentationService*)> extra_init)
     : on_shutdown_(on_shutdown),
       opts_(opt),
       server_(opt.max_clients, opt.port),
@@ -207,6 +208,10 @@ InstrumentationService::InstrumentationService(
   server_.callbacks().accept = [this](auto* c) { this->on_accept(c); };
   server_.callbacks().close = [this](auto* c) { this->on_close(c); };
   server_.state().wait(server::Server::STATE::ACTIVE);
+
+  if (extra_init != nullptr) {
+    extra_init(this);
+  }
 
   // wait until ws proxy is initialized
   // ws_proxy_object_->ready.wait(true);
@@ -262,10 +267,13 @@ const InstrumentationService::IServiceOptions& InstrumentationService::opts()
 yrclient::InstrumentationService* InstrumentationService::create(
     InstrumentationService::IServiceOptions O,
     std::map<std::string, command::Command::handler_t>* commands,
-    std::function<std::string(yrclient::InstrumentationService*)> on_shutdown) {
-  auto* I = new yrclient::InstrumentationService(O, on_shutdown);
-  for (auto& [name, fn] : *commands) {
-    I->add_command(name, fn);
+    std::function<std::string(yrclient::InstrumentationService*)> on_shutdown,
+    std::function<void(InstrumentationService*)> extra_init) {
+  auto* I = new yrclient::InstrumentationService(O, on_shutdown, extra_init);
+  if (commands != nullptr) {
+    for (auto& [name, fn] : *commands) {
+      I->add_command(name, fn);
+    }
   }
   return I;
 }

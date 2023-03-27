@@ -117,30 +117,67 @@ void is_context::get_procaddr(Xbyak::CodeGenerator* c, HMODULE m,
   c->ret();
 }
 
+// FIXME: copypaste code
+static void handle_cmd(yrclient::InstrumentationService* I,
+                       ra2yrproto::Command cmd) {
+  // TODO: reduce amount of copies we make
+  auto client_cmd = cmd.command();
+  // schedule command execution
+  auto is_args = new yrclient::ISArgs;
+  is_args->I = I;
+  is_args->M.CopyFrom(client_cmd);
+
+  // Get trailing portion of protobuf type url
+  auto name = yrclient::split_string(client_cmd.type_url(), "/").back();
+
+  auto c = std::shared_ptr<command::Command>(
+      I->cmd_manager().factory().make_command(
+          name,
+          std::unique_ptr<void, void (*)(void*)>(
+              is_args,
+              [](auto d) { delete reinterpret_cast<yrclient::ISArgs*>(d); }),
+          0U),
+      [](auto* a) { delete a; });
+  c->discard_result().store(true);
+  I->cmd_manager().enqueue_command(c);
+  // FIXME: error check
+  c->result_code().wait_pred(
+      [](auto v) { return v != command::ResultCode::NONE; });
+  // write status back
+}
+
 yrclient::InstrumentationService* is_context::make_is(
     yrclient::InstrumentationService::IServiceOptions O,
     std::function<std::string(yrclient::InstrumentationService*)> on_shutdown) {
-  std::map<std::string, command::Command::handler_t> cmds;
-  for (auto& [name, fn] : commands_yr::get_commands()) {
-    cmds[name] = fn;
-  }
+  // FIXME: ensure that initialization has been completed before starting the
+  // tcp server
+  auto* I = yrclient::InstrumentationService::create(
+      O, nullptr, on_shutdown, [&](auto* t) {
+        std::map<std::string, command::Command::handler_t> cmds;
+        for (auto& [name, fn] : commands_yr::get_commands()) {
+          cmds[name] = fn;
+        }
 
-  for (auto& [name, fn] : yrclient::commands_builtin::get_commands()) {
-    cmds[name] = fn;
-  }
+        for (auto& [name, fn] : yrclient::commands_builtin::get_commands()) {
+          cmds[name] = fn;
+        }
 
-  auto* I = yrclient::InstrumentationService::create(O, &cmds, on_shutdown);
-  // If ws_port is defined, then assume we are in gamemd process and create
-  // hooks/callbacks
-  // FIXME: explicit setting for this
-  if (I->opts().ws_port > 0U && !I->opts().no_init_hooks) {
-    multi_client::AutoPollClient C(O.host, std::to_string(O.port), 5000ms,
-                                   5000ms);
-    ra2yrproto::commands::CreateHooks C1;
-    (void)C.send_command(C1);
-    ra2yrproto::commands::CreateCallbacks C2;
-    (void)C.send_command(C2);
-  }
+        for (auto& [name, fn] : cmds) {
+          t->add_command(name, fn);
+        }
+        // If ws_port is defined, then assume we are in gamemd process and
+        // create hooks/callbacks
+        // FIXME: explicit setting for this
+
+        if (t->opts().ws_port > 0U && !t->opts().no_init_hooks) {
+          ra2yrproto::commands::CreateHooks C1;
+          C1.mutable_args()->set_no_suspend_threads(true);
+          handle_cmd(t, yrclient::create_command(C1));
+          ra2yrproto::commands::CreateCallbacks C2;
+          handle_cmd(t, yrclient::create_command(C2));
+        }
+      });
+
   return I;
 }
 

@@ -80,7 +80,8 @@ class InstrumentationService {
 
   InstrumentationService(
       IServiceOptions opt,
-      std::function<std::string(InstrumentationService*)> on_shutdown);
+      std::function<std::string(InstrumentationService*)> on_shutdown,
+      std::function<void(InstrumentationService*)> extra_init = nullptr);
   ~InstrumentationService();
   void add_command(std::string name, command::Command::handler_t fn);
 
@@ -116,7 +117,8 @@ class InstrumentationService {
       InstrumentationService::IServiceOptions O,
       std::map<std::string, command::Command::handler_t>* commands,
       std::function<std::string(yrclient::InstrumentationService*)>
-          on_shutdown = nullptr);
+          on_shutdown = nullptr,
+      std::function<void(InstrumentationService*)> extra_init = nullptr);
 
  private:
   ra2yrproto::PollResults flush_results(

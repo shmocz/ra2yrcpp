@@ -1,4 +1,7 @@
 #pragma once
+#include "protocol/protocol.hpp"
+
+#include "command/command.hpp"
 #include "commands_builtin.hpp"
 #include "commands_yr.hpp"
 #include "config.hpp"
@@ -14,6 +17,7 @@
 #include <chrono>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 

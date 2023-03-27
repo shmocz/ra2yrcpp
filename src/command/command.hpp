@@ -1,5 +1,6 @@
 #pragma once
 #include "debug_helpers.h"
+#include "utility/sync.hpp"
 
 #include <atomic>
 #include <functional>
@@ -28,7 +29,8 @@ class Command {
   // For command instantiation
   Command(const std::string name, handler_t handler, std::uint64_t queue_id,
           std::uint64_t task_id, std::unique_ptr<void, void (*)(void*)> args,
-          CommandType cmd_type = CommandType::USER);
+          CommandType cmd_type = CommandType::USER,
+          bool discard_result = false);
   ~Command();
   void run();
   // Pointer to result data.
@@ -37,10 +39,11 @@ class Command {
   CommandType type() const;
   std::uint64_t queue_id() const;
   std::uint64_t task_id() const;
-  ResultCode* result_code();
+  util::AtomicVariable<ResultCode>& result_code();
   void set_result(std::unique_ptr<void, void (*)(void*)> p);
   std::string* error_message();
   std::atomic_bool& pending();
+  std::atomic_bool& discard_result();
 
  private:
   handler_t handler_;
@@ -54,9 +57,10 @@ class Command {
   // how these are processed is completely up to handler function
   std::unique_ptr<void, void (*)(void*)> args_;
   std::unique_ptr<void, void (*)(void*)> result_;
-  ResultCode result_code_{ResultCode::NONE};
+  util::AtomicVariable<ResultCode> result_code_;
   std::string error_message_;
   std::atomic_bool pending_;
+  std::atomic_bool discard_result_;
 };
 
 }  // namespace command

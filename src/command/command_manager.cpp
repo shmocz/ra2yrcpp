@@ -72,19 +72,23 @@ void CommandManager::destroy_queue(const uint64_t id) {
 }
 
 void CommandManager::invoke_user_command(std::shared_ptr<Command> cmd) {
-  *cmd->result_code() = ResultCode::NONE;
+  cmd->result_code().store(ResultCode::NONE);
   try {
     cmd->run();
-    *cmd->result_code() = ResultCode::OK;
+    cmd->result_code().store(ResultCode::OK);
   } catch (std::exception& e) {
-    dprintf("fail {}", e.what());
+    eprintf("fail {}", e.what());
     cmd->error_message()->assign(e.what());
-    *cmd->result_code() = ResultCode::ERROR;
+    cmd->result_code().store(ResultCode::ERROR);
   }
   std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
   if (cmd->pending()) {
     std::unique_lock<decltype(pending_commands_mut_)> lp(pending_commands_mut_);
     pending_commands_.push_back(cmd);
+  }
+
+  if (cmd->discard_result()) {
+    return;
   }
   auto q = results_queue_.at(cmd->queue_id());
   q->push(cmd);

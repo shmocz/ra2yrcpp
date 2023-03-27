@@ -5,14 +5,9 @@ using google::protobuf::RepeatedPtrField;
 using util_command::get_cmd;
 using cb_map_t = std::map<std::string, std::unique_ptr<yrclient::ISCallback>>;
 
-// TODO(shmocz): smarter way to define these
 // static keys for callbacks, hooks and misc. data
 constexpr char key_callbacks_yr[] = "callbacks_yr";
-constexpr char key_game_state[] = "game_state";
-constexpr char key_object_type_classes[] = "object_type_classes";
-constexpr char key_raw_game_state[] = "raw_game_state";
 constexpr char key_on_load_game[] = "on_load_game";
-constexpr char key_map_data[] = "map_data";
 
 // TODO: reduce calls to this
 template <typename T, typename... ArgsT>
@@ -23,6 +18,11 @@ T* ensure_storage_value(yrclient::InstrumentationService* I,
     I->store_value(key, utility::make_uptr<T>(args...));
   }
   return static_cast<T*>(s->at(key).get());
+}
+
+auto* get_storage(yrclient::InstrumentationService* I, yrclient::storage_t* s) {
+  return ensure_storage_value<ra2yrproto::commands::StorageValue>(
+      I, s, "message_storage");
 }
 
 static auto default_configuration() {
@@ -44,38 +44,55 @@ static ra2yrproto::commands::Configuration* ensure_configuration(
       I, s, key_configuration);
 }
 
+// TODO: specify name of taks in make_work to aid diagnostics
 struct CBYR : public yrclient::ISCallback {
   yrclient::storage_t* storage{nullptr};
+  ra2::abi::ABIGameMD* abi_{nullptr};
   static constexpr char key_configuration[] = "yr_config";
 
   CBYR() = default;
-
-  void do_call(yrclient::InstrumentationService* I) override {
-    auto [mut, s] = I->aq_storage();
-    storage = s;
-    try {
-      exec();
-    } catch (const std::exception& e) {
-      eprintf("FATAL: {}", e.what());
-    }
-    storage = nullptr;
-  }
 
   template <typename T>
   auto* storage_value(const std::string key) {
     return ensure_storage_value<T>(this->I, this->storage, key);
   }
 
-  auto* game_state() {
-    return storage_value<ra2yrproto::ra2yr::GameState>(key_game_state);
-  }
-
-  auto* type_classes() {
-    return storage_value<RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>>(
-        key_object_type_classes);
+  template <typename T>
+  auto* storage_value() {
+    return ensure_storage_value<typename T::type>(this->I, this->storage,
+                                                  T::key);
   }
 
   auto* abi() { return storage_value<ra2::abi::ABIGameMD>("abi"); }
+
+  void do_call(yrclient::InstrumentationService* I) override {
+    auto [mut, s] = I->aq_storage();
+    storage = s;
+    abi_ = abi();
+    auto [mut_cc, cc] = abi_->acquire_code_generators();
+    try {
+      exec();
+    } catch (const std::exception& e) {
+      eprintf("{}: {}", name(), e.what());
+    }
+    storage = nullptr;
+  }
+
+  auto* game_state() {
+    return get_storage(this->I, this->storage)->mutable_game_state();
+  }
+
+  auto* type_classes() {
+    return get_storage(this->I, this->storage)
+        ->mutable_initial_game_state()
+        ->mutable_object_types();
+  }
+
+  auto* prerequisite_groups() {
+    return get_storage(this->I, this->storage)
+        ->mutable_initial_game_state()
+        ->mutable_prerequisite_groups();
+  }
 
   virtual void exec() { throw std::runtime_error("Not implemented"); }
 
@@ -114,8 +131,8 @@ struct CBExitGameLoop : public MyCB<CBExitGameLoop, yrclient::ISCallback> {
     // NB. the corresponding HookCallback must be removed from Hook object
     // (shared_ptr would be handy here)
     auto [mut, s] = I->aq_storage();
-    ensure_storage_value<ra2yrproto::ra2yr::GameState>(I, s, key_game_state)
-        ->set_stage(ra2yrproto::ra2yr::STAGE_EXIT_GAME);
+    get_storage(I, s)->mutable_game_state()->set_stage(
+        ra2yrproto::ra2yr::STAGE_EXIT_GAME);
 
     auto [lk, hhooks] = I->aq_hooks();
     auto* callbacks = get_callbacks(I, false);
@@ -162,7 +179,8 @@ struct CBUpdateLoadProgress : public MyCB<CBUpdateLoadProgress> {
     for (int i = 0; i < local_state->load_progresses().size(); i++) {
       local_state->set_load_progresses(i, B[i]);
     }
-    storage_value<ra2yrproto::ra2yr::GameState>(key_game_state)
+    get_storage(I, storage)
+        ->mutable_game_state()
         ->set_stage(ra2yrproto::ra2yr::LoadStage::STAGE_LOADING);
   }
 };
@@ -192,12 +210,16 @@ struct CBSaveState : public MyCB<CBSaveState> {
   static constexpr char key_target[] = "on_frame_update";
   static constexpr char key_record_path[] = "record_path";
   const std::string record_path;
+  std::uint64_t fps_last_checked;
+  std::uint64_t frame_previous;
 
   std::unique_ptr<yrclient::CompressedOutputStream> out;
   utility::worker_util<ra2yrproto::ra2yr::GameState> work;
 
   explicit CBSaveState(const std::string record_path)
       : record_path(record_path),
+        fps_last_checked(0U),
+        frame_previous(0U),
         out(std::make_unique<yrclient::CompressedOutputStream>(record_path)),
         work([this](ra2yrproto::ra2yr::GameState& w) {
           this->serialize_state(w);
@@ -279,6 +301,10 @@ struct CBSaveState : public MyCB<CBSaveState> {
       O.set_start_credits(I->StartingCredits);
       O.set_self(reinterpret_cast<std::uintptr_t>(I));
       O.set_name(I->PlainName);
+      O.set_type_array_index(I->Type->ArrayIndex);
+      O.set_allied_infiltrated(I->Side0TechInfiltrated);
+      O.set_soviet_infiltrated(I->Side1TechInfiltrated);
+      O.set_third_infiltrated(I->Side2TechInfiltrated);
     }
   }
 
@@ -306,7 +332,7 @@ struct CBSaveState : public MyCB<CBSaveState> {
 
   ra2yrproto::ra2yr::GameState state_to_protobuf(
       const bool do_type_classes = false) {
-    auto* gbuf = storage_value<ra2yrproto::ra2yr::GameState>(key_game_state);
+    auto* gbuf = get_storage(I, storage)->mutable_game_state();
     gbuf->Clear();
 
     // put load stages
@@ -318,66 +344,70 @@ struct CBSaveState : public MyCB<CBSaveState> {
     // Parse type classes only once
     if (do_type_classes) {
       parse_AbstractTypeClasses(type_classes());
+      ra2::parse_prerequisiteGroups(prerequisite_groups());
       gbuf->mutable_object_types()->CopyFrom(*type_classes());
+      gbuf->mutable_prerequisite_groups()->CopyFrom(*prerequisite_groups());
     }
 
+    gbuf->set_current_frame(Unsorted::CurrentFrame);
+    gbuf->set_tech_level(Game::TechLevel);
     parse_HouseClasses(gbuf);
     parse_Objects(gbuf);
     parse_Factories(gbuf);
 
-    // At this point we're free to leave the callback
     gbuf->set_stage(ra2yrproto::ra2yr::LoadStage::STAGE_INGAME);
-    gbuf->set_current_frame(Unsorted::CurrentFrame);
 
-    if (gbuf->current_frame() > 0U) {
-      auto* M = MapClass::Instance.get();
-      auto L = M->MapCoordBounds;
-      auto sz = (L.Right + 1) * (L.Bottom + 1);
-      auto* m = storage_value<ra2yrproto::ra2yr::MapData>(key_map_data)
-                    ->mutable_cells();
-      if (m->size() != sz) {
-        m->Clear();
-        for (int i = 0; i < sz; i++) {
-          m->Add();
-        }
-      }
-      for (int i = 0; i <= L.Right; i++) {
-        for (int j = 0; j <= L.Bottom; j++) {
-          CellStruct coords{static_cast<i16>(i), static_cast<i16>(j)};
-          auto* src_cell = M->TryGetCellAt(coords);
-
-          if (src_cell != nullptr) {
-            auto& c = m->at((L.Bottom + 1) * j + i);
-            c.set_land_type(
-                static_cast<ra2yrproto::ra2yr::LandType>(src_cell->LandType));
-            c.set_height(src_cell->Height);
-            c.set_level(src_cell->Level);
-            c.set_radiation_level(src_cell->RadLevel);
-            c.set_overlay_data(src_cell->OverlayData);
-            if (src_cell->FirstObject != nullptr) {
-              c.mutable_objects()->Clear();
-              auto* o = c.add_objects();
-              o->set_pointer_self(reinterpret_cast<u32>(src_cell->FirstObject));
-            }
-            if (c.land_type() ==
-                ra2yrproto::ra2yr::LandType::LAND_TYPE_Tiberium) {
-              c.set_tiberium_value(abi()->CellClass_GetContainedTiberiumValue(
-                  reinterpret_cast<std::uintptr_t>(src_cell)));
-            }
-          }
-        }
-      }
+    // This is slow, accounting to 16 FPS (targeting 60 FPS) or more speed loss
+    // in large maps like Arctic Circle. As a workaround only execute this every
+    // 30 frame.
+    // TODO: autodetect throttle delay
+    if (gbuf->current_frame() > 0U &&
+        (((gbuf->current_frame() - 1) % 30) == 0)) {
+      ra2::parse_MapData(get_storage(I, storage)->mutable_map_data(),
+                         MapClass::Instance.get(), abi());
     }
 
+    if (do_type_classes) {
+      auto* gbuf_initial =
+          get_storage(I, storage)->mutable_initial_game_state();
+      gbuf_initial->CopyFrom(*gbuf);
+    }
+
+    ra2::parse_EventLists(gbuf, get_storage(I, storage)->mutable_event_buffer(),
+                          cfg::EVENT_BUFFER_SIZE);
+
     return {*gbuf};
+  }
+
+  void check_fps() {
+    auto ts = static_cast<u64>(abi()->timeGetTime());
+    if (fps_last_checked + 5 * 1000 < ts) {
+      auto current_frame = static_cast<u64>(Unsorted::CurrentFrame);
+      // auto min_fps = static_cast<u64>(Detail::MinFrameRate);
+      // FIXME: autodetect
+      auto min_fps = 60U;
+      auto fps =
+          (current_frame - frame_previous) / ((ts - fps_last_checked) / 1000);
+      if (fps < min_fps) {
+        wrprintf("current_fps < required fps: {} < {}", fps, min_fps);
+      }
+      frame_previous = current_frame;
+      fps_last_checked = ts;
+    }
   }
 
   void exec() override {
     // FIXME: more explicit about this
     // enables event debug logs
     // *reinterpret_cast<char*>(0xa8ed74) = 1;
-    auto st = state_to_protobuf(type_classes()->empty());
-    work.push(st);
+    try {
+      auto st = state_to_protobuf(type_classes()->empty());
+      work.push(st);
+      check_fps();
+    } catch (const std::exception& e) {
+      eprintf("FAILED {}", e.what());
+      throw;
+    }
   }
 };
 
@@ -400,7 +430,7 @@ struct CBTunnel : public MyCB<D> {
 
   void write_packet(const u32 source, const u32 dest, const void* buf,
                     size_t len) {
-    dprintf("source={} dest={}, buf={}, len={}", source, dest, buf, len);
+    // dprintf("source={} dest={}, buf={}, len={}", source, dest, buf, len);
     ra2yrproto::ra2yr::TunnelPacket P;
     google::protobuf::io::CodedOutputStream co(&out->s_g);
     P.set_source(source);
@@ -486,9 +516,9 @@ static void init_callbacks(yrclient::InstrumentationService* I) {
 
   f(std::make_unique<CBTunnelRecvFrom>(out));
   f(std::make_unique<CBTunnelSendTo>(out));
-  f(std::make_unique<CBSaveState>(record_out));
   f(std::make_unique<CBExitGameLoop>());
   f(std::make_unique<CBExecuteGameLoopCommand>());
+  f(std::make_unique<CBSaveState>(record_out));
   f(std::make_unique<CBUpdateLoadProgress>());
   f(std::make_unique<CBDebugPrint>());
 }
@@ -619,46 +649,40 @@ constexpr std::array<std::pair<const char*, u32>, 7> gg_hooks = {{
     {CBTunnelSendTo::key_target, 0x7b3d6f},            //
     {CBTunnelRecvFrom::key_target, 0x7b3f15},          //
     {CBUpdateLoadProgress::key_target, 0x643c62},      //
-    {CBDebugPrint::key_target, 0x4068e0},              //
+    {CBDebugPrint::key_target, 0x4068e0},
 }};
 
 auto create_hooks() {
   return get_cmd<ra2yrproto::commands::CreateHooks>([](auto* Q) {
     // TODO(shmocz): put these to utility function and share code with Hook
     // code.
-    // suspend threads
     auto P = process::get_current_process();
     std::vector<process::thread_id_t> ns(Q->I()->get_connection_threads());
-    ns.push_back(process::get_current_tid());
-    P.suspend_threads(ns);
+
+    auto a = Q->args();
+
+    // suspend threads?
+    if (!a.no_suspend_threads()) {
+      ns.push_back(process::get_current_tid());
+      P.suspend_threads(ns);
+    }
 
     // create hooks
     for (const auto& [k, v] : gg_hooks) {
       auto [p_target, code_size] = hook::get_hook_entry(v);
       Q->I()->create_hook(k, utility::asptr<u8*>(p_target), code_size);
     }
-    P.resume_threads(ns);
+    if (!a.no_suspend_threads()) {
+      P.resume_threads(ns);
+    }
   });
 }
 
 auto get_game_state() {
   return get_cmd<ra2yrproto::commands::GetGameState>([](auto* Q) {
-    // Copy saved game state
     auto [mut, s] = Q->I()->aq_storage();
     Q->command_data().mutable_result()->mutable_state()->CopyFrom(
-        *ensure_storage_value<ra2yrproto::ra2yr::GameState>(Q->I(), s,
-                                                            key_game_state));
-  });
-}
-
-auto get_type_classes() {
-  return get_cmd<ra2yrproto::commands::GetTypeClasses>([](auto* Q) {
-    auto [mut, s] = Q->I()->aq_storage();
-    auto res = Q->command_data().mutable_result();
-    res->mutable_classes()->CopyFrom(
-        *ensure_storage_value<
-            RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>>(
-            Q->I(), s, key_object_type_classes));
+        get_storage(Q->I(), s)->game_state());
   });
 }
 
@@ -686,14 +710,18 @@ auto mission_clicked() {
           auto& O = C->game_state()->objects();
           for (auto k : args->object_addresses()) {
             if (std::find_if(O.begin(), O.end(), [k](auto& v) {
-                  return v.pointer_self() == k;
+                  return v.pointer_self() == k && !v.in_limbo();
                 }) != O.end()) {
               auto c1 = args->coordinates();
               auto coords = CoordStruct{.X = c1.x(), .Y = c1.y(), .Z = c1.z()};
               auto cell = MapClass::Instance.get()->TryGetCellAt(coords);
               auto* p = reinterpret_cast<CellClass*>(cell);
-              C->abi()->ClickedMission(k, static_cast<Mission>(args->event()),
-                                       args->target_object(), p, p);
+              auto b = ra2::abi::ClickMission::call(
+                  C->abi(), k, static_cast<Mission>(args->event()),
+                  args->target_object(), p, nullptr);
+              if (!b) {
+                eprintf("click mission error");
+              }
             }
           }
         }));
@@ -705,19 +733,22 @@ auto add_event() {
     auto [mut, s] = Q->I()->aq_storage();
     auto a = Q->args();
     // FIXME: UAF?
+    auto cmd = Q->c;
+    Q->save_command_result();
+    cmd->pending().store(true);
 
     get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
-        make_work<decltype(a)>(a, [](CBYR* C, auto* args) {
+        make_work<decltype(a)>(a, [cmd](CBYR* C, auto* args) {
           // TODO: these may not be needed
           EventClass E(static_cast<EventType>(args->event().event_type()),
                        false, static_cast<char>(args->event().house_index()),
                        static_cast<u32>(Unsorted::CurrentFrame));
+          auto ts = C->abi()->timeGetTime();
           if (args->event().has_production()) {
             auto& ev = args->event().production();
             E.Data.Production = {.RTTI_ID = ev.rtti_id(),
                                  .Heap_ID = ev.heap_id(),
                                  .IsNaval = ev.is_naval()};
-            auto ts = static_cast<int>(C->abi()->timeGetTime());
             if (!EventClass::AddEvent(E, ts)) {
               throw std::runtime_error("failed to add event");
             }
@@ -730,12 +761,21 @@ auto add_event() {
                 .HeapID = ev.heap_id(),
                 .IsNaval = ev.is_naval(),
                 .Location = CellClass::Coord2Cell(S)};
-            (void)EventClass::AddEvent(E, C->abi()->timeGetTime());
+            (void)EventClass::AddEvent(E, ts);
           } else {
             // generic event
-            dprintf("generic,house={}", args->event().house_index());
-            (void)EventClass::AddEvent(E, C->abi()->timeGetTime());
+            (void)EventClass::AddEvent(E, ts);
           }
+
+          auto* p = reinterpret_cast<ra2yrproto::CommandResult*>(cmd->result());
+          ra2yrproto::commands::AddEvent r2;
+          p->mutable_result()->UnpackTo(&r2);
+          auto r2_res = r2.mutable_result();
+          auto* ev = r2.mutable_result()->mutable_event();
+          ev->CopyFrom(args->event());
+          ev->set_timing(ts);
+          p->mutable_result()->PackFrom(r2);
+          cmd->pending().store(false);
         }));
   });
 }
@@ -782,14 +822,16 @@ auto place_query() {
             for (auto& c : args->coordinates()) {
               auto coords = CoordStruct{.X = c.x(), .Y = c.y(), .Z = c.z()};
               auto cell_s = CellClass::Coord2Cell(coords);
+              if (cell_s.X < 0 || cell_s.Y < 0) {
+                continue;
+              }
               auto* cs = reinterpret_cast<CellStruct*>(&cell_s);
 
               auto p_DisplayClass = 0x87F7E8u;
-              // FIXME. properly get house index!
               // FIXME: rename BuildingClass to BuildingTypeClass
               if (C->abi()->DisplayClass_Passes_Proximity_Check(
                       p_DisplayClass, reinterpret_cast<BuildingTypeClass*>(q),
-                      0u, cs) &&
+                      house->array_index(), cs) &&
                   C->abi()->BuildingClass_CanPlaceHere(utility::asint(q), cs,
                                                        house->self())) {
                 auto* cnew = r2_res->add_coordinates();
@@ -820,21 +862,52 @@ auto send_message() {
   });
 }
 
+void convert_map_data(ra2yrproto::ra2yr::MapDataSoA* dst,
+                      ra2yrproto::ra2yr::MapData* src) {
+  const auto sz = src->cells().size();
+
+  for (auto i = 0U; i < sz; i++) {
+    dst->add_land_type(src->cells(i).land_type());
+    dst->add_radiation_level(src->cells(i).radiation_level());
+    dst->add_height(src->cells(i).height());
+    dst->add_level(src->cells(i).level());
+    dst->add_overlay_data(src->cells(i).overlay_data());
+    dst->add_tiberium_value(src->cells(i).tiberium_value());
+    dst->add_shrouded(src->cells(i).shrouded());
+    dst->add_passability(src->cells(i).passability());
+  }
+  dst->set_map_width(src->width());
+  dst->set_map_height(src->height());
+}
+
+// windows.h idiotism
+#undef GetMessage
+
+///
+/// Read a protobuf message from storage determined by command argument type.
+///
 auto read_value() {
   return get_cmd<ra2yrproto::commands::ReadValue>([](auto* Q) {
     auto [mut, s] = Q->I()->aq_storage();
     auto a = Q->args();
     auto* D = Q->command_data().mutable_result()->mutable_data();
-    if (a.data().has_game_state()) {
-      D->mutable_game_state()->CopyFrom(
-          *ensure_storage_value<ra2yrproto::ra2yr::GameState>(Q->I(), s,
-                                                              key_game_state));
-    } else if (a.data().has_map_data()) {
-      D->mutable_map_data()->CopyFrom(
-          *ensure_storage_value<ra2yrproto::ra2yr::MapData>(Q->I(), s,
-                                                            key_map_data));
+    // find the first field that's been set
+    auto sf = yrclient::find_set_fields(a.data());
+    if (sf.empty()) {
+      throw std::runtime_error("no field specified");
+    }
+    auto* fld = sf[0];
+
+    if (fld->name() == "map_data_soa") {
+      ra2yrproto::ra2yr::MapDataSoA MS;
+      convert_map_data(&MS, get_storage(Q->I(), s)->mutable_map_data());
+      D->mutable_map_data_soa()->CopyFrom(MS);
     } else {
-      throw std::runtime_error("invalid target");
+      // TODO: put this stuff to protocol.cpp
+      // copy the data
+      auto* sval = get_storage(Q->I(), s);
+      D->GetReflection()->MutableMessage(D, fld)->CopyFrom(
+          sval->GetReflection()->GetMessage(*sval, fld));
     }
   });
 }
@@ -842,16 +915,17 @@ auto read_value() {
 }  // namespace cmd
 
 std::map<std::string, command::Command::handler_t> commands_yr::get_commands() {
-  return {cmd::click_event(),            //
-          cmd::unit_command(),           //
-          cmd::create_callbacks(),       //
-          cmd::create_hooks(),           //
-          cmd::get_game_state(),         //
-          cmd::get_type_classes(),       //
-          cmd::inspect_configuration(),  //
-          cmd::mission_clicked(),        //
-          cmd::add_event(),              //
-          cmd::place_query(),            //
-          cmd::send_message(),           //
-          cmd::read_value()};
+  return {
+      cmd::click_event(),            //
+      cmd::unit_command(),           //
+      cmd::create_callbacks(),       //
+      cmd::create_hooks(),           //
+      cmd::get_game_state(),         //
+      cmd::inspect_configuration(),  //
+      cmd::mission_clicked(),        //
+      cmd::add_event(),              //
+      cmd::place_query(),            //
+      cmd::send_message(),           //
+      cmd::read_value(),             //
+  };
 }

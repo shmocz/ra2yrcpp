@@ -10,26 +10,50 @@ void ClassParser::Object() {
   auto* P = reinterpret_cast<ObjectClass*>(c.src);
   T->set_health(P->Health);
   T->set_selected(P->IsSelected);
+  T->set_in_limbo(P->InLimbo);
 }
 
-void ClassParser::Mission() { Object(); }
+void ClassParser::Mission() {
+  Object();
+
+  auto* P = reinterpret_cast<MissionClass*>(c.src);
+  T->set_current_mission(
+      static_cast<ra2yrproto::ra2yr::Mission>(P->CurrentMission));
+}
 
 void ClassParser::Radio() { Mission(); }
 
 void ClassParser::Techno() {
   Radio();
-  auto* q = T->mutable_coordinates();
   auto* P = reinterpret_cast<TechnoClass*>(c.src);
   T->set_pointer_house(reinterpret_cast<u32>(P->Owner));
   T->set_pointer_initial_owner(reinterpret_cast<u32>(P->InitialOwner));
   // TODO: armor multiplier
-  auto L = P->Location;
-  q->set_x(L.X);
-  q->set_y(L.Y);
-  q->set_z(L.Z);
+  if (P->IsOnMap) {
+    auto* q = T->mutable_coordinates();
+    auto L = P->Location;
+    q->set_x(L.X);
+    q->set_y(L.Y);
+    q->set_z(L.Z);
+  }
 }
 
-void ClassParser::Foot() { Techno(); }
+void ClassParser::Foot() {
+  Techno();
+  auto* P = reinterpret_cast<FootClass*>(c.src);
+  if (P->Destination != nullptr) {
+    auto t = ra2::abi::AbstractClass_WhatAmI::call(c.abi, P->Destination);
+
+    if (t == CellClass::AbsID) {
+      auto* dest = reinterpret_cast<CellClass*>(P->Destination);
+      auto coord = dest->Cell2Coord(dest->MapCoords);
+      auto dd = T->mutable_destination();
+      dd->set_x(coord.X);
+      dd->set_y(coord.Y);
+      dd->set_z(coord.Z);
+    }
+  }
+}
 
 void ClassParser::Aircraft() {
   Foot();
@@ -63,8 +87,8 @@ void ClassParser::Infantry() {
 
 void ClassParser::parse() {
   T->set_pointer_self(reinterpret_cast<u32>(c.src));
-  auto t =
-      c.abi->AbstractClass_WhatAmI(reinterpret_cast<AbstractClass*>(c.src));
+  auto t = ra2::abi::AbstractClass_WhatAmI::call(
+      c.abi, reinterpret_cast<AbstractClass*>(c.src));
 
   if (t == UnitClass::AbsID) {
     Unit();
@@ -88,23 +112,51 @@ void TypeClassParser::AbstractType() {
   T->set_name(P->Name);
 }
 
-void TypeClassParser::AircraftType() { TechnoType(); }
+void TypeClassParser::AircraftType() {
+  TechnoType();
+  auto* P = reinterpret_cast<AircraftTypeClass*>(c.src);
+
+  T->set_array_index(P->ArrayIndex);
+  T->set_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_AIRCRAFTTYPE);
+}
 
 void TypeClassParser::TechnoType() {
   ObjectType();
   auto* P = reinterpret_cast<TechnoTypeClass*>(c.src);
   T->set_cost(P->Cost);
   T->set_soylent(P->Soylent);
-  auto A =
-      utility::ArrayIterator<int>(P->Prerequisite.Items, P->Prerequisite.Count);
+  auto A = utility::ArrayIterator<long>(P->Prerequisite.Items,
+                                        P->Prerequisite.Count);
+  T->mutable_prerequisites()->Clear();
   for (auto r : A) {
-    T->add_prerequisites(r);
+    T->add_prerequisites(static_cast<int>(r));
   }
+  T->set_required_houses(P->RequiredHouses);
+  T->set_forbidden_houses(P->ForbiddenHouses);
+  T->set_owner_flags(P->OwnerFlags);
+  T->set_tech_level(P->TechLevel);
+  T->set_build_limit(P->BuildLimit);
+  T->set_naval(P->Naval);
+  T->set_requires_stolen_allied_tech(P->RequiresStolenAlliedTech);
+  T->set_requires_stolen_soviet_tech(P->RequiresStolenSovietTech);
+  T->set_requires_stolen_third_tech(P->RequiresStolenThirdTech);
 }
 
-void TypeClassParser::UnitType() { TechnoType(); }
+void TypeClassParser::UnitType() {
+  TechnoType();
+  auto* P = reinterpret_cast<UnitTypeClass*>(c.src);
 
-void TypeClassParser::InfantryType() { TechnoType(); }
+  T->set_array_index(P->ArrayIndex);
+  T->set_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_UNITTYPE);
+}
+
+void TypeClassParser::InfantryType() {
+  TechnoType();
+  auto* P = reinterpret_cast<InfantryTypeClass*>(c.src);
+
+  T->set_array_index(P->ArrayIndex);
+  T->set_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_INFANTRYTYPE);
+}
 
 void TypeClassParser::ObjectType() {
   AbstractType();
@@ -116,12 +168,20 @@ void TypeClassParser::BuildingType() {
   TechnoType();
   auto* P = reinterpret_cast<BuildingTypeClass*>(c.src);
   T->set_array_index(P->ArrayIndex);
+  T->set_power_drain(P->PowerDrain);
+  T->set_power_bonus(P->PowerBonus);
+  T->set_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_BUILDINGTYPE);
+  T->set_is_base_defense(P->IsBaseDefense);
+  T->set_wall(P->Wall);
+  T->set_build_category(
+      static_cast<ra2yrproto::ra2yr::BuildCategory>(P->BuildCat));
 }
 
 void TypeClassParser::parse() {
   T->set_pointer_self(reinterpret_cast<u32>(c.src));
-  auto t =
-      c.abi->AbstractClass_WhatAmI(reinterpret_cast<AbstractClass*>(c.src));
+  auto t = ra2::abi::AbstractClass_WhatAmI::call(
+      c.abi, reinterpret_cast<AbstractClass*>(c.src));
+
   if (t == BuildingTypeClass::AbsID) {
     BuildingType();
   } else if (t == AircraftTypeClass::AbsID) {
@@ -133,4 +193,189 @@ void TypeClassParser::parse() {
   } else {
     eprintf("unknown TypeClass: {}", static_cast<int>(t));
   }
+}
+
+EventParser::EventParser(EventClass* src, ra2yrproto::ra2yr::Event* T, u32 time)
+    : src(src), T(T), time(time) {}
+
+void EventParser::MegaMission() {
+  auto& x = src->Data.MegaMission;
+  auto* d = T->mutable_mega_mission();
+  auto* w = d->mutable_whom();
+  w->set_m_id(x.Whom.m_ID);
+  w->set_m_rtti(x.Whom.m_RTTI);
+  d->set_mission(x.Mission);
+
+  auto* tt = d->mutable_target();
+  tt->set_m_id(x.Target.m_ID);
+  tt->set_m_rtti(x.Target.m_RTTI);
+  auto* td = d->mutable_destination();
+  td->set_m_id(x.Destination.m_ID);
+  td->set_m_rtti(x.Destination.m_RTTI);
+  auto* tf = d->mutable_follow();
+  tf->set_m_id(x.Follow.m_ID);
+  tf->set_m_rtti(x.Follow.m_RTTI);
+  d->set_is_planning_event(x.IsPlanningEvent);
+}
+
+void EventParser::MegaMission_F() {
+  auto& x = src->Data.MegaMission_F;
+  auto* d = T->mutable_mega_mission_f();
+  auto* w = d->mutable_whom();
+  w->set_m_id(x.Whom.m_ID);
+  w->set_m_rtti(x.Whom.m_RTTI);
+  d->set_mission(x.Mission);
+
+  auto* tt = d->mutable_target();
+  tt->set_m_id(x.Target.m_ID);
+  tt->set_m_rtti(x.Target.m_RTTI);
+  auto* td = d->mutable_destination();
+  td->set_m_id(x.Destination.m_ID);
+  td->set_m_rtti(x.Destination.m_RTTI);
+
+  d->set_speed(x.Speed);
+  d->set_max_speed(x.MaxSpeed);
+}
+
+void EventParser::Production() {
+  auto& x = src->Data.Production;
+  auto* d = T->mutable_production();
+  d->set_rtti_id(x.RTTI_ID);
+  d->set_heap_id(x.Heap_ID);
+  d->set_is_naval(x.IsNaval);
+}
+
+void EventParser::Place() {
+  auto& x = src->Data.Place;
+  auto* d = T->mutable_place();
+  d->set_rtti_type(static_cast<ra2yrproto::ra2yr::AbstractType>(x.RTTIType));
+  d->set_heap_id(x.HeapID);
+  d->set_is_naval(x.IsNaval);
+  auto& ll = x.Location;
+  auto* loc = d->mutable_location();
+  loc->set_x(ll.X);
+  loc->set_y(ll.Y);
+}
+
+void EventParser::parse() {
+  T->set_event_type(static_cast<ra2yrproto::ra2yr::NetworkEvent>(src->Type));
+  T->set_is_executed(src->IsExecuted);
+  T->set_house_index(src->HouseIndex);
+  T->set_frame(src->Frame);
+  T->set_timing(time);
+  switch (src->Type) {
+    case EventType::PRODUCE:
+      Production();
+      break;
+    case EventType::PLACE:
+      Place();
+      break;
+    case EventType::MEGAMISSION:
+      MegaMission();
+      break;
+    case EventType::MEGAMISSION_F:
+      MegaMission_F();
+      break;
+    default:
+      break;
+  }
+}
+
+// FIXME: save only the utilized cells
+void ra2::parse_MapData(ra2yrproto::ra2yr::MapData* dst, MapClass* src,
+                        ra2::abi::ABIGameMD* abi) {
+  auto* M = src;
+  auto L = M->MapCoordBounds;
+  auto sz = (L.Right + 1) * (L.Bottom + 1);
+  auto* map_data = dst;
+  map_data->set_width(L.Right + 1);
+  map_data->set_height(L.Bottom + 1);
+  auto* m = map_data->mutable_cells();
+  if (m->size() != sz) {
+    m->Clear();
+    for (int i = 0; i < sz; i++) {
+      m->Add();
+    }
+  }
+
+  for (int j = 0; j <= L.Bottom; j++) {
+    for (int i = 0; i <= L.Right; i++) {
+      CellStruct coords{static_cast<i16>(i), static_cast<i16>(j)};
+      auto* src_cell = M->TryGetCellAt(coords);
+
+      if (src_cell != nullptr) {
+        auto& c = m->at((L.Right + 1) * j + i);
+        c.set_land_type(
+            static_cast<ra2yrproto::ra2yr::LandType>(src_cell->LandType));
+        c.set_height(src_cell->Height);
+        c.set_level(src_cell->Level);
+        c.set_radiation_level(src_cell->RadLevel);
+        c.set_overlay_data(src_cell->OverlayData);
+        if (src_cell->FirstObject != nullptr) {
+          c.mutable_objects()->Clear();
+          auto* o = c.add_objects();
+          o->set_pointer_self(reinterpret_cast<u32>(src_cell->FirstObject));
+        }
+        if (c.land_type() == ra2yrproto::ra2yr::LandType::LAND_TYPE_Tiberium) {
+          c.set_tiberium_value(
+              ra2::abi::CellClass_GetContainedTiberiumValue::call(
+                  abi, reinterpret_cast<std::uintptr_t>(src_cell)));
+        }
+        c.set_shrouded(ra2::abi::CellClass_IsShrouded::call(abi, src_cell));
+        // c.set_shrouded(false);
+        c.set_passability(src_cell->Passability);
+      }
+    }
+  }
+}
+
+template <typename T>
+void parse_EventList(RepeatedPtrField<ra2yrproto::ra2yr::Event>* dst, T* list) {
+  for (auto i = 0; i < list->Count; i++) {
+    auto ix =
+        (list->Head + i) & ((sizeof(list->List) / sizeof(*list->List)) - 1);
+    ra2::EventParser P(&list->List[ix], dst->Add(), list->Timings[ix]);
+    P.parse();
+  }
+}
+
+void ra2::parse_EventLists(ra2yrproto::ra2yr::GameState* G,
+                           ra2yrproto::ra2yr::EventListsSnapshot* ES,
+                           std::size_t max_size) {
+  parse_EventList(G->mutable_out_list(), &EventClass::OutList.get());
+  parse_EventList(G->mutable_do_list(), &EventClass::DoList.get());
+  parse_EventList(G->mutable_megamission_list(),
+                  &EventClass::MegaMissionList.get());
+  auto* L = ES->mutable_lists();
+  auto* F = ES->mutable_frame();
+
+  // append
+  ra2yrproto::ra2yr::EventLists EL;
+  EL.mutable_out_list()->CopyFrom(G->out_list());
+  EL.mutable_do_list()->CopyFrom(G->do_list());
+  EL.mutable_megamission_list()->CopyFrom(G->megamission_list());
+  // remove first if size exceeded
+  if (L->size() >= max_size) {
+    L->erase(L->begin());
+    F->erase(F->begin());
+  }
+  L->Add()->CopyFrom(EL);
+  F->Add(G->current_frame());
+}
+
+void ra2::parse_prerequisiteGroups(ra2yrproto::ra2yr::PrerequisiteGroups* T) {
+  auto& R = RulesClass::Instance;
+  auto f = [](auto& L, auto* d) {
+    auto IT = utility::ArrayIterator<int>(L.Items, L.Count);
+    for (auto id : IT) {
+      d->Add(id);
+    }
+  };
+
+  f(R->PrerequisiteProc, T->mutable_proc());
+  f(R->PrerequisiteTech, T->mutable_tech());
+  f(R->PrerequisiteRadar, T->mutable_radar());
+  f(R->PrerequisiteBarracks, T->mutable_barracks());
+  f(R->PrerequisiteFactory, T->mutable_factory());
+  f(R->PrerequisitePower, T->mutable_power());
 }

@@ -8,7 +8,12 @@
 #include "utility/array_iterator.hpp"
 #include "utility/serialize.hpp"
 
+#include <YRPP.h>
+#include <google/protobuf/repeated_ptr_field.h>
+
 namespace ra2 {
+
+using google::protobuf::RepeatedPtrField;
 
 struct Cookie {
   ra2::abi::ABIGameMD* abi;
@@ -64,5 +69,33 @@ struct TypeClassParser {
 
   void parse();
 };
+
+struct EventParser {
+  EventClass* src;
+  ra2yrproto::ra2yr::Event* T;
+  u32 time;
+  EventParser(EventClass* src, ra2yrproto::ra2yr::Event* T, u32 time);
+
+  void Target();
+
+  void MegaMission();
+
+  void MegaMission_F();
+
+  void Production();
+
+  void Place();
+
+  void parse();
+};
+
+void parse_MapData(ra2yrproto::ra2yr::MapData* dst, MapClass* src,
+                   ra2::abi::ABIGameMD* abi);
+
+void parse_EventLists(ra2yrproto::ra2yr::GameState* G,
+                      ra2yrproto::ra2yr::EventListsSnapshot* ES,
+                      std::size_t max_size);
+
+void parse_prerequisiteGroups(ra2yrproto::ra2yr::PrerequisiteGroups* T);
 
 }  // namespace ra2

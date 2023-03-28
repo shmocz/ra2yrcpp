@@ -104,6 +104,8 @@ if(BUILD_MAIN_LIBRARY)
   include_directories(3rdparty/YRpp)
   add_subdirectory(3rdparty/YRpp)
   add_subdirectory(src/addscn)
+  target_compile_options(YRpp INTERFACE -Wno-pragmas -Wno-return-type
+                                        -Wno-inconsistent-missing-override)
 endif()
 add_subdirectory(src)
 add_subdirectory(tests)

@@ -41,8 +41,11 @@ struct worker_util {
   std::function<void(T&)> consumer_fn;
   utility::auto_thread t;
 
-  explicit worker_util(std::function<void(T&)> consumer_fn)
-      : consumer_fn(std::move(consumer_fn)), t([&]() { this->worker(); }) {}
+  explicit worker_util(std::function<void(T&)> consumer_fn,
+                       std::size_t queue_size = 0U)
+      : work(queue_size),
+        consumer_fn(std::move(consumer_fn)),
+        t([&]() { this->worker(); }) {}
 
   worker_util(const worker_util& o) = delete;
   worker_util& operator=(const worker_util& o) = delete;

@@ -44,23 +44,34 @@ class AsyncQueue : public AsyncContainer {
  public:
   using queue_t = QueueT;
 
-  AsyncQueue() : AsyncContainer() {}
+  explicit AsyncQueue(std::size_t max_size = 0U)
+      : max_size_(max_size), AsyncContainer() {}
 
-  explicit AsyncQueue(QueueT q) : AsyncContainer(), q_(q) {}
+  explicit AsyncQueue(QueueT q, std::size_t max_size = 0U)
+      : AsyncContainer(), q_(q), max_size_(max_size) {}
 
-  AsyncQueue(const AsyncQueue& o) : AsyncContainer(o), q_(o.q_) {}
+  AsyncQueue(const AsyncQueue& o)
+      : AsyncContainer(o), q_(o.q_), max_size_(o.max_size_) {}
 
-  AsyncQueue(AsyncQueue&& o) : AsyncContainer(o), q_(o.q_) {}
+  AsyncQueue(AsyncQueue&& o)
+      : AsyncContainer(o), q_(o), max_size_(o.max_size_) {}
 
   AsyncQueue& operator=(const AsyncQueue& o) {
     a_ = o.a_;
     q_ = o.q_;
+    max_size_ = o.max_size_;
     return *this;
   }
 
-  // Put item to queue and notify
+  ///
+  /// Put an item to the queue, notifying everyone waiting for new items. If the
+  /// queue is bounded, block until free space is available.
+  ///
   void push(T t) {
     std::unique_lock<std::mutex> l(a_.get()->m);
+    if (max_size_ > 0 && size() + 1 > max_size_) {
+      a_.get()->cv.wait(l, [&] { return size() + 1 <= max_size_; });
+    }
     q_.push(t);
 #ifdef LOG_TRACE
     dprintf("notifying, a={},sz={}", reinterpret_cast<void*>(a_.get()), size());
@@ -112,5 +123,6 @@ class AsyncQueue : public AsyncContainer {
 
  private:
   QueueT q_;
+  std::size_t max_size_;
 };
 };  // namespace async_queue

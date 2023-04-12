@@ -281,6 +281,9 @@ message Cell {
   repeated Object objects = 8;
   bool shrouded = 9;
   uint32 passability = 10;
+  int32 visibility = 11;
+  int32 shroud_state = 12;
+  int32 index = 13;
 };
 
 message MapData {
@@ -547,4 +550,5 @@ message GameState {
   repeated Event do_list = 12;
   repeated Event megamission_list = 13;
   int32 tech_level = 14;
+  repeated Cell cells_difference = 15;
 }

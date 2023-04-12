@@ -101,6 +101,10 @@ message MissionClicked {
 message Configuration {
   bool debug_log = 1;
   string record_filename = 2;
+  // How many frames to pass before parsing map data again. Default is 1 (every
+  // frame). Increase this if you are experiencing performance problems. Set 0
+  // to disable.
+  uint32 parse_map_data_interval = 3;
 }
 
 message InspectConfiguration {
@@ -117,6 +121,8 @@ message InspectConfiguration {
 message AddEvent {
   message Args {
     ra2yrproto.ra2yr.Event event = 1;
+    uint32 frame_delay = 2;
+    bool spoof = 3;
   }
   message Result {
     ra2yrproto.ra2yr.Event event = 1;

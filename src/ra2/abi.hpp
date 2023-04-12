@@ -2,6 +2,7 @@
 
 #include "logging.hpp"
 #include "types.h"
+#include "utility/array_iterator.hpp"
 #include "utility/function_traits.hpp"
 #include "utility/memtools.hpp"
 #include "utility/serialize.hpp"
@@ -159,6 +160,21 @@ struct Caller {
         serialize::read_obj<std::uintptr_t>(object) + 0x4 * addr());
   }
 
+  template <typename... Args>
+  static auto* get_function(ra2::abi::ABIGameMD* A) {
+    auto& C = A->code_generators();
+    if (C.find(addr()) == C.end()) {
+      if constexpr (IsThisCall) {
+        A->add_entry<GenT>(addr(), stack_size);
+      } else {
+        A->add_entry<GenT>(addr());
+      }
+    }
+
+    return reinterpret_cast<GenT*>(C.at(addr()).get())
+        ->template getCode<CallT>();
+  }
+
   // TODO: be more explicit of the index param!
   template <typename... Args>
   static auto call_virtual(ra2::abi::ABIGameMD* A, FirstArg object,
@@ -177,16 +193,7 @@ struct Caller {
     if constexpr (IsVirtual) {
       return call_virtual(A, args...);
     } else {
-      auto& C = A->code_generators();
-      if (C.find(addr()) == C.end()) {
-        if constexpr (IsThisCall) {
-          A->add_entry<GenT>(addr(), stack_size);
-        } else {
-          A->add_entry<GenT>(addr());
-        }
-      }
-      return reinterpret_cast<GenT*>(A->code_generators().at(addr()).get())
-          ->template getCode<CallT>()(args...);
+      return get_function(A)(args...);
     }
   }
 
@@ -266,6 +273,14 @@ using AbstractClass_GetDestination =
 using SHPStruct_GetPixels =
     Caller<0x69E740U,
            unsigned char* __cdecl (*)(SHPStruct* p_this, int idxFrame)>;
+
+int get_tiberium_value(const CellClass& cell);
+int get_tiberium_type(int overlayTypeIndex);
+
+template <typename T>
+auto DVCIterator(DynamicVectorClass<T>* I) {
+  return utility::ArrayIterator(I->Items, I->Count);
+}
 
 }  // namespace abi
 }  // namespace ra2

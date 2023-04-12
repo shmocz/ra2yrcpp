@@ -71,3 +71,29 @@ void ABIGameMD::AddMessage(int id, const std::string message, const i32 color,
   ra2::abi::AddMessage::call(this, MessageListClass, nullptr, id, m.c_str(),
                              color, style, duration_frames, single_player);
 }
+
+int ra2::abi::get_tiberium_type(int overlayTypeIndex) {
+  auto* A = OverlayTypeClass::Array.get();
+  if (overlayTypeIndex == -1 || !A->GetItem(overlayTypeIndex)->Tiberium) {
+    return -1;
+  }
+  auto I = DVCIterator(TiberiumClass::Array.get());
+  for (const auto& t : I) {
+    int ix = t->Image->ArrayIndex;
+    if ((ix <= overlayTypeIndex && (overlayTypeIndex < t->NumImages + ix)) ||
+        (t->NumImages + ix <= overlayTypeIndex &&
+         (overlayTypeIndex < t->field_EC + t->NumImages + ix))) {
+      return t->ArrayIndex;
+    }
+  }
+  return 0;
+}
+
+int ra2::abi::get_tiberium_value(const CellClass& cell) {
+  int ix = get_tiberium_type(cell.OverlayTypeIndex);
+  if (ix == -1) {
+    return 0;
+  }
+  return TiberiumClass::Array.get()->GetItem(ix)->Value *
+         (cell.OverlayData + 1);
+}

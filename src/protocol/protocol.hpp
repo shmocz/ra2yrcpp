@@ -87,4 +87,16 @@ ra2yrproto::Command create_command(
 std::vector<const google::protobuf::FieldDescriptor*> find_set_fields(
     const google::protobuf::Message& M);
 
+///
+/// Clears the RepeatedPtField and fills it with n copies of given type.
+///
+template <typename T>
+void fill_repeated_empty(google::protobuf::RepeatedPtrField<T>* dst,
+                         const std::size_t n) {
+  dst->Clear();
+  for (auto i = 0U; i < n; i++) {
+    dst->Add();
+  }
+}
+
 }  // namespace yrclient

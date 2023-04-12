@@ -28,6 +28,7 @@ auto* get_storage(yrclient::InstrumentationService* I, yrclient::storage_t* s) {
 static auto default_configuration() {
   ra2yrproto::commands::Configuration C;
   C.set_debug_log(true);
+  C.set_parse_map_data_interval(1U);
   return C;
 }
 
@@ -48,6 +49,7 @@ static ra2yrproto::commands::Configuration* ensure_configuration(
 struct CBYR : public yrclient::ISCallback {
   yrclient::storage_t* storage{nullptr};
   ra2::abi::ABIGameMD* abi_{nullptr};
+  ra2yrproto::commands::Configuration* config_{nullptr};
   static constexpr char key_configuration[] = "yr_config";
 
   CBYR() = default;
@@ -63,7 +65,12 @@ struct CBYR : public yrclient::ISCallback {
                                                   T::key);
   }
 
-  auto* abi() { return storage_value<ra2::abi::ABIGameMD>("abi"); }
+  auto* abi() {
+    if (abi_ != nullptr) {
+      return abi_;
+    }
+    return storage_value<ra2::abi::ABIGameMD>("abi");
+  }
 
   void do_call(yrclient::InstrumentationService* I) override {
     auto [mut, s] = I->aq_storage();
@@ -97,7 +104,10 @@ struct CBYR : public yrclient::ISCallback {
   virtual void exec() { throw std::runtime_error("Not implemented"); }
 
   ra2yrproto::commands::Configuration* configuration() {
-    return ensure_configuration(this->I, this->storage);
+    if (config_ == nullptr) {
+      config_ = ensure_configuration(this->I, this->storage);
+    }
+    return config_;
   }
 };
 
@@ -208,22 +218,20 @@ struct CBExecuteGameLoopCommand : public MyCB<CBExecuteGameLoopCommand> {
 struct CBSaveState : public MyCB<CBSaveState> {
   static constexpr char key_name[] = "save_state";
   static constexpr char key_target[] = "on_frame_update";
-  static constexpr char key_record_path[] = "record_path";
   const std::string record_path;
   std::uint64_t fps_last_checked;
   std::uint64_t frame_previous;
 
   std::unique_ptr<yrclient::CompressedOutputStream> out;
-  utility::worker_util<ra2yrproto::ra2yr::GameState> work;
+  utility::worker_util<std::shared_ptr<ra2yrproto::ra2yr::GameState>> work;
+  std::vector<ra2::Cell> cells;
 
   explicit CBSaveState(const std::string record_path)
       : record_path(record_path),
         fps_last_checked(0U),
         frame_previous(0U),
         out(std::make_unique<yrclient::CompressedOutputStream>(record_path)),
-        work([this](ra2yrproto::ra2yr::GameState& w) {
-          this->serialize_state(w);
-        }) {}
+        work([this](const auto& w) { this->serialize_state(*w.get()); }, 10U) {}
 
   void serialize_state(const ra2yrproto::ra2yr::GameState& G) const {
     if (out != nullptr) {
@@ -239,10 +247,7 @@ struct CBSaveState : public MyCB<CBSaveState> {
     auto* D = TechnoClass::Array.get();
     auto* H = G->mutable_objects();
     if (H->size() != D->Count) {
-      H->Clear();
-      for (int i = 0; i < D->Count; i++) {
-        H->Add();
-      }
+      yrclient::fill_repeated_empty(H, D->Count);
     }
     for (int i = 0; i < D->Count; i++) {
       auto* I = D->Items[i];
@@ -256,10 +261,7 @@ struct CBSaveState : public MyCB<CBSaveState> {
     auto* D = FactoryClass::Array.get();
     auto* H = G->mutable_factories();
     if (H->size() != D->Count) {
-      H->Clear();
-      for (int i = 0; i < D->Count; i++) {
-        H->Add();
-      }
+      yrclient::fill_repeated_empty(H, D->Count);
     }
 
     for (int i = 0; i < D->Count; i++) {
@@ -269,8 +271,8 @@ struct CBSaveState : public MyCB<CBSaveState> {
       O.set_owner(reinterpret_cast<u32>(I->Owner));
       O.set_progress_timer(I->Production.Value);
       O.set_on_hold(I->OnHold);
-      auto A = utility::ArrayIterator(I->QueuedObjects.Items,
-                                      I->QueuedObjects.Count);
+      auto A = ra2::abi::DVCIterator(&I->QueuedObjects);
+      O.clear_queued_objects();
       for (auto* p : A) {
         O.add_queued_objects(reinterpret_cast<u32>(p));
       }
@@ -281,30 +283,13 @@ struct CBSaveState : public MyCB<CBSaveState> {
     auto* D = HouseClass::Array.get();
     auto* H = G->mutable_houses();
     if (H->size() != D->Count) {
-      H->Clear();
-      for (int i = 0; i < D->Count; i++) {
-        H->Add();
-      }
+      yrclient::fill_repeated_empty(H, D->Count);
     }
+
     for (int i = 0; i < D->Count; i++) {
       auto* I = D->Items[i];
       auto& O = H->at(i);
-      O.set_array_index(I->ArrayIndex);
-      O.set_current_player(I->IsInPlayerControl);
-      O.set_defeated(I->Defeated);
-      O.set_is_game_over(I->IsGameOver);
-      O.set_is_loser(I->IsLoser);
-      O.set_is_winner(I->IsWinner);
-      O.set_money(I->Balance);
-      O.set_power_drain(I->PowerDrain);
-      O.set_power_output(I->PowerOutput);
-      O.set_start_credits(I->StartingCredits);
-      O.set_self(reinterpret_cast<std::uintptr_t>(I));
-      O.set_name(I->PlainName);
-      O.set_type_array_index(I->Type->ArrayIndex);
-      O.set_allied_infiltrated(I->Side0TechInfiltrated);
-      O.set_soviet_infiltrated(I->Side1TechInfiltrated);
-      O.set_third_infiltrated(I->Side2TechInfiltrated);
+      ra2::parse_HouseClass(&O, I);
     }
   }
 
@@ -314,10 +299,7 @@ struct CBSaveState : public MyCB<CBSaveState> {
 
     // Initialize if no types haven't been parsed yet
     if (T->size() != D->Count) {
-      T->Clear();
-      for (int i = 0; i < D->Count; i++) {
-        T->Add();
-      }
+      yrclient::fill_repeated_empty(T, D->Count);
     }
 
     // Parse the types
@@ -330,10 +312,17 @@ struct CBSaveState : public MyCB<CBSaveState> {
     }
   }
 
-  ra2yrproto::ra2yr::GameState state_to_protobuf(
+  void update_MapData(
+      ra2yrproto::ra2yr::MapData* M,
+      const RepeatedPtrField<ra2yrproto::ra2yr::Cell>& difference) {
+    for (const auto& c : difference) {
+      M->mutable_cells()->at(c.index()).CopyFrom(c);
+    }
+  }
+
+  std::shared_ptr<ra2yrproto::ra2yr::GameState> state_to_protobuf(
       const bool do_type_classes = false) {
     auto* gbuf = get_storage(I, storage)->mutable_game_state();
-    gbuf->Clear();
 
     // put load stages
     gbuf->mutable_load_progresses()->CopyFrom(
@@ -347,6 +336,9 @@ struct CBSaveState : public MyCB<CBSaveState> {
       ra2::parse_prerequisiteGroups(prerequisite_groups());
       gbuf->mutable_object_types()->CopyFrom(*type_classes());
       gbuf->mutable_prerequisite_groups()->CopyFrom(*prerequisite_groups());
+    } else {
+      gbuf->clear_object_types();
+      gbuf->clear_prerequisite_groups();
     }
 
     gbuf->set_current_frame(Unsorted::CurrentFrame);
@@ -357,14 +349,27 @@ struct CBSaveState : public MyCB<CBSaveState> {
 
     gbuf->set_stage(ra2yrproto::ra2yr::LoadStage::STAGE_INGAME);
 
-    // This is slow, accounting to 16 FPS (targeting 60 FPS) or more speed loss
-    // in large maps like Arctic Circle. As a workaround only execute this every
-    // 30 frame.
-    // TODO: autodetect throttle delay
+    // Initialize MapData
     if (gbuf->current_frame() > 0U &&
-        (((gbuf->current_frame() - 1) % 30) == 0)) {
+        get_storage(I, storage)->map_data().cells_size() == 0U) {
       ra2::parse_MapData(get_storage(I, storage)->mutable_map_data(),
                          MapClass::Instance.get(), abi());
+    }
+
+    if (cells.empty() && gbuf->current_frame() > 0U) {
+      auto valid_cells = ra2::get_valid_cells(MapClass::Instance.get());
+      cells = std::vector<ra2::Cell>(valid_cells.size());
+    }
+
+    // Parse cells
+    if (!cells.empty() &&
+        (gbuf->current_frame() % configuration()->parse_map_data_interval() ==
+         0U)) {
+      gbuf->clear_cells_difference();
+      ra2::parse_map(&cells, MapClass::Instance.get(),
+                     gbuf->mutable_cells_difference());
+      update_MapData(get_storage(I, storage)->mutable_map_data(),
+                     gbuf->cells_difference());
     }
 
     if (do_type_classes) {
@@ -376,34 +381,15 @@ struct CBSaveState : public MyCB<CBSaveState> {
     ra2::parse_EventLists(gbuf, get_storage(I, storage)->mutable_event_buffer(),
                           cfg::EVENT_BUFFER_SIZE);
 
-    return {*gbuf};
-  }
-
-  void check_fps() {
-    auto ts = static_cast<u64>(abi()->timeGetTime());
-    if (fps_last_checked + 5 * 1000 < ts) {
-      auto current_frame = static_cast<u64>(Unsorted::CurrentFrame);
-      // auto min_fps = static_cast<u64>(Detail::MinFrameRate);
-      // FIXME: autodetect
-      auto min_fps = 60U;
-      auto fps =
-          (current_frame - frame_previous) / ((ts - fps_last_checked) / 1000);
-      if (fps < min_fps) {
-        wrprintf("current_fps < required fps: {} < {}", fps, min_fps);
-      }
-      frame_previous = current_frame;
-      fps_last_checked = ts;
-    }
+    return std::make_shared<ra2yrproto::ra2yr::GameState>(*gbuf);
   }
 
   void exec() override {
-    // FIXME: more explicit about this
     // enables event debug logs
     // *reinterpret_cast<char*>(0xa8ed74) = 1;
     try {
       auto st = state_to_protobuf(type_classes()->empty());
       work.push(st);
-      check_fps();
     } catch (const std::exception& e) {
       eprintf("FAILED {}", e.what());
       throw;
@@ -643,7 +629,7 @@ auto create_callbacks() {
 }
 
 constexpr std::array<std::pair<const char*, u32>, 7> gg_hooks = {{
-    {CBExecuteGameLoopCommand::key_target, 0x55de7f},  //
+    {CBExecuteGameLoopCommand::key_target, 0x55de4f},  //
     {CBExitGameLoop::key_target, 0x72dfb0},            //
     {key_on_load_game, 0x686730},                      //
     {CBTunnelSendTo::key_target, 0x7b3d6f},            //
@@ -728,21 +714,39 @@ auto mission_clicked() {
   });
 }
 
+// TODO(shmocz): add checks for invalid rtti_id's
 auto add_event() {
   return get_cmd<ra2yrproto::commands::AddEvent>([](auto* Q) {
     auto [mut, s] = Q->I()->aq_storage();
     auto a = Q->args();
-    // FIXME: UAF?
     auto cmd = Q->c;
     Q->save_command_result();
     cmd->pending().store(true);
 
     get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
         make_work<decltype(a)>(a, [cmd](CBYR* C, auto* args) {
-          // TODO: these may not be needed
+          const auto frame_delay = args->frame_delay();
+
+          auto frame = Unsorted::CurrentFrame + frame_delay;
+          auto house_index = args->spoof()
+                                 ? args->event().house_index()
+                                 : HouseClass::CurrentPlayer->ArrayIndex;
+          // This is how the frame is computed for protocol zero.
+          if (frame_delay == 0) {
+            const auto& fsr = Game::Network::FrameSendRate;
+            frame =
+                (((fsr + Unsorted::CurrentFrame - 1 + Game::Network::MaxAhead) /
+                  fsr) *
+                 fsr);
+          }
+          // Set the frame to negative value to indicate that house index and
+          // frame number should be spoofed
+          frame = frame * (args->spoof() ? -1 : 1);
+
           EventClass E(static_cast<EventType>(args->event().event_type()),
-                       false, static_cast<char>(args->event().house_index()),
-                       static_cast<u32>(Unsorted::CurrentFrame));
+                       false, static_cast<char>(house_index),
+                       static_cast<u32>(frame));
+
           auto ts = C->abi()->timeGetTime();
           if (args->event().has_production()) {
             auto& ev = args->event().production();
@@ -770,7 +774,6 @@ auto add_event() {
           auto* p = reinterpret_cast<ra2yrproto::CommandResult*>(cmd->result());
           ra2yrproto::commands::AddEvent r2;
           p->mutable_result()->UnpackTo(&r2);
-          auto r2_res = r2.mutable_result();
           auto* ev = r2.mutable_result()->mutable_event();
           ev->CopyFrom(args->event());
           ev->set_timing(ts);
@@ -790,10 +793,7 @@ auto place_query() {
 
     get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
         make_work<decltype(a)>(a, [cmd](CBYR* C, auto* args) {
-          // Get corresponding BuildingTypeClass
-          auto A1 = TechnoTypeClass::Array.get();
-          auto A =
-              utility::ArrayIterator<TechnoTypeClass*>(A1->Items, A1->Count);
+          auto A = ra2::abi::DVCIterator(TechnoTypeClass::Array.get());
           auto B = std::find_if(A.begin(), A.end(), [args](auto* p) {
             return utility::asint(p) == args->type_class();
           });

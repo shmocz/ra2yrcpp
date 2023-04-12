@@ -6,6 +6,7 @@ import struct
 from typing import List, Tuple
 from dataclasses import dataclass
 import argparse
+import logging as lg
 from iced_x86 import *
 
 
@@ -27,10 +28,6 @@ def patch(b, b1, offset):
     e = offset + len(b1)
     assert e <= l, f"l={l}, e={e}"
     b[offset:e] = b1
-
-
-def eprint(*args):
-    print(*args, file=sys.stderr)
 
 
 def get_section(sections: List[Section], vaddr: int) -> Section:
@@ -134,8 +131,11 @@ def create_detour(
     detour = to_copy + code + pushret(address + c)
     # copy bytes to trampoline area
     patch(binary, detour, section_detours.paddr + offset_detours)
-    eprint(
-        "PATCH", hex(address), "DETOUR", hex(addr_detours), "SIZE", len(detour)
+    lg.info(
+        "patch: target,detour,len(detour)=%x,%x,%d",
+        address,
+        addr_detours,
+        len(detour),
     )
     pr_1 = pushret(addr_detours)
     assert c - len(pr_1) >= 0
@@ -154,11 +154,13 @@ def create_detour_trampolines(
 ):
     patches = patches or []
     addr_detours = detour_address
+    # Create simple detours to target addresses
     for addr in addresses:
         addr_detours = addr_detours + create_detour(
             binary, addr, addr_detours, b"", sections
         )
 
+    # Create custom detours and raw patches
     for ptype, addr, code in patches:
         if ptype == "d":
             addr_detours = addr_detours + create_detour(
@@ -231,6 +233,7 @@ def get_sections(sections: List[str]) -> List[Section]:
 
 
 def main():
+    lg.basicConfig(level=lg.INFO)
     a = parse_args()
     addrs = get_hook_addresses(get_source())
 

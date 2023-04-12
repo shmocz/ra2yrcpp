@@ -38,4 +38,5 @@ services:
     environment:
       PLAYER_ID: player_1
       RA2YRCPP_PORT: 14522
+      RA2YRCPP_WS_PORT: 14526
     network_mode: service:vnc

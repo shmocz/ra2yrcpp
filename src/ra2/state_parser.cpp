@@ -1,7 +1,5 @@
 #include "ra2/state_parser.hpp"
 
-#include <YRPP.h>
-
 using namespace ra2;
 
 ClassParser::ClassParser(Cookie c, ra2yrproto::ra2yr::Object* T) : c(c), T(T) {}
@@ -125,8 +123,7 @@ void TypeClassParser::TechnoType() {
   auto* P = reinterpret_cast<TechnoTypeClass*>(c.src);
   T->set_cost(P->Cost);
   T->set_soylent(P->Soylent);
-  auto A = utility::ArrayIterator<long>(P->Prerequisite.Items,
-                                        P->Prerequisite.Count);
+  auto A = abi::DVCIterator(&P->Prerequisite);
   T->mutable_prerequisites()->Clear();
   for (auto r : A) {
     T->add_prerequisites(static_cast<int>(r));
@@ -281,7 +278,138 @@ void EventParser::parse() {
   }
 }
 
-// FIXME: save only the utilized cells
+template <typename FnT>
+static void apply_cells(MapClass* src, FnT fn) {
+  auto* M = src;
+  auto L = M->MapCoordBounds;
+
+  for (int j = 0; j <= L.Bottom; j++) {
+    for (int i = 0; i <= L.Right; i++) {
+      CellStruct coords{static_cast<i16>(i), static_cast<i16>(j)};
+      auto* src_cell = M->TryGetCellAt(coords);
+
+      if (src_cell != nullptr) {
+        fn(i, j, src_cell);
+      }
+    }
+  }
+}
+
+template <unsigned N>
+static bool bytes_equal(const void* p1, const void* p2) {
+#if 0
+  for (auto i = 0U; i < N; i++) {
+    if (reinterpret_cast<const char*>(p1)[i] !=
+        reinterpret_cast<const char*>(p2)[i]) {
+      return false;
+    }
+  }
+  return true;
+#else
+  return std::memcmp(p1, p2, N) == 0;
+#endif
+}
+
+static void parse_Cell(Cell* C, const int ix, const CellClass& cc) {
+  C->radiation_level = cc.RadLevel;
+  C->land_type = static_cast<i32>(cc.LandType);
+  C->height = cc.Height;
+  C->level = cc.Level;
+  C->overlay_data = cc.OverlayData;
+  C->tiberium_value = 0;
+  int ff = static_cast<int>(cc.AltFlags);
+  C->shrouded = ((ff & 0x8) == 0);
+  C->passability = cc.Passability;
+  C->index = ix;
+  if (C->land_type ==
+      static_cast<int>(ra2yrproto::ra2yr::LandType::LAND_TYPE_Tiberium)) {
+    C->tiberium_value = ra2::abi::get_tiberium_value(cc);
+  }
+}
+
+std::vector<CellClass*> ra2::get_valid_cells(MapClass* M) {
+  std::vector<CellClass*> res;
+  auto L = M->MapCoordBounds;
+  // Initialize valid cells
+  for (int j = 0; j <= L.Bottom; j++) {
+    for (int i = 0; i <= L.Right; i++) {
+      CellStruct coords{static_cast<i16>(i), static_cast<i16>(j)};
+      auto* cc = M->TryGetCellAt(coords);
+      if (cc != nullptr) {
+        res.push_back(cc);
+      }
+    }
+  }
+  return res;
+}
+
+static void parse_cells(Cell* dest, CellClass** src, const std::size_t c,
+                        const LTRBStruct& L) {
+  for (int k = 0; k < c; k++) {
+    auto* cc = src[k];
+    const int ix = (L.Right + 1) * (cc->MapCoords.Y) + (cc->MapCoords.X);
+
+    auto& C = dest[k];
+    parse_Cell(&C, ix, *cc);
+  }
+}
+
+static void update_modified_cells(
+    const Cell* current, Cell* previous, const std::size_t c,
+    RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference) {
+  for (int k = 0; k < c; k++) {
+    auto& C = current[k];
+    if (!bytes_equal<sizeof(Cell)>(&C, &previous[k])) {
+      C.copy_to(difference->Add(), &C);
+      previous[k] = C;
+    }
+  }
+}
+
+template <int N>
+static void apply_cell_stride(
+    Cell* previous, Cell* cell_buf, CellClass** cells,
+    RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference, MapClass* M) {
+  const auto& L = M->MapCoordBounds;
+  parse_cells(cell_buf, cells, N, L);
+  if (!bytes_equal<sizeof(Cell) * N>(cell_buf, previous)) {
+    update_modified_cells(cell_buf, previous, N, difference);
+  }
+}
+
+// TODO(shmocz): objects
+void ra2::parse_map(std::vector<Cell>* previous, MapClass* D,
+                    RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference) {
+  static constexpr int chunk = 128;
+  static std::vector<CellClass*> valid_cell_objects;
+  static std::array<Cell, chunk> cell_buf;
+
+  // Initialize valid cells
+  if (valid_cell_objects.empty()) {
+    valid_cell_objects = get_valid_cells(D);
+  }
+
+  auto* cellbuf = cell_buf.data();
+  auto* cells = valid_cell_objects.data();
+  Cell* prev_cells = previous->data();
+
+  const auto sz = static_cast<int>(valid_cell_objects.size());
+  const auto cnt = sz / chunk;
+  for (int i = 0; i < cnt * chunk; i += chunk) {
+    apply_cell_stride<chunk>(&prev_cells[i], cellbuf, &cells[i], difference, D);
+  }
+
+  for (int i = cnt * chunk; i < sz; i += chunk) {
+    const auto& L = D->MapCoordBounds;
+    auto c = std::min(chunk, (sz - cnt * chunk));
+    parse_cells(cellbuf, &cells[i], c, L);
+    if (!(std::memcmp(cellbuf, &prev_cells[i], c * sizeof(Cell)) == 0)) {
+      update_modified_cells(cellbuf, &prev_cells[i], c, difference);
+    }
+  }
+}
+
+// TODO(shmocz): save only the utilized cells
 void ra2::parse_MapData(ra2yrproto::ra2yr::MapData* dst, MapClass* src,
                         ra2::abi::ABIGameMD* abi) {
   auto* M = src;
@@ -322,7 +450,6 @@ void ra2::parse_MapData(ra2yrproto::ra2yr::MapData* dst, MapClass* src,
                   abi, reinterpret_cast<std::uintptr_t>(src_cell)));
         }
         c.set_shrouded(ra2::abi::CellClass_IsShrouded::call(abi, src_cell));
-        // c.set_shrouded(false);
         c.set_passability(src_cell->Passability);
       }
     }
@@ -331,10 +458,18 @@ void ra2::parse_MapData(ra2yrproto::ra2yr::MapData* dst, MapClass* src,
 
 template <typename T>
 void parse_EventList(RepeatedPtrField<ra2yrproto::ra2yr::Event>* dst, T* list) {
+  if (dst->size() != list->Count) {
+    dst->Clear();
+
+    for (auto i = 0; i < list->Count; i++) {
+      (void)dst->Add();
+    }
+  }
   for (auto i = 0; i < list->Count; i++) {
     auto ix =
         (list->Head + i) & ((sizeof(list->List) / sizeof(*list->List)) - 1);
-    ra2::EventParser P(&list->List[ix], dst->Add(), list->Timings[ix]);
+    auto& it = dst->at(i);
+    ra2::EventParser P(&list->List[ix], &it, list->Timings[ix]);
     P.parse();
   }
 }
@@ -366,7 +501,7 @@ void ra2::parse_EventLists(ra2yrproto::ra2yr::GameState* G,
 void ra2::parse_prerequisiteGroups(ra2yrproto::ra2yr::PrerequisiteGroups* T) {
   auto& R = RulesClass::Instance;
   auto f = [](auto& L, auto* d) {
-    auto IT = utility::ArrayIterator<int>(L.Items, L.Count);
+    auto IT = abi::DVCIterator(&L);
     for (auto id : IT) {
       d->Add(id);
     }
@@ -378,4 +513,24 @@ void ra2::parse_prerequisiteGroups(ra2yrproto::ra2yr::PrerequisiteGroups* T) {
   f(R->PrerequisiteBarracks, T->mutable_barracks());
   f(R->PrerequisiteFactory, T->mutable_factory());
   f(R->PrerequisitePower, T->mutable_power());
+}
+
+void ra2::parse_HouseClass(ra2yrproto::ra2yr::House* dst,
+                           const HouseClass* src) {
+  dst->set_array_index(src->ArrayIndex);
+  dst->set_current_player(src->IsInPlayerControl);
+  dst->set_defeated(src->Defeated);
+  dst->set_is_game_over(src->IsGameOver);
+  dst->set_is_loser(src->IsLoser);
+  dst->set_is_winner(src->IsWinner);
+  dst->set_money(src->Balance);
+  dst->set_power_drain(src->PowerDrain);
+  dst->set_power_output(src->PowerOutput);
+  dst->set_start_credits(src->StartingCredits);
+  dst->set_self(reinterpret_cast<std::uintptr_t>(src));
+  dst->set_name(src->PlainName);
+  dst->set_type_array_index(src->Type->ArrayIndex);
+  dst->set_allied_infiltrated(src->Side0TechInfiltrated);
+  dst->set_soviet_infiltrated(src->Side1TechInfiltrated);
+  dst->set_third_infiltrated(src->Side2TechInfiltrated);
 }

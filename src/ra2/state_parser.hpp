@@ -9,7 +9,9 @@
 #include "utility/serialize.hpp"
 
 #include <YRPP.h>
+#include <algorithm>
 #include <google/protobuf/repeated_ptr_field.h>
+#include <vector>
 
 namespace ra2 {
 
@@ -89,6 +91,38 @@ struct EventParser {
   void parse();
 };
 
+void parse_HouseClass(ra2yrproto::ra2yr::House* dst, const HouseClass* src);
+
+// Intermediate structure for more efficient map data processing
+struct Cell {
+  i32 land_type;
+  // crate type and some weird data
+  i32 overlay_data;
+  i32 tiberium_value;
+  // Objects in this Cell
+  // repeated Object objects = 8;
+  double radiation_level;
+  u32 passability;
+  int index;
+  bool shrouded;
+  char height;
+  char level;
+  char pad[1];
+
+  static void copy_to(ra2yrproto::ra2yr::Cell* dst, const Cell* src) {
+    dst->set_land_type(
+        static_cast<ra2yrproto::ra2yr::LandType>(src->land_type));
+    dst->set_radiation_level(src->radiation_level);
+    dst->set_height(static_cast<i32>(src->height));
+    dst->set_level(static_cast<i32>(src->level));
+    dst->set_overlay_data(src->overlay_data);
+    dst->set_tiberium_value(src->tiberium_value);
+    dst->set_shrouded(src->shrouded);
+    dst->set_passability(src->passability);
+    dst->set_index(src->index);
+  }
+};
+
 void parse_MapData(ra2yrproto::ra2yr::MapData* dst, MapClass* src,
                    ra2::abi::ABIGameMD* abi);
 
@@ -97,5 +131,10 @@ void parse_EventLists(ra2yrproto::ra2yr::GameState* G,
                       std::size_t max_size);
 
 void parse_prerequisiteGroups(ra2yrproto::ra2yr::PrerequisiteGroups* T);
+
+void parse_map(std::vector<Cell>* previous, MapClass* D,
+               RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference);
+
+std::vector<CellClass*> get_valid_cells(MapClass* M);
 
 }  // namespace ra2

@@ -1,14 +1,10 @@
-import logging
+import logging as lg
 from enum import Enum
 from typing import List
 
 from ra2yrproto import ra2yr
 
 from pyra2yr.util import find_objects
-
-debug = logging.debug
-info = logging.info
-error = logging.error
 
 
 class ProduceCategory(Enum):
@@ -43,7 +39,7 @@ class PlaceTask(AsyncGameTask):
 
     async def is_completed(self) -> bool:
         if self.s.current_frame - self.frame > self.deadline:
-            error("place task expired")
+            lg.error("place task expired")
             return True
         facs = [f for f in self.s.factories if f.object == self.o.pointer_self]
         if facs:

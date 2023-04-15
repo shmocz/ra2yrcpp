@@ -3,7 +3,7 @@ import io
 import logging
 import math
 import re
-from enum import Enum
+from enum import Enum, IntFlag, auto
 from typing import Iterable, Iterator, List, Tuple
 
 import google.protobuf.text_format as text_format
@@ -193,3 +193,71 @@ def finish_profiler(p):
     ps = pstats.Stats(p, stream=s).sort_stats(SortKey.CUMULATIVE)
     ps.print_stats()
     return s.getvalue()
+
+
+class PrerequisiteCheck(IntFlag):
+    OK = auto()
+    EMPTY_PREREQUISITES = auto()
+    NOT_IN_MYIDS = auto()
+    INVALID_PREQ_GROUP = auto()
+    NOT_PREQ_GROUP_IN_MYIDS = auto()
+    BAD_TECH_LEVEL = auto()
+    NO_STOLEN_TECH = auto()
+    FORBIDDEN_HOUSE = auto()
+    BUILD_LIMIT_REACHED = auto()
+
+
+def check_stolen_tech(ttc: ra2yr.ObjectTypeClass, h: ra2yr.House):
+    return (
+        (ttc.requires_stolen_allied_tech and not h.allied_infiltrated)
+        or (ttc.requires_stolen_soviet_tech and not h.soviet_infiltrated)
+        or (ttc.requires_stolen_third_tech and not h.third_infiltrated)
+    )
+
+
+def check_preq_list(ttc: ra2yr.ObjectTypeClass, myids, prerequisite_map):
+    res = PrerequisiteCheck.OK
+    if not ttc.prerequisites:
+        res |= PrerequisiteCheck.EMPTY_PREREQUISITES
+    for p in ttc.prerequisites:
+        if p >= 0 and p not in myids:
+            res |= PrerequisiteCheck.NOT_IN_MYIDS
+        if p < 0:
+            if p not in prerequisite_map:
+                res |= PrerequisiteCheck.INVALID_PREQ_GROUP
+            if not myids.intersection(prerequisite_map[p]):
+                res |= PrerequisiteCheck.NOT_PREQ_GROUP_IN_MYIDS
+    return res
+
+
+def cell_grid(coords, rx: int, ry: int) -> List[ra2yr.Coordinates]:
+    """Get a rectangular grid centered on given coordinates.
+
+    Parameters
+    ----------
+    coords : _type_
+       The center coordinates for the grid.
+    rx : int
+        x-axis radius
+    ry : int
+        y-axis radius
+
+    Returns
+    -------
+    List[ra2yr.Coordinates]
+        List of cell coordinates lying on the given bounds.
+    """
+    place_query_grid = []
+    for i in range(0, rx):
+        for j in range(0, ry):
+            place_query_grid.append(
+                tuple2coord(
+                    tuple(
+                        x + y * 256
+                        for x, y in zip(
+                            coords, (i - int(rx / 2), j - int(ry / 2), 0)
+                        )
+                    )
+                )
+            )
+    return place_query_grid

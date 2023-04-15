@@ -1,4 +1,5 @@
 import asyncio
+import json
 import cProfile
 import logging as lg
 import random
@@ -17,9 +18,6 @@ from pyra2yr.manager import (
     Manager,
     ManagerUtil,
     NumpyMapData,
-    PrerequisiteCheck,
-    check_preq_list,
-    check_stolen_tech,
 )
 from pyra2yr.network import logged_task
 from pyra2yr.util import (
@@ -31,6 +29,9 @@ from pyra2yr.util import (
     setup_logging,
     sub2ind,
     tuple2coord,
+    PrerequisiteCheck,
+    check_preq_list,
+    check_stolen_tech,
 )
 
 # FIXME: parallel naval + tank build
@@ -38,6 +39,7 @@ from pyra2yr.util import (
 PT_SCOUT = r"^Attack.*Dog"
 PT_ENGI = r"Soviet Engineer"
 PT_DERRICK = r"Derrick"
+PT_CONNIE = r"Conscript"
 
 
 def filter_ttc(
@@ -100,6 +102,7 @@ class MyManager(Manager):
         self._at.add_tracker("scouter", 20)
         self._at.add_tracker("capture", 30)
         self._at.add_tracker("produce", 15)
+        self._at.add_tracker("place", 20)
         random.seed(1234)
 
     # TODO: save previous state and check if anything changed
@@ -387,7 +390,6 @@ class MyManager(Manager):
 
         # TODO: verify result
         await self.M.produce(
-            house_index=h.array_index,
             rtti_id=rtti_id,
             heap_id=index,
             is_naval=target.naval,
@@ -485,7 +487,7 @@ class MyManager(Manager):
             return buildable[bb[0][0]]
         return None
 
-    # TODO: this lags as well. add a delay
+    # TODO: decorator for proceed
     async def place_buildings(self):
         """Place all pending buildings
 
@@ -493,6 +495,8 @@ class MyManager(Manager):
         In practice, the place might be delayed (e.g. due to lag). To avoid spamming extra requests during this "lag" phase,
         each request is put into pending queue and removed once completed, failed or not
         """
+        if not self._at.proceed("place"):
+            return
         done = [
             o
             for o in self.production()
@@ -670,7 +674,11 @@ class MyManager(Manager):
                 pending.append(i)
         self.pending_tasks = [self.pending_tasks[i] for i in pending]
 
-    async def produce_attackers(self, max_count=2):
+    async def produce_attackers(
+        self,
+        max_count=5,
+        mask=ra2yr.ABSTRACT_TYPE_INFANTRYTYPE | ra2yr.ABSTRACT_TYPE_UNITTYPE,
+    ):
         X = self.objects_numpy
 
         U = np.array(
@@ -687,8 +695,7 @@ class MyManager(Manager):
             ]
         )
         U = U[
-            (U[:, 3] == ra2yr.ABSTRACT_TYPE_INFANTRYTYPE)
-            | (U[:, 3] == ra2yr.ABSTRACT_TYPE_UNITTYPE),
+            (U[:, 3] & mask) > 0,
             :,
         ]
         counts = [np.sum(X[:, 2] == U[i, 2]) for i in range(U.shape[0])]

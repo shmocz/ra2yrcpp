@@ -132,10 +132,7 @@ async def mcv_sell(app=None):
 
     # produce event
     info("produce event")
-    await U.produce_building(
-        house_index=index_player,
-        heap_id=tc_tesla.array_index,
-    )
+    await U.produce_building(heap_id=tc_tesla.array_index, is_naval=False)
 
     # wait until done
     await M.wait_state(

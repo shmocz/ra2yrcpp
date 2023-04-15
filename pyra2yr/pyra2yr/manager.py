@@ -1,10 +1,7 @@
 import asyncio
-import datetime
 import logging as lg
 import traceback
 from datetime import datetime as dt
-from datetime import timedelta
-from enum import Enum, IntFlag, auto
 from functools import cached_property
 from typing import Any, Dict, List, Set
 
@@ -12,7 +9,7 @@ import numpy as np
 from ra2yrproto import commands_builtin, commands_yr, core, ra2yr
 
 from pyra2yr.network import DualClient, logged_task
-from pyra2yr.util import Clock, tuple2coord
+from pyra2yr.util import Clock, cell_grid
 
 
 class CachedEntry:
@@ -30,18 +27,6 @@ class CachedEntry:
     def update(self, x: Any):
         self.value = x
         self.last_updated = self.s.current_frame
-
-
-class PrerequisiteCheck(IntFlag):
-    OK = auto()
-    EMPTY_PREREQUISITES = auto()
-    NOT_IN_MYIDS = auto()
-    INVALID_PREQ_GROUP = auto()
-    NOT_PREQ_GROUP_IN_MYIDS = auto()
-    BAD_TECH_LEVEL = auto()
-    NO_STOLEN_TECH = auto()
-    FORBIDDEN_HOUSE = auto()
-    BUILD_LIMIT_REACHED = auto()
 
 
 class NumpyMapData:
@@ -73,36 +58,13 @@ class NumpyMapData:
         self.data = data
 
 
-def check_stolen_tech(ttc: ra2yr.ObjectTypeClass, h: ra2yr.House):
-    return (
-        (ttc.requires_stolen_allied_tech and not h.allied_infiltrated)
-        or (ttc.requires_stolen_soviet_tech and not h.soviet_infiltrated)
-        or (ttc.requires_stolen_third_tech and not h.third_infiltrated)
-    )
-
-
-def check_preq_list(ttc: ra2yr.ObjectTypeClass, myids, prerequisite_map):
-    res = PrerequisiteCheck.OK
-    if not ttc.prerequisites:
-        res |= PrerequisiteCheck.EMPTY_PREREQUISITES
-    for p in ttc.prerequisites:
-        if p >= 0 and p not in myids:
-            res |= PrerequisiteCheck.NOT_IN_MYIDS
-        if p < 0:
-            if p not in prerequisite_map:
-                res |= PrerequisiteCheck.INVALID_PREQ_GROUP
-            if not myids.intersection(prerequisite_map[p]):
-                res |= PrerequisiteCheck.NOT_PREQ_GROUP_IN_MYIDS
-    return res
-
-
 class Manager:
-    # TODO: don't replace the state with new instance, so that other components can look into it safely
+    """Manages connections and state updates for an active game process."""
+
     def __init__(
         self, address: str = "0.0.0.0", port: int = 14525, poll_frequency=20
     ):
-        """_summary_
-
+        """
         Parameters
         ----------
         address : str, optional
@@ -136,9 +98,6 @@ class Manager:
         self._stop.set()
         await self._main_task
         await self.client.stop()
-
-    def add_callback(self, fn):
-        self.callbacks.append(fn)
 
     @cached_property
     def prerequisite_map(self) -> Dict[int, Set[int]]:
@@ -246,12 +205,15 @@ class Manager:
                 timeout,
             )
 
+    def players(self) -> List[ra2yr.House]:
+        return [
+            p for p in self.state.houses if p.name not in ["Special", "Neutral"]
+        ]
 
-class ManagerUtil:
-    def __init__(self, manager: Manager):
-        self.manager = manager
 
-    def make_command(self, c: Any, **kwargs):
+class CommandBuilder:
+    @classmethod
+    def make_command(cls, c: Any, **kwargs):
         for k, v in kwargs.items():
             if v is None:
                 continue
@@ -264,27 +226,61 @@ class ManagerUtil:
                     getattr(c.args, k).CopyFrom(v)
         return c
 
+    @classmethod
     def add_event(
-        self,
+        cls,
         event_type: ra2yr.NetworkEvent = None,
         house_index: int = 0,
+        frame_delay=0,
+        spoof=False,
         **kwargs,
     ):
-        return self.make_command(
+        return cls.make_command(
             commands_yr.AddEvent(),
             event=ra2yr.Event(
                 event_type=event_type, house_index=house_index, **kwargs
             ),
+            frame_delay=frame_delay,
+            spoof=spoof,
         )
 
+    @classmethod
+    def make_place(
+        cls,
+        heap_id=None,
+        is_naval=None,
+        location=None,
+    ) -> commands_yr.AddEvent:
+        return cls.add_event(
+            event_type=ra2yr.NETWORK_EVENT_Place,
+            place=ra2yr.Event.Place(
+                rtti_type=ra2yr.ABSTRACT_TYPE_BUILDINGTYPE,
+                heap_id=heap_id,
+                is_naval=is_naval,
+                location=location,
+            ),
+        )
+
+    @classmethod
+    def make_produce(
+        cls, rtti_id: int = 0, heap_id: int = 0, is_naval: bool = False
+    ):
+        return cls.add_event(
+            event_type=ra2yr.NETWORK_EVENT_Produce,
+            production=ra2yr.Event.Production(
+                rtti_id=rtti_id, heap_id=heap_id, is_naval=is_naval
+            ),
+        )
+
+    @classmethod
     def mission_clicked(
-        self,
+        cls,
         object_addresses=List[int],
         event=ra2yr.Mission,
         coordinates=None,
         target_object=None,
     ):
-        return self.make_command(
+        return cls.make_command(
             commands_yr.MissionClicked(),
             object_addresses=object_addresses,
             event=event,
@@ -292,35 +288,43 @@ class ManagerUtil:
             target_object=target_object,
         )
 
+    @classmethod
     def click_event(
-        self,
+        cls,
         event_type: ra2yr.NetworkEvent = None,
         object_addresses: List[int] = None,
         **kwargs,
     ):
-        return self.make_command(
+        return cls.make_command(
             commands_yr.ClickEvent(),
             object_addresses=object_addresses,
             event=event_type,
         )
 
+    @classmethod
     def unit_command(
-        self,
+        cls,
         object_addresses: List[int] = None,
         action: commands_yr.UnitAction = None,
     ):
-        return self.make_command(
+        return cls.make_command(
             commands_yr.UnitCommand(),
             object_addresses=object_addresses,
             action=action,
         )
+
+
+class ManagerUtil:
+    def __init__(self, manager: Manager):
+        self.manager = manager
+        self.C = CommandBuilder
 
     async def select(
         self,
         object_addresses: List[int] = None,
     ):
         return await self.manager.run(
-            self.unit_command(
+            self.C.unit_command(
                 object_addresses=object_addresses,
                 action=commands_yr.ACTION_SELECT,
             )
@@ -328,7 +332,7 @@ class ManagerUtil:
 
     async def move(self, object_addresses: List[int] = None, coordinates=None):
         return await self.manager.run(
-            self.mission_clicked(
+            self.C.mission_clicked(
                 object_addresses=object_addresses,
                 event=ra2yr.Mission_Move,
                 coordinates=coordinates,
@@ -342,7 +346,7 @@ class ManagerUtil:
         target_object: int = 0,
     ):
         return await self.manager.run(
-            self.mission_clicked(
+            self.C.mission_clicked(
                 object_addresses=object_addresses,
                 event=ra2yr.Mission_Capture,
                 coordinates=coordinates,
@@ -350,30 +354,9 @@ class ManagerUtil:
             )
         )
 
-    async def capture_old(
-        self,
-        house_index: int,
-        whom: int,
-        rtti_whom: ra2yr.AbstractType,
-        rtti: ra2yr.AbstractType,
-        destination: int,
-    ):
-        return await self.manager.run(
-            self.add_event(
-                event_type=ra2yr.NETWORK_EVENT_MegaMission,
-                house_index=house_index,
-                mega_mission=ra2yr.Event.MegaMission(
-                    whom=ra2yr.TargetClass(m_id=whom, m_rtti=rtti_whom),
-                    mission=ra2yr.Mission_Capture,
-                    target=ra2yr.TargetClass(m_id=destination, m_rtti=rtti),
-                    follow=ra2yr.TargetClass(m_id=whom),
-                ),
-            )
-        )
-
     async def deploy(self, object_address: int = None):
         return await self.manager.run(
-            self.click_event(
+            self.C.click_event(
                 event_type=ra2yr.NETWORK_EVENT_Deploy,
                 object_addresses=[object_address],
             )
@@ -383,7 +366,7 @@ class ManagerUtil:
         self, type_class: int = None, house_class: int = None, coordinates=None
     ) -> commands_yr.PlaceQuery:
         return await self.manager.run(
-            self.make_command(
+            self.C.make_command(
                 commands_yr.PlaceQuery(),
                 type_class=type_class,
                 house_class=house_class,
@@ -392,23 +375,24 @@ class ManagerUtil:
         )
 
     async def place_building(
-        self, heap_id=None, is_naval=None, location=None
+        self,
+        heap_id=None,
+        is_naval=None,
+        location=None,
     ) -> commands_yr.AddEvent:
         return await self.manager.run(
-            self.add_event(
-                event_type=ra2yr.NETWORK_EVENT_Place,
-                place=ra2yr.Event.Place(
-                    rtti_type=ra2yr.ABSTRACT_TYPE_BUILDINGTYPE,
+            self.C.add_event(
+                self.C.make_place(
                     heap_id=heap_id,
                     is_naval=is_naval,
                     location=location,
-                ),
+                )
             )
         )
 
     async def sell_building(self, object_address=None):
         return await self.manager.run(
-            self.make_command(
+            self.C.make_command(
                 commands_yr.ClickEvent(),
                 object_addresses=[object_address],
                 event=ra2yr.NETWORK_EVENT_Sell,
@@ -417,27 +401,28 @@ class ManagerUtil:
 
     async def produce(
         self,
-        house_index=0,
         rtti_id: int = 0,
         heap_id: int = 0,
         is_naval: bool = False,
     ):
         return await self.manager.run(
-            self.add_event(
-                event_type=ra2yr.NETWORK_EVENT_Produce,
-                house_index=house_index,
-                production=ra2yr.Event.Production(
-                    rtti_id=rtti_id, heap_id=heap_id, is_naval=is_naval
-                ),
+            self.C.add_event(
+                self.C.make_produce(
+                    rtti_id=rtti_id,
+                    heap_id=heap_id,
+                    is_naval=is_naval,
+                )
             )
         )
 
-    async def produce_building(self, house_index: int = 0, heap_id: int = 0):
-        # TODO: add to protobuf enums
-        return await self.produce(
-            house_index=house_index,
-            rtti_id=ra2yr.ABSTRACT_TYPE_BUILDINGTYPE,
-            heap_id=heap_id,
+    # TODO(shmocz): autodetect is_naval in the library
+    async def produce_building(self, heap_id: int = 0, is_naval: bool = False):
+        return await self.manager.run(
+            self.C.make_produce(
+                rtti_id=ra2yr.ABSTRACT_TYPE_BUILDINGTYPE,
+                heap_id=heap_id,
+                is_naval=is_naval,
+            )
         )
 
     async def add_message(
@@ -447,7 +432,7 @@ class ManagerUtil:
         color: ra2yr.ColorScheme = None,
     ):
         return await self.manager.run(
-            self.make_command(
+            self.C.make_command(
                 commands_yr.AddMessage(),
                 message=message,
                 duration_frames=duration_frames,
@@ -467,32 +452,13 @@ class ManagerUtil:
     async def get_system_state(self):
         return await self.manager.run(commands_builtin.GetSystemState())
 
-    def cell_grid(self, coords, rx: int, ry: int):
-        # get potential place locations
-        place_query_grid = []
-        for i in range(0, rx):
-            for j in range(0, ry):
-                place_query_grid.append(
-                    tuple2coord(
-                        tuple(
-                            x + y * 256
-                            for x, y in zip(
-                                coords, (i - int(rx / 2), j - int(ry / 2), 0)
-                            )
-                        )
-                    )
-                )
-        return place_query_grid
-
     async def get_place_locations(
         self, coords, type_class_id: int, house_pointer: int, rx: int, ry: int
     ):
-        place_query_grid = self.cell_grid(coords, rx, ry)
-
         res = await self.place_query(
             type_class=type_class_id,
             house_class=house_pointer,
-            coordinates=place_query_grid,
+            coordinates=cell_grid(coords, rx, ry),
         )
         return res
 

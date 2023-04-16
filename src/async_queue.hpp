@@ -45,7 +45,7 @@ class AsyncQueue : public AsyncContainer {
   using queue_t = QueueT;
 
   explicit AsyncQueue(std::size_t max_size = 0U)
-      : max_size_(max_size), AsyncContainer() {}
+      : AsyncContainer(), max_size_(max_size) {}
 
   explicit AsyncQueue(QueueT q, std::size_t max_size = 0U)
       : AsyncContainer(), q_(q), max_size_(max_size) {}

@@ -23,7 +23,7 @@ function(new_make_test)
   list(APPEND NATIVE_TARGETS "${MY_FN_NAME}")
 endfunction()
 
-if(BUILD_MAIN_LIBRARY)
+if(RA2YRCPP_BUILD_MAIN_DLL)
   new_make_test(
     NAME test_process
     SRC test_process.cpp ../src/utility/scope_guard.hpp
@@ -72,5 +72,5 @@ new_make_test(
 
 add_library(tests_native INTERFACE ${NATIVE_TARGETS})
 
-target_compile_options(tests_native INTERFACE ${EXTRA_FLAGS})
-target_link_options(tests_native INTERFACE ${EXTRA_FLAGS})
+target_compile_options(tests_native INTERFACE ${RA2YRCPP_EXTRA_FLAGS})
+target_link_options(tests_native INTERFACE ${RA2YRCPP_EXTRA_FLAGS})

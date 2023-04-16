@@ -34,12 +34,12 @@ if(WIN32)
   target_link_libraries(ra2yrcpp_core PUBLIC ${LIB_WSOCK32} ${LIB_WS2_32})
 endif()
 
-target_compile_options(ra2yrcpp_core PUBLIC ${EXTRA_FLAGS})
-target_link_options(ra2yrcpp_core PUBLIC ${EXTRA_FLAGS})
+target_compile_options(ra2yrcpp_core PUBLIC ${RA2YRCPP_EXTRA_FLAGS})
+target_link_options(ra2yrcpp_core PUBLIC ${RA2YRCPP_EXTRA_FLAGS})
 
 add_dependencies(ra2yrcpp_core protoc)
 
-if(BUILD_MAIN_LIBRARY)
+if(RA2YRCPP_BUILD_MAIN_DLL)
   add_library(
     yrclient STATIC
     commands_yr.cpp

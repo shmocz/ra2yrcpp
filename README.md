@@ -71,6 +71,11 @@ $ cmake \
   cmake --build build --config Release --target install
 ```
 
+The following build options are available:
+
+- `RA2YRCPP_BUILD_TESTS` whether to build test executables. Default: `ON`
+- `RA2YRCPP_BUILD_MAIN_DLL` whether to build the main YRpp-dependent DLL and related utilities. Default: `ON`
+
 ### Build using clang-cl
 
 clang-cl is the preferred compiler for release packages, as there's no additional runtime DLL dependencies aside from Windows's CRT. You still need MSVC SDK, which will be downloaded when building the `clang-cl-msvc.Dockerfile` image. Once downloaded, modify the toolchain file at `toolchains/clang-cl-msvc.cmake` to point to correct SDK paths.
@@ -101,10 +106,10 @@ The protobuf compiler is obtained as part of the build process as Windows execut
 
 ### Build core library natively
 
-The core component and its related tests do not depend on Windows, and can be built natively using `BUILD_MAIN_LIBRARY=OFF` CMake option. You can specify additional compile/link options for test executables in the `EXTRA_FLAGS` variable. For instance, to enable ASan and UBSan on GCC or Clang:
+The core component and its related tests do not depend on Windows, and can be built natively using `RA2YRCPP_BUILD_MAIN_DLL=OFF` CMake option. You can specify additional compile/link options for test executables in the `RA2YRCPP_EXTRA_FLAGS` variable. For instance, to enable ASan and UBSan on GCC or Clang:
 
 ```cmake
-set(EXTRA_FLAGS -fsanitize=address -fsanitize=undefined)
+set(RA2YRCPP_EXTRA_FLAGS -fsanitize=address -fsanitize=undefined)
 ```
 
 ### Running tests

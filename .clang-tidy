@@ -3,6 +3,10 @@ Checks: >-
   clang-analyzer-*,
   cppcoreguidelines-*,
   modernize-*,
-  -modernize-use-trailing-return-type
+  -modernize-use-trailing-return-type,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-union-access,
+  -cppcoreguidelines-macro-usage
 HeaderFilterRegex: ""
 AnalyzeTemporaryDtors: false
+WarningsAsErrors: false

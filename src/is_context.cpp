@@ -46,11 +46,11 @@ void is_context::make_is_ctx(Context* c, const unsigned int max_clients,
 
 // TODO(shmocz): rename
 // FIXME: Use IServiceOptions
-DLLoader::DLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress,
-                   const std::string path_dll, const std::string name_init,
-                   const unsigned int max_clients, const unsigned int port,
-                   const unsigned int ws_port, const bool indirect,
-                   const bool no_init_hooks) {
+DLLLoader::DLLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress,
+                     const std::string path_dll, const std::string name_init,
+                     const unsigned int max_clients, const unsigned int port,
+                     const unsigned int ws_port, const bool indirect,
+                     const bool no_init_hooks) {
   vecu8 v1(path_dll.begin(), path_dll.end());
   v1.push_back(0x0);
   vecu8 v2(name_init.begin(), name_init.end());
@@ -92,10 +92,6 @@ DLLoader::DLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress,
   mov(esp, ebp);
   pop(ebp);
   x86::restore_regs(this);
-  // FIXME: better separation
-  if (port > 0U) {
-    ret();
-  }
 }
 
 void is_context::get_procaddr(Xbyak::CodeGenerator* c, HMODULE m,
@@ -211,8 +207,8 @@ void is_context::inject_dll(
              reinterpret_cast<void*>(addrs.p_LoadLibrary),
              reinterpret_cast<void*>(addrs.p_GetProcAddress), options.port);
   // FIXME: ws port
-  is_context::DLLoader L(addrs.p_LoadLibrary, addrs.p_GetProcAddress, path_dll,
-                         cfg::INIT_NAME, options.max_clients, options.port);
+  is_context::DLLLoader L(addrs.p_LoadLibrary, addrs.p_GetProcAddress, path_dll,
+                          cfg::INIT_NAME, options.max_clients, options.port);
   auto p = L.getCode<u8*>();
   vecu8 sc(p, p + L.getSize());
   dll_inject::suspend_inject_resume(

@@ -55,13 +55,13 @@ void make_is_ctx(Context* c, const unsigned int max_clients = cfg::MAX_CLIENTS,
 void get_procaddr(Xbyak::CodeGenerator* c, HMODULE m, const std::string name,
                   const u32 p_GetProcAddress);
 
-struct DLLoader : Xbyak::CodeGenerator {
-  DLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress, const std::string path_dll,
-           const std::string name_init,
-           const unsigned int max_clients = cfg::MAX_CLIENTS,
-           const unsigned int port = cfg::SERVER_PORT,
-           const unsigned int ws_port = 0U, const bool indirect = false,
-           const bool no_init_hooks = false);
+struct DLLLoader : Xbyak::CodeGenerator {
+  DLLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress, const std::string path_dll,
+            const std::string name_init,
+            const unsigned int max_clients = cfg::MAX_CLIENTS,
+            const unsigned int port = cfg::SERVER_PORT,
+            const unsigned int ws_port = 0U, const bool indirect = false,
+            const bool no_init_hooks = false);
 };
 
 ///

@@ -18,13 +18,10 @@ void yrclient_dll::initialize(const unsigned int max_clients,
 // cppcheck-suppress unusedFunction
 void init_iservice(const unsigned int max_clients, unsigned int port,
                    unsigned int ws_port, unsigned int no_init_hooks) {
-  if (port == 0U) {
-    port = std::stol(std::getenv("RA2YRCPP_PORT"));
-  }
-  if (ws_port == 0U) {
-    auto* p = std::getenv("RA2YRCPP_WS_PORT");
-    ws_port = (p != nullptr) ? std::stol(p) : 0U;
-  }
+  auto* tcp_port = std::getenv("RA2YRCPP_PORT");
+  auto* p = std::getenv("RA2YRCPP_WS_PORT");
 
-  yrclient_dll::initialize(max_clients, port, ws_port, no_init_hooks > 0U);
+  yrclient_dll::initialize(
+      max_clients, (tcp_port != nullptr) ? std::stol(tcp_port) : port,
+      (p != nullptr) ? std::stol(p) : ws_port, no_init_hooks > 0U);
 }

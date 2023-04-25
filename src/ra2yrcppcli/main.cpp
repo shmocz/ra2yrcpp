@@ -195,9 +195,10 @@ int main(int argc, char* argv[]) {
     } else {
       PA.p_LoadLibrary = is_context::get_proc_address("LoadLibraryA");
     }
-    is_context::DLLoader L(PA.p_LoadLibrary, PA.p_GetProcAddress, cfg::DLL_NAME,
-                           cfg::INIT_NAME, cfg::MAX_CLIENTS, 0U, 0U,
-                           A.get<bool>("--no-indirect-address"));
+    is_context::DLLLoader L(PA.p_LoadLibrary, PA.p_GetProcAddress,
+                            cfg::DLL_NAME, cfg::INIT_NAME, cfg::MAX_CLIENTS,
+                            cfg::SERVER_PORT, cfg::WEBSOCKET_PROXY_PORT,
+                            A.get<bool>("--no-indirect-address"));
     auto p = L.getCode<void __cdecl (*)(void)>();
     std::ofstream os(A.get("--generate-dll-loader"), std::ios::binary);
     os << std::string(reinterpret_cast<char*>(p), L.getSize());

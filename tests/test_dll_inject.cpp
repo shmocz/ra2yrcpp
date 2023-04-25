@@ -88,8 +88,9 @@ TEST_F(DLLInjectTest, BasicLoading) {
 
 // TODO: strange error??? this fails if stderr is piped to a file
 TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
-  is_context::DLLoader L(p_LoadLibrary, p_GetProcAddress, path_dll, name_init,
-                         cfg::MAX_CLIENTS, cfg::SERVER_PORT, 0u, false, true);
+  is_context::DLLLoader L(p_LoadLibrary, p_GetProcAddress, path_dll, name_init,
+                          cfg::MAX_CLIENTS, cfg::SERVER_PORT, 0u, false, true);
+  L.ret();
   auto p = L.getCode<u8*>();
   vecu8 sc(p, p + L.getSize());
   exprocess::ExProcess P("dummy_program.exe 10 500");
@@ -148,7 +149,8 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
 /// TODO: improve this to do proper unloadings or move to separate file
 TEST_F(DLLInjectTest, DLLLoaderCodeTest) {
   GTEST_SKIP();
-  is_context::DLLoader L(p_LoadLibrary, p_GetProcAddress, path_dll, name_init);
+  is_context::DLLLoader L(p_LoadLibrary, p_GetProcAddress, path_dll, name_init);
+  L.ret();
   auto p = L.getCode<void __cdecl (*)(void)>();
   p();
 }

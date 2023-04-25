@@ -94,7 +94,7 @@ class TCPConnection : public std::enable_shared_from_this<TCPConnection> {
 
   template <typename FnT>
   void do_write(const std::vector<u8>& data, FnT f) {
-    shared_from_this();
+    (void)shared_from_this();
     u32 sz = data.size();
     auto msg = std::make_shared<std::vector<u8>>(sizeof(sz));
     // put length

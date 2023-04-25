@@ -24,6 +24,7 @@ export UID := $(shell id -u)
 export GID := $(shell id -g)
 export NPROC ?= $(nproc)
 export CMAKE_TARGET ?= all
+export CMAKE_EXTRA_ARGS ?=
 
 DLL_LOADER_UNIX = $(BUILD_DIR)/load_dll.bin
 DLL_LOADER = $(subst \,\\,$(shell winepath -w $(DLL_LOADER_UNIX)))
@@ -34,7 +35,7 @@ COMPOSE_ARGS ?= --abort-on-container-exit pyra2yr tunnel wm vnc novnc game-0 gam
 compose_cmd := docker-compose -f docker-compose.yml -f $(INTEGRATION_TEST)
 # need -T flag for this to work properly in shell scripts, but this causes ctrl+c not to work.
 # TODO: find a workaround
-compose_build = docker-compose run -e BUILDDIR -e CMAKE_TOOLCHAIN_FILE -e CMAKE_TARGET -e NPROC -e CMAKE_BUILD_TYPE -e EXTRA_PATCHES -T --rm $(BUILDER) make
+compose_build = docker-compose run -e BUILDDIR -e CMAKE_TOOLCHAIN_FILE -e CMAKE_TARGET -e NPROC -e CMAKE_BUILD_TYPE -e EXTRA_PATCHES -e CMAKE_EXTRA_ARGS -T --rm $(BUILDER) make
 
 
 doc:
@@ -58,6 +59,7 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 	CMAKE_TOOLCHAIN_FILE=$(abspath $(CMAKE_TOOLCHAIN_FILE)) cmake \
 		-DCMAKE_INSTALL_PREFIX=$(DEST_DIR) \
+		$(CMAKE_EXTRA_ARGS) \
 		-G "Unix Makefiles" \
 		-S . -B $(BUILD_DIR)
 

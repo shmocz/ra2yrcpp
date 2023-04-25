@@ -10,6 +10,10 @@
 #include <chrono>
 #include <thread>
 
+#if !defined(NDEBUG) && !defined(DEBUG_LOG)
+#define DEBUG_LOG
+#endif
+
 namespace ra2yrcpp {
 namespace logging {
 
@@ -48,7 +52,7 @@ inline void eerror(Args... args) {
 #define VA_ARGS(...) , ##__VA_ARGS__
 #define LOCATION_INFO() __FILE__, __func__, __LINE__
 
-#ifndef NDEBUG
+#ifdef DEBUG_LOG
 #define dprintf(fmt, ...)                                                \
   do {                                                                   \
     ra2yrcpp::logging::debug(fmt, LOCATION_INFO() VA_ARGS(__VA_ARGS__)); \

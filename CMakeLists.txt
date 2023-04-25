@@ -8,10 +8,15 @@ endif()
 
 option(RA2YRCPP_BUILD_MAIN_DLL "Build the main library for Windows targets" ON)
 option(RA2YRCPP_BUILD_TESTS "Build tests" ON)
+option(RA2YRCPP_DEBUG_LOG "Enable debug logs even for non-debug builds" OFF)
 
 if(MINGW)
   add_compile_definitions(__MINGW_FORCE_SYS_INTRINS)
   add_compile_options(-masm=intel)
+endif()
+
+if(RA2YRCPP_DEBUG_LOG)
+  add_compile_definitions(DEBUG_LOG)
 endif()
 
 # FIXME: needed?

@@ -3,7 +3,7 @@ import logging
 import os
 import re
 
-from ra2yrproto import ra2yr
+from ra2yrproto import ra2yr, commands_yr
 
 from pyra2yr.manager import Manager, ManagerUtil
 from pyra2yr.network import logged_task
@@ -20,6 +20,27 @@ from pyra2yr.util import (
 logging.basicConfig(level=logging.DEBUG)
 debug = logging.debug
 info = logging.info
+
+
+async def check_config(U: ManagerUtil = None):
+    # Get config
+    cmd_1 = await U.inspect_configuration()
+    info("cmd_1=%s", cmd_1)
+    cfg1 = cmd_1.result.config
+    cfg_ex = commands_yr.Configuration()
+    cfg_ex.CopyFrom(cfg1)
+    cfg_ex.debug_log = True
+    cfg_ex.parse_map_data_interval = 1
+    assert cfg_ex == cfg1
+
+    # Try changing some settings
+    cfg_diff = commands_yr.Configuration(parse_map_data_interval=4)
+    cfg2_ex = commands_yr.Configuration()
+    cfg2_ex.CopyFrom(cfg1)
+    cfg2_ex.MergeFrom(cfg_diff)
+    cmd_2 = await U.inspect_configuration(config=cfg_diff)
+    cfg2 = cmd_2.result.config
+    assert cfg2 == cfg2_ex
 
 
 async def mcv_sell(app=None):
@@ -41,6 +62,7 @@ async def mcv_sell(app=None):
         timeout=60,
     )
     info("state=ingame, players=%s", M.state.houses)
+    await check_config(U)
 
     # Get TC's
     info("num tc=%s", len(M.type_classes))
@@ -184,10 +206,10 @@ async def mcv_sell(app=None):
     )
 
 
-async def test_sell_mcv(host: str):
+async def main():
     t = logged_task(mcv_sell())
     await t
 
 
 if __name__ == "__main__":
-    asyncio.run(test_sell_mcv("0.0.0.0"))
+    asyncio.run(main())

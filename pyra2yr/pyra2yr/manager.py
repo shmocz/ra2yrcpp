@@ -379,14 +379,12 @@ class ManagerUtil:
         heap_id=None,
         is_naval=None,
         location=None,
-    ) -> commands_yr.AddEvent:
+    ):
         return await self.manager.run(
-            self.C.add_event(
-                self.C.make_place(
-                    heap_id=heap_id,
-                    is_naval=is_naval,
-                    location=location,
-                )
+            self.C.make_place(
+                heap_id=heap_id,
+                is_naval=is_naval,
+                location=location,
             )
         )
 
@@ -406,12 +404,10 @@ class ManagerUtil:
         is_naval: bool = False,
     ):
         return await self.manager.run(
-            self.C.add_event(
-                self.C.make_produce(
-                    rtti_id=rtti_id,
-                    heap_id=heap_id,
-                    is_naval=is_naval,
-                )
+            self.C.make_produce(
+                rtti_id=rtti_id,
+                heap_id=heap_id,
+                is_naval=is_naval,
             )
         )
 
@@ -446,8 +442,14 @@ class ManagerUtil:
             data=commands_yr.StorageValue(**kwargs),
         )
 
-    async def inspect_configuration(self):
-        return await self.manager.run(commands_yr.InspectConfiguration())
+    async def inspect_configuration(
+        self, config: commands_yr.Configuration = None
+    ):
+        return await self.manager.run(
+            self.C.make_command(
+                commands_yr.InspectConfiguration(), config=config
+            )
+        )
 
     async def get_system_state(self):
         return await self.manager.run(commands_builtin.GetSystemState())

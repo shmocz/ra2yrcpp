@@ -18,6 +18,7 @@
 #include <chrono>
 #include <exception>
 #include <future>
+#include <google/protobuf/io/gzip_stream.h>
 #include <memory>
 #include <regex>
 #include <thread>
@@ -36,7 +37,7 @@ class MultiClientTest : public ::testing::Test {
     network::Init();
     yrclient::InstrumentationService::IServiceOptions opts{
         cfg::MAX_CLIENTS, cfg::SERVER_PORT, cfg::WEBSOCKET_PROXY_PORT,
-        "127.0.0.1", true};
+        cfg::SERVER_ADDRESS, true};
     AutoPollClient::Options aopts{
         opts.host, std::to_string(opts.ws_port), 1.0s,
         0.25s,     CONNECTION_TYPE::WEBSOCKET,   nullptr};
@@ -67,7 +68,6 @@ class MultiClientTest : public ::testing::Test {
   template <typename T>
   auto run_async(const T& cmd) {
     auto r = ctx->clients[0]->send_command(cmd);
-    dprintf("body={}\n", to_json(r.body()).c_str());
     auto cmd_res = yrclient::from_any<ra2yrproto::CommandResult>(r.body());
     return yrclient::from_any<T>(cmd_res.result()).result();
   }

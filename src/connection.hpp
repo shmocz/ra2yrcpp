@@ -109,11 +109,9 @@ class Connection {
  private:
   std::string host_;
   std::string port_;
-  // network::addrinfo hints_;
-  // addrinfo
   // TODO: remove?
-  std::unique_ptr<void, void (*)(void*)> hints_;
   network::socket_t socket_{0};
+  std::unique_ptr<void, void (*)(void*)> hints_;
 };
 
 class ClientConnection {
@@ -122,13 +120,12 @@ class ClientConnection {
   virtual ~ClientConnection() = default;
   virtual void connect() = 0;
 
-  /// Send data with the underlying transport
-  /// if it's a TCP connection, then encode size of the message at the beginning
-  /// of data
   ///
-  /// if WebSocket, then send blindly
-  virtual bool send_data(const std::vector<u8>& bytes) = 0;
-  bool send_data(std::vector<u8>&& bytes);
+  /// Send data with the underlying transport.
+  /// If it's a TCP connection, then encode size of the message at the beginning
+  /// of data. If WebSocket, then send blindly.
+  virtual bool send_data(const vecu8& bytes) = 0;
+  bool send_data(vecu8&& bytes);
 
   ///
   /// Read a length-prefixed data message from connection. A previous call to
@@ -138,7 +135,7 @@ class ClientConnection {
   /// @exception yrclient::protocol_error
   virtual vecu8 read_data() = 0;
   virtual void stop();
-  connection::State state();
+  util::AtomicVariable<connection::State>& state();
 
  protected:
   std::string host;
@@ -151,7 +148,7 @@ class ClientTCPConnection : public ClientConnection {
  public:
   ClientTCPConnection(std::string host, std::string port);
   void connect() override;
-  bool send_data(const std::vector<u8>& bytes) override;
+  bool send_data(const vecu8& bytes) override;
   ~ClientTCPConnection() override;
   vecu8 read_data() override;
 

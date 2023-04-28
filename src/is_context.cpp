@@ -39,7 +39,7 @@ void is_context::make_is_ctx(Context* c, const unsigned int max_clients,
                              bool no_init_hooks) {
   // FIXME: the no init  flag
   yrclient::InstrumentationService::IServiceOptions O{
-      max_clients, port, ws_port, "0.0.0.0", no_init_hooks};
+      max_clients, port, ws_port, cfg::SERVER_ADDRESS, no_init_hooks};
   auto* I = is_context::make_is(O, [c](auto* X) {
     (void)X;
     return c->on_signal();

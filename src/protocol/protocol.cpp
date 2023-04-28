@@ -8,6 +8,16 @@
 
 using namespace yrclient;
 
+vecu8 yrclient::to_vecu8(const google::protobuf::Message& msg) {
+  vecu8 res;
+  res.resize(msg.ByteSizeLong());
+  if (!msg.SerializeToArray(res.data(), res.size())) {
+    throw yrclient::protocol_error(
+        fmt::format("failed to serialize message {}", msg.GetTypeName()));
+  }
+  return res;
+}
+
 std::string yrclient::to_json(const google::protobuf::Message& m) {
   std::string res;
   google::protobuf::util::MessageToJsonString(m, &res);

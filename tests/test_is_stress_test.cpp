@@ -1,31 +1,23 @@
 #include "protocol/protocol.hpp"
 
-#include "client_utils.hpp"
 #include "commands_builtin.hpp"
 #include "common_multi.hpp"
 #include "config.hpp"
-#include "connection.hpp"
-#include "gtest/gtest.h"
-#include "instrumentation_client.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
 #include "multi_client.hpp"
-#include "utility/time.hpp"
-#include "websocket_server.hpp"
+#include "network.hpp"
 
-#include <chrono>
 #include <cstdlib>
 #include <exception>
-#include <future>
+#include <functional>
+#include <gtest/gtest_pred_impl.h>
+#include <map>
 #include <memory>
-#include <thread>
+#include <string>
 #include <vector>
 
-using namespace yrclient;
-using namespace std::chrono_literals;
-using instrumentation_client::InstrumentationClient;
 using namespace multi_client;
-using ra2yrcpp::websocket_server::IOService;
 
 using ra2yrcpp::tests::MultiClientTestContext;
 

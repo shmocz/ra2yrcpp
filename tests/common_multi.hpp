@@ -1,9 +1,11 @@
 #pragma once
+#include "asio_utils.hpp"
 #include "connection.hpp"
 #include "instrumentation_client.hpp"
 #include "instrumentation_service.hpp"
 #include "multi_client.hpp"
 #include "utility/memtools.hpp"
+#include "websocket_server.hpp"
 
 #include <chrono>
 #include <iostream>
@@ -19,8 +21,7 @@ using multi_client::AutoPollClient;
 }  // namespace
 
 struct MultiClientTestContext {
-  std::unique_ptr<void, void (*)(void*)> io_service_guard;
-  std::future<void> fut_io_service;
+  ra2yrcpp::asio_utils::IOService srv;
   std::vector<std::unique_ptr<AutoPollClient>> clients;
 
   MultiClientTestContext();

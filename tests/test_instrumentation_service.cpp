@@ -2,10 +2,13 @@
 
 #include "client_utils.hpp"
 #include "commands_builtin.hpp"
+#include "config.hpp"
+#include "connection.hpp"
 #include "gtest/gtest.h"
 #include "instrumentation_service.hpp"
 #include "util_string.hpp"
 #include "utility/time.hpp"
+#include "websocket_connection.hpp"
 
 #include <chrono>
 #include <thread>
@@ -17,21 +20,26 @@ using namespace std::chrono_literals;
 using instrumentation_client::InstrumentationClient;
 
 class InstrumentationServiceTest : public ::testing::Test {
+  using conn_t = connection::ClientTCPConnection;
+
  protected:
   void SetUp() override;
   void TearDown() override;
 
   virtual void init() = 0;
-  std::shared_ptr<connection::ClientTCPConnection> conn;
+  std::shared_ptr<conn_t> conn;
   std::unique_ptr<yrclient::InstrumentationService> I;
   std::unique_ptr<InstrumentationClient> client;
-  virtual yrclient::InstrumentationService::IServiceOptions opts();
+
+  auto run_one(const google::protobuf::Message& M) {
+    return client_utils::run_one(M, client.get());
+  }
 };
 
 void InstrumentationServiceTest::SetUp() {
   network::Init();
   yrclient::InstrumentationService::IServiceOptions O{
-      cfg::MAX_CLIENTS, cfg::SERVER_PORT, 0U, "", true};
+      cfg::MAX_CLIENTS, cfg::SERVER_PORT, 0U, cfg::SERVER_ADDRESS, true};
 
   std::map<std::string, command::Command::handler_t> cmds;
 
@@ -43,16 +51,10 @@ void InstrumentationServiceTest::SetUp() {
       yrclient::InstrumentationService::create(O, &cmds, nullptr));
 
   auto& S = I->server();
-  conn =
-      std::make_shared<connection::ClientTCPConnection>(S.address(), S.port());
+  conn = std::make_shared<conn_t>(S.address(), S.port());
   conn->connect();
-  client = std::make_unique<InstrumentationClient>(conn, 5000ms);
+  client = std::make_unique<InstrumentationClient>(conn);
   init();
-}
-
-yrclient::InstrumentationService::IServiceOptions
-InstrumentationServiceTest::opts() {
-  return {cfg::MAX_CLIENTS, cfg::SERVER_PORT, 0U, "", true};
 }
 
 void InstrumentationServiceTest::TearDown() {
@@ -65,7 +67,8 @@ class IServiceTest : public InstrumentationServiceTest {
  protected:
   template <typename T>
   auto run(const T& cmd) {
-    return client_utils::run(cmd, client.get());
+    auto r = run_one(cmd);
+    return yrclient::from_any<T>(r.result()).result();
   }
 
   void init() override {}
@@ -142,14 +145,14 @@ class NewCommandsTest : public InstrumentationServiceTest {
 
   void do_get(const std::string k, const std::string v) {
     auto g = ::get_getval(k);
-    auto r = client->run_one(g);
+    auto r = run_one(g);
     decltype(g) aa;
     r.result().UnpackTo(&aa);
     ASSERT_EQ(aa.result().result(), v);
   }
 
   void do_run(google::protobuf::Message* M) {
-    auto r = client->run_one(*M);
+    auto r = run_one(*M);
     r.result().UnpackTo(M);
   }
 };
@@ -171,7 +174,7 @@ TEST_F(NewCommandsTest, FetchManySizes) {
     {
       auto G = ::get_getval(key);
       do_run(&G);
-      // auto r = client->run_one(G);
+      // auto r = run_one(G);
       // r.result().UnpackTo(&G);
       ASSERT_EQ(G.result().result(), v);
     }
@@ -183,13 +186,11 @@ TEST_F(NewCommandsTest, FetchManySizes) {
 TEST_F(NewCommandsTest, FetchAlot) {
   const size_t count = 10;
   const size_t msg_size = cfg::MAX_MESSAGE_LENGTH / 1000u;
-  // const size_t msg_size = 5000u;
   const std::string key = "mega_key";
   std::string v = std::string(msg_size, 'X');
   for (auto i = 0u; i < count; i++) {
-    // std::string k = "key_" + std::to_string(i);
     auto S = ::get_storeval(key, v);
-    (void)client->run_one(S);
+    (void)run_one(S);
     do_get(key, v);
   }
 }
@@ -197,21 +198,19 @@ TEST_F(NewCommandsTest, FetchAlot) {
 TEST_F(NewCommandsTest, FetchOne) {
   auto s = get_storeval();
   // cppcheck-suppress unreadVariable
-  auto res1 = client->run_one(s);
+  auto res1 = run_one(s);
   auto g = get_getval();
-  auto res2 = client->run_one(g);
+  auto res2 = run_one(g);
   ra2yrproto::commands::GetValue v;
   res2.result().UnpackTo(&v);
   ASSERT_EQ(v.result().result(), val);
 }
 
 TEST_F(NewCommandsTest, BasicCommandTest) {
-  {
-    auto cmd_store = get_storeval();
-    // schedule cmd, get ACK
-    auto resp = client->send_command(cmd_store, ra2yrproto::CLIENT_COMMAND);
-    ASSERT_EQ(resp.code(), yrclient::RESPONSE_OK);
-    // cppcheck-suppress unreadVariable
-    auto cmds = client->poll();
-  }
+  auto cmd_store = get_storeval();
+  // schedule cmd, get ACK
+  auto resp = client->send_command(cmd_store, ra2yrproto::CLIENT_COMMAND);
+  ASSERT_EQ(resp.code(), yrclient::RESPONSE_OK);
+  auto cmds = client->poll_blocking(5.0s);
+  ASSERT_EQ(cmds.result().results().size(), 1);
 }

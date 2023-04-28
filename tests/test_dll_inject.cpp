@@ -92,11 +92,8 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
   vecu8 sc(p, p + L.getSize());
   exprocess::ExProcess P("dummy_program.exe 10 500");
 
-  util::sleep_ms(1000);
   dll_inject::suspend_inject_resume(P.handle(), sc);
-  util::sleep_ms(1000);
   network::Init();
-  dprintf("connecting\n");
 
   std::unique_ptr<InstrumentationClient> client;
 
@@ -105,7 +102,6 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
       auto conn = std::make_shared<connection::ClientTCPConnection>(
           cfg::SERVER_ADDRESS, std::to_string(cfg::SERVER_PORT));
       conn->connect();
-      // client = std::unique_ptr<InstrumentationClient>(conn);
       client = std::make_unique<InstrumentationClient>(conn);
       return false;
     } catch (const std::exception& e) {
@@ -115,9 +111,8 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
   });
 
   ASSERT_NE(client.get(), nullptr);
-  dprintf("connected\n");
-  // run some commands
 
+  // run some commands
   {
     std::string f1 = "flag1";
     std::string key = "key1";
@@ -125,15 +120,14 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
     ra2yrproto::commands::StoreValue s;
     s.mutable_args()->set_key(key);
     s.mutable_args()->set_value(f1);
+    // FIXME: is this dupe code?
     auto r1 = client_utils::run(s, client.get());
-    std::cerr << r1.result() << std::endl;
 
     ra2yrproto::commands::GetValue g;
     g.mutable_args()->set_key(key);
     auto r2 = client_utils::run(g, client.get()).result();
     ASSERT_EQ(r2, f1);
   }
-  dprintf("joining\n");
 
   // NB. gotta wait explicitly, cuz WaitFoSingleObject could fail and we cant
   // throw from dtors

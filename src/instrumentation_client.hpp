@@ -6,15 +6,22 @@
 #include <memory>
 #include <string>
 
-namespace instrumentation_client {
+namespace connection {
+class ClientConnection;
+}
 
-using namespace std::chrono_literals;
+namespace google {
+namespace protobuf {
+class Message;
+}
+}  // namespace google
+
+namespace instrumentation_client {
 
 class InstrumentationClient {
  public:
   explicit InstrumentationClient(
-      std::shared_ptr<connection::ClientConnection> conn,
-      const std::chrono::milliseconds poll_timeout = 5000ms);
+      std::shared_ptr<connection::ClientConnection> conn);
 
   ///
   /// Send bytes and return number of bytes sent.
@@ -44,18 +51,6 @@ class InstrumentationClient {
   ra2yrproto::Response send_command(const google::protobuf::Message& cmd,
                                     ra2yrproto::CommandType type);
 
-  ra2yrproto::Response poll(const std::chrono::milliseconds timeout = 0ms);
-  ra2yrproto::PollResults poll_until(
-      const std::chrono::milliseconds timeout = 5000ms);
-  ///
-  /// Run single command on the backend and poll result immediately back.
-  ///
-  /// @param M command encoded into protobuf message
-  /// @result of the command
-  /// @exception yrclient::timeout if result isn't available within specified
-  /// time interval.
-  ///
-  ra2yrproto::CommandResult run_one(const google::protobuf::Message& M);
   ra2yrproto::PollResults poll_blocking(const duration_t timeout,
                                         const u64 queue_id = (u64)-1);
   std::string shutdown();
@@ -63,7 +58,6 @@ class InstrumentationClient {
 
  private:
   std::shared_ptr<connection::ClientConnection> conn_;
-  const std::chrono::milliseconds poll_timeout_;
 };
 
 }  // namespace instrumentation_client

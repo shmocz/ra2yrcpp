@@ -21,6 +21,7 @@ class Message;
 }  // namespace google
 
 using namespace multi_client;
+using connection::State;
 
 static connection::ClientConnection* get_connection(const std::string host,
                                                     const std::string port,
@@ -45,14 +46,12 @@ AutoPollClient::AutoPollClient(const std::string host, const std::string port,
       command_timeout_(command_timeout),
       ctype_(ctype),
       io_service_(io_service),
-      active_(false) {
+      state_(State::NONE) {
   static constexpr std::array<ClientType, 2> t = {ClientType::COMMAND,
                                                   ClientType::POLL};
 
   for (auto i : t) {
     auto* c = get_connection(host, port, ctype_, io_service_);
-    // FIXME
-    // network::set_io_timeout(c->socket(), 10000);
     is_clients_[i] = std::make_unique<InstrumentationClient>(
         std::shared_ptr<connection::ClientConnection>(c));
 
@@ -68,8 +67,6 @@ AutoPollClient::AutoPollClient(const std::string host, const std::string port,
     queue_ids_[i] = ack.queue_id();
     is_clients_[i]->poll_blocking(poll_timeout_, queue_ids_[i]);
   }
-  // TODO: ensure that poll client is properly initialized
-  active_ = true;
   poll_thread_ = std::thread([this]() { poll_thread(); });
 }
 
@@ -77,19 +74,19 @@ AutoPollClient::AutoPollClient(AutoPollClient::Options o)
     : AutoPollClient(o.host, o.port, o.poll_timeout, o.command_timeout, o.ctype,
                      o.io_service) {}
 
+// FIXME: this won't be called if constructor throws
 AutoPollClient::~AutoPollClient() {
-  active_ = false;
-  // FIXME: this wont be called if constructor throws
+  // signal poll thread to exit
+  state_.store(State::CLOSING);
+  poll_thread_.join();
+
+  // stop both connections
   get_client(ClientType::POLL)->connection()->stop();
   get_client(ClientType::COMMAND)->connection()->stop();
-
-  // FIXME: blocks if max conns achieved
-  poll_thread_.join();
 }
 
-// TODO: since this is essentially synchronous command, the memory of cmd is
-// valid throughout the entire call, so we may not need to make unnecessary
-// copies of it
+// TODO: as the command is synchronous, cmd's memory remains valid throughout
+// the entire call, eliminating the need for extra copies.
 ra2yrproto::Response AutoPollClient::send_command(
     const google::protobuf::Message& cmd) {
   // Send command
@@ -98,22 +95,27 @@ ra2yrproto::Response AutoPollClient::send_command(
   auto ack = yrclient::from_any<ra2yrproto::RunCommandAck>(resp.body());
   // Wait until item found from polled messages
   try {
-    // FIXME: signal if poll_thread dies
+    // TODO(shmocz): signal if poll_thread dies
     auto r = yrclient::make_response(results().get(ack.id(), command_timeout_),
                                      yrclient::RESPONSE_OK);
     results().erase(ack.id());
     return r;
   } catch (const std::runtime_error& e) {
-    eprintf("timeout after {}ms, key={}", command_timeout_.count(), ack.id());
     throw yrclient::general_error(fmt::format(
         "timeout after {}ms, key={}", command_timeout_.count(), ack.id()));
   }
 }
 
 void AutoPollClient::poll_thread() {
-  while (active_) {
+  // wait connection to be established
+  get_client(ClientType::POLL)->connection()->state().wait_pred([](auto v) {
+    return v == State::OPEN;
+  });
+  state_.store(State::OPEN);
+
+  while (state_.get() == State::OPEN) {
     try {
-      // FIXME: return immediately if signaled to stop
+      // TODO(shmocz): return immediately if signaled to stop
       auto R =
           get_client(ClientType::POLL)
               ->poll_blocking(poll_timeout_, get_queue_id(ClientType::COMMAND));
@@ -123,13 +125,10 @@ void AutoPollClient::poll_thread() {
     } catch (const yrclient::timeout& e) {
     } catch (const yrclient::system_error& e) {
       eprintf("internal error, likely cmd connection exit: {}", e.what());
-      active_ = false;
     } catch (const std::exception& e) {
-      eprintf("FATAL ERROR {}", e.what());
-      active_ = false;
+      eprintf("fatal error: {}", e.what());
     }
   }
-  dprintf("exiting");
 }
 
 ResultMap& AutoPollClient::results() { return results_; }

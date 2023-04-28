@@ -47,9 +47,19 @@ class AutoPollClient {
   };
 
   ///
-  /// Establishes connection to InstrumentationService. Throws std::exception on
-  /// failure. This function may (and probably will) block until succesful
+  /// Establishes connection to InstrumentationService.
+  /// This function may (and probably will) block until succesful
   /// connection.
+  /// TODO: don't establish connection here, write a separate method
+  /// @throws std::exception on failed connection
+  /// @param host Destination address/hostname.
+  /// @param port Destination port.
+  /// @param poll_timeout How long the poll thread should wait for results.
+  /// @param command_timeout How long the connection thread should wait for ACK
+  /// from the service.
+  /// @param ctype The type of connection to establish.
+  /// @param io_service (For WebSocket connections only). A pointer to an
+  /// external IO service object.
   ///
   AutoPollClient(const std::string host, const std::string port,
                  const duration_t poll_timeout = cfg::POLL_RESULTS_TIMEOUT,
@@ -63,9 +73,7 @@ class AutoPollClient {
   ///
   ra2yrproto::Response send_command(const google::protobuf::Message& cmd);
   static ra2yrproto::Response get_item();
-  // Repeatedly executes blocking poll command on the backend, until stop signal
-  // is given
-  void poll_thread();
+
   ResultMap& results();
   InstrumentationClient* get_client(const ClientType type);
   u64 get_queue_id(ClientType t) const;
@@ -77,11 +85,15 @@ class AutoPollClient {
   const duration_t command_timeout_;
   CONNECTION_TYPE ctype_;
   void* io_service_;
-  std::atomic_bool active_;
+  util::AtomicVariable<connection::State> state_;
   ResultMap results_;
 
   std::map<ClientType, std::unique_ptr<InstrumentationClient>> is_clients_;
   std::thread poll_thread_;
   std::map<ClientType, u64> queue_ids_;
+
+  // Repeatedly executes blocking poll command on the backend, until stop signal
+  // is given
+  void poll_thread();
 };
 }  // namespace multi_client

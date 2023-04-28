@@ -213,9 +213,7 @@ InstrumentationService::InstrumentationService(
       opts_(opt),
       server_(opt.max_clients, opt.port),
       io_service_tid_(0U),
-      ws_proxy_object_(ws_proxy_t::Options{opt.host, opt.port, opt.ws_port,
-                                           opt.max_clients + 4},
-                       &io_service_.s) {
+      ws_proxy_object_(nullptr) {
   server_.callbacks().receive_bytes = [this](auto* c, auto* b) {
     return this->on_receive_bytes(c, b);
   };
@@ -230,9 +228,21 @@ InstrumentationService::InstrumentationService(
     extra_init(this);
   }
 
-  // wait until ws proxy is initialized
-  // ws_proxy_object_->ready.wait(true);
-  io_service_.s.post(
+  // Create and start io_service manager
+  io_service_ = std::make_unique<ra2yrcpp::asio_utils::IOService>();
+
+  if (opt.ws_port < 1) {
+    wrprintf("ws port is 0, disabling websocket proxy");
+  } else {
+    // TODO(shmocz): don't hardcode max clients
+    ws_proxy_object_ = std::make_unique<ws_proxy_t>(
+        ws_proxy_t::Options{opt.host, opt.port, opt.ws_port,
+                            opt.max_clients + 4},
+        io_service_->service_.get());
+  }
+
+  // Retrieve io_service thread id, so we know to not suspend it
+  io_service_->post(
       [this]() { io_service_tid_.store(process::get_current_tid()); });
   io_service_tid_.wait_pred([](auto v) { return v != 0U; });
 }
@@ -273,6 +283,11 @@ InstrumentationService::aq_storage() {
 InstrumentationService::~InstrumentationService() {
   for (const auto& s : stop_handlers_) {
     s(nullptr);
+  }
+  if (ws_proxy_object_ != nullptr) {
+    ws_proxy_object_->shutdown();
+    // The IO service must be stopped beforehand, or we get UAF in the ws proxy
+    io_service_ = nullptr;
   }
 }
 

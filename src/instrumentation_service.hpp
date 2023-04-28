@@ -20,8 +20,17 @@
 #include <string>
 #include <vector>
 
-namespace yrclient {
+namespace connection {
+class Connection;
+}
 
+namespace ra2yrcpp {
+namespace asio_utils {
+class IOService;
+}
+}  // namespace ra2yrcpp
+
+namespace yrclient {
 
 // Forward declaration
 class InstrumentationService;
@@ -120,9 +129,9 @@ class InstrumentationService {
   std::mutex mut_hooks_;
   storage_t storage_;
   std::recursive_mutex mut_storage_;
-  ra2yrcpp::websocket_server::IOService io_service_;
+  std::unique_ptr<ra2yrcpp::asio_utils::IOService> io_service_;
   util::AtomicVariable<process::thread_id_t> io_service_tid_;
-  ws_proxy_t ws_proxy_object_;
+  std::unique_ptr<ws_proxy_t> ws_proxy_object_;
 };
 
 }  // namespace yrclient

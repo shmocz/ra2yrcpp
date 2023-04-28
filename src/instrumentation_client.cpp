@@ -15,24 +15,8 @@ using namespace instrumentation_client;
 using yrclient::to_json;
 
 InstrumentationClient::InstrumentationClient(
-    std::shared_ptr<connection::ClientConnection> conn,
-    const std::chrono::milliseconds poll_timeout)
-    : conn_(conn), poll_timeout_(poll_timeout) {}
-
-// TODO: get rid of this
-ra2yrproto::Response InstrumentationClient::poll(
-    const std::chrono::milliseconds timeout) {
-  (void)timeout;
-  ra2yrproto::Command C;
-  return send_command(C, ra2yrproto::POLL);
-}
-
-template <typename T>
-auto unpack(const ra2yrproto::Response& R) {
-  T P;
-  R.body().UnpackTo(&P);
-  return P;
-}
+    std::shared_ptr<connection::ClientConnection> conn)
+    : conn_(conn) {}
 
 ra2yrproto::PollResults InstrumentationClient::poll_blocking(
     const duration_t timeout, const u64 queue_id) {
@@ -58,6 +42,8 @@ size_t InstrumentationClient::send_data(const vecu8& data) {
 }
 
 ra2yrproto::Response InstrumentationClient::send_message(const vecu8& data) {
+  // FIXME: this check is now meaningless - either accomodate WS version for
+  // this or remove completely
   if (send_data(data) != data.size()) {
     throw std::runtime_error("sent data size mismatch");
   }
@@ -68,7 +54,11 @@ ra2yrproto::Response InstrumentationClient::send_message(const vecu8& data) {
   }
 
   ra2yrproto::Response R;
-  R.ParseFromArray(resp.data(), resp.size());
+  // NB. FAILS HERE!
+  if (!R.ParseFromArray(resp.data(), resp.size())) {
+    throw std::runtime_error(
+        fmt::format("failed to parse response, size={}", resp.size()));
+  }
   return R;
 }
 
@@ -87,7 +77,6 @@ ra2yrproto::Response InstrumentationClient::send_command_old(
     CC->set_name(name);
     CC->set_args(args);
   }
-  // auto data = ra2yrproto::to_vecu8(C);
   return send_message(C);
 }
 
@@ -95,34 +84,6 @@ ra2yrproto::Response InstrumentationClient::send_command(
     const google::protobuf::Message& cmd, ra2yrproto::CommandType type) {
   auto C = yrclient::create_command(cmd, type);
   return send_message(C);
-}
-
-ra2yrproto::PollResults InstrumentationClient::poll_until(
-    const std::chrono::milliseconds timeout) {
-  ra2yrproto::PollResults P;
-  ra2yrproto::Response response;
-  P = poll_blocking(timeout, 0u);
-
-  dprintf("size={}", P.result().results().size());
-  return P;
-}
-
-ra2yrproto::CommandResult InstrumentationClient::run_one(
-    const google::protobuf::Message& M) {
-  auto r_ack = send_command(M, ra2yrproto::CLIENT_COMMAND);
-  if (r_ack.code() == yrclient::RESPONSE_ERROR) {
-    throw std::runtime_error("ACK " + to_json(r_ack));
-  }
-  try {
-    auto res = poll_until(poll_timeout_);
-    if (res.result().results_size() == 0) {
-      return ra2yrproto::CommandResult();
-    }
-    return res.result().results()[0];
-  } catch (const std::runtime_error& e) {
-    eprintf("broken connection {}", e.what());
-    return ra2yrproto::CommandResult();
-  }
 }
 
 // FIXME: remove old code

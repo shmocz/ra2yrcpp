@@ -1,11 +1,10 @@
 #pragma once
+#include "async_queue.hpp"
 #include "connection.hpp"
 #include "types.h"
-#include "utility/sync.hpp"
 
 #include <memory>
 #include <string>
-#include <vector>
 
 namespace connection {
 class ClientWebsocketConnection : public ClientConnection {
@@ -15,7 +14,7 @@ class ClientWebsocketConnection : public ClientConnection {
   using item_t = std::shared_ptr<vecu8>;
   ~ClientWebsocketConnection() override;
   void connect() override;
-  bool send_data(const std::vector<u8>& bytes) override;
+  bool send_data(const vecu8& bytes) override;
   vecu8 read_data() override;
   //
   // Puts empty vector to input message queue to signal the reader that

@@ -72,3 +72,10 @@ inline void eerror(Args... args) {
                                      ra2yrcpp::logging::Level::WARNING, fmt, \
                                      LOCATION_INFO() VA_ARGS(__VA_ARGS__));  \
   } while (0)
+
+#define iprintf(fmt, ...)                                                    \
+  do {                                                                       \
+    ra2yrcpp::logging::print_message(stderr, ra2yrcpp::logging::Level::INFO, \
+                                     fmt,                                    \
+                                     LOCATION_INFO() VA_ARGS(__VA_ARGS__));  \
+  } while (0)

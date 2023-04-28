@@ -240,9 +240,7 @@ network::socket_t Connection::socket() { return socket_; }
 ClientConnection::ClientConnection(std::string host, std::string port)
     : host(host), port(port), state_(State::NONE) {}
 
-bool ClientConnection::send_data(std::vector<u8>&& bytes) {
-  return send_data(bytes);
-}
+bool ClientConnection::send_data(vecu8&& bytes) { return send_data(bytes); }
 
 ClientTCPConnection::ClientTCPConnection(std::string host, std::string port)
     : ClientConnection(host, port) {}
@@ -257,7 +255,7 @@ void ClientTCPConnection::connect() {
 }
 
 // FIXME: make parent method
-bool ClientTCPConnection::send_data(const std::vector<u8>& bytes) {
+bool ClientTCPConnection::send_data(const vecu8& bytes) {
   if (state_ != State::OPEN) {
     throw std::runtime_error("Connection not open");
   }
@@ -276,4 +274,6 @@ vecu8 ClientTCPConnection::read_data() {
 
 void ClientConnection::stop() {}
 
-connection::State ClientConnection::state() { return state_.get(); }
+util::AtomicVariable<connection::State>& ClientConnection::state() {
+  return state_;
+}

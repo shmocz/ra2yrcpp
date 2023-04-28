@@ -1,5 +1,10 @@
 #include "websocket_connection.hpp"
 
+#include "config.hpp"
+#include "logging.hpp"
+#include "utility/memtools.hpp"
+#include "utility/sync.hpp"
+
 #include <websocketpp/client.hpp>
 #include <websocketpp/config/asio_no_tls_client.hpp>
 #include <websocketpp/frame.hpp>
@@ -8,6 +13,7 @@ using namespace connection;
 using namespace std::chrono_literals;
 
 using client_t = websocketpp::client<websocketpp::config::asio_client>;
+using error_code = websocketpp::lib::error_code;
 
 void ClientWebsocketConnection::stop() {
   in_q_.push(std::make_shared<vecu8>());
@@ -15,7 +21,7 @@ void ClientWebsocketConnection::stop() {
 
 void ClientWebsocketConnection::connect() {
   state_.store(State::CONNECTING);
-  websocketpp::lib::error_code ec;
+  error_code ec;
   auto c_ = reinterpret_cast<client_t*>(client_.get());
 
 #ifdef DEBUG_WEBSOCKETPP
@@ -23,8 +29,7 @@ void ClientWebsocketConnection::connect() {
   c_->set_error_channels(websocketpp::log::elevel::all);
 #endif
 
-  c_->init_asio(
-      reinterpret_cast<websocketpp::lib::asio::io_service*>(io_service_), ec);
+  c_->init_asio(reinterpret_cast<asio::io_service*>(io_service_), ec);
 
   if (ec) {
     throw std::runtime_error("init_asio() failed: " + ec.message());
@@ -33,27 +38,27 @@ void ClientWebsocketConnection::connect() {
   c_->clear_access_channels(websocketpp::log::alevel::frame_payload |
                             websocketpp::log::alevel::frame_header);
   c_->set_fail_handler([this, c_](auto h) {
-    websocketpp::lib::error_code ec_;
-    eprintf("fail handle={}",
-            c_->get_con_from_hdl(h, ec_)->get_socket().native_handle());
+    error_code ec_;
+    wrprintf("fail handler={}",
+             c_->get_con_from_hdl(h, ec_)->get_socket().native_handle());
     stop();
     state_.store(State::CLOSED);
   });
 
-  c_->set_message_handler([this, c_](auto hdl, auto msg) {
+  c_->set_message_handler([this](auto, auto msg) {
     try {
       auto p = msg->get_payload();
       in_q_.push(std::make_shared<vecu8>(p.begin(), p.end()));
     } catch (websocketpp::exception const& e) {
-      eprintf("FIXME error!");
+      eprintf("message_handler: {}", e.what());
     }
   });
-  c_->set_open_handler([this, c_](auto h) {
+  c_->set_open_handler([this](auto h) {
     connection_handle_ = h;
     state_.store(State::OPEN);
   });
 
-  c_->set_close_handler([this, c_](auto h) { state_.store(State::CLOSED); });
+  c_->set_close_handler([this](auto) { state_.store(State::CLOSED); });
 
   auto con = c_->get_connection(std::string("ws://" + host + ":" + port), ec);
 
@@ -67,18 +72,18 @@ void ClientWebsocketConnection::connect() {
   });
   if (state() != State::OPEN) {
     throw std::runtime_error("failed to open connection, state={}" +
-                             std::to_string(static_cast<int>(state())));
+                             std::to_string(static_cast<int>(state().get())));
   }
 }
 
-bool ClientWebsocketConnection::send_data(const std::vector<u8>& bytes) {
+bool ClientWebsocketConnection::send_data(const vecu8& bytes) {
   // TODO: could use websocket's interrupt_handler
   // TODO: try use send method with a callback to get actual bytes sent
   util::AtomicVariable<bool> done(false);
-  reinterpret_cast<websocketpp::lib::asio::io_service*>(io_service_)
+  reinterpret_cast<asio::io_service*>(io_service_)
       ->post([this, &bytes, &done]() {
         auto c_ = reinterpret_cast<client_t*>(client_.get());
-        websocketpp::lib::error_code ec;
+        error_code ec;
         c_->send(connection_handle_, bytes.data(), bytes.size(),
                  websocketpp::frame::opcode::binary, ec);
         if (ec) {

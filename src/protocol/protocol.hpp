@@ -6,6 +6,7 @@
 #include "ra2yrproto/game.pb.h"
 #include "types.h"
 
+#include <fmt/core.h>
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/dynamic_message.h>
 #include <google/protobuf/io/coded_stream.h>
@@ -23,15 +24,10 @@ namespace yrclient {
 constexpr auto RESPONSE_OK = ra2yrproto::ResponseCode::OK;
 constexpr auto RESPONSE_ERROR = ra2yrproto::ResponseCode::ERROR;
 
-template <typename T>
-inline vecu8 to_vecu8(const T& msg) {
-  vecu8 res;
-  res.resize(msg.ByteSizeLong());
-  if (!msg.SerializeToArray(&res[0], res.size())) {
-    res.resize(0);
-  }
-  return res;
-}
+/// Serialize message to vecu8
+/// @param msg
+/// @exception yrclient::protocol_error on serialization failure
+vecu8 to_vecu8(const google::protobuf::Message& msg);
 
 std::string to_json(const google::protobuf::Message& m);
 std::string message_type(const google::protobuf::Any& m);
@@ -44,8 +40,9 @@ template <typename T>
 T from_any(const google::protobuf::Any& a) {
   T res;
   if (!a.UnpackTo(&res)) {
-    throw std::runtime_error(std::string("Could not unpack message ") +
-                             message_type(res));
+    throw std::runtime_error(
+        fmt::format("Could not unpack message from {} to {}", a.type_url(),
+                    message_type(res)));
   }
   return res;
 }

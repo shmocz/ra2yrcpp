@@ -11,6 +11,7 @@ endif()
 add_library(
   ra2yrcpp_core STATIC
   $<TARGET_OBJECTS:protocol_o>
+  asio_utils.cpp
   auto_thread.cpp
   command/command.cpp
   command/command_manager.cpp

@@ -16,8 +16,6 @@ function(new_make_test)
   cmake_parse_arguments(MY_FN "" "NAME" "SRC;LIB" ${ARGN})
   add_executable("${MY_FN_NAME}" ${MY_FN_SRC})
   target_link_libraries("${MY_FN_NAME}" PUBLIC gtest_main ${MY_FN_LIB})
-  # FIXME: this is just ugly hack to ensure protoc is present
-  add_dependencies("${MY_FN_NAME}" protoc)
   add_test(NAME ${MY_FN_NAME} COMMAND ${MY_FN_NAME})
   install(TARGETS "${MY_FN_NAME}" RUNTIME)
   list(APPEND NATIVE_TARGETS "${MY_FN_NAME}")

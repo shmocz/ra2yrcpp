@@ -28,16 +28,16 @@ add_library(
   websocket_server.cpp
   x86.cpp)
 
-target_link_libraries(ra2yrcpp_core PUBLIC fmt::fmt ZLIB::ZLIB libprotobuf
-                                           protocol)
+if(NOT PROTO_LIB)
+  find_library(PROTO_LIB protobuf libprotobuf REQUIRED)
+endif()
+target_link_libraries(ra2yrcpp_core PUBLIC fmt::fmt "${PROTO_LIB}" protocol)
 if(WIN32)
   target_link_libraries(ra2yrcpp_core PUBLIC ${LIB_WSOCK32} ${LIB_WS2_32})
 endif()
 
 target_compile_options(ra2yrcpp_core PUBLIC ${RA2YRCPP_EXTRA_FLAGS})
 target_link_options(ra2yrcpp_core PUBLIC ${RA2YRCPP_EXTRA_FLAGS})
-
-add_dependencies(ra2yrcpp_core protoc)
 
 if(RA2YRCPP_BUILD_MAIN_DLL)
   add_library(
@@ -54,8 +54,8 @@ if(RA2YRCPP_BUILD_MAIN_DLL)
   target_link_libraries(
     yrclient
     ${RA2YRCPP_LINKAGE}
+    "${PROTO_LIB}"
     ra2yrcpp_core
-    libprotobuf
     protocol
     ZLIB::ZLIB
     fmt::fmt

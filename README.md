@@ -43,6 +43,16 @@ $ make docker_build
 
 ### General build instructions
 
+#### Build protobuf
+
+For the docker image, let's just build protobuf (library and native protoc) as part of the image, otherwise this gets too complicated.
+
+For native cases, we can grab the protobuf files from docker image, put to appropriate location, and point to them in the CMAke file.
+
+1. go to the protobuf source directory
+2. if cross-compiling, build libprotobuf as win32 target and protoc as native target
+3. move files to appropriate directories
+
 Make sure Python 3 is installed, then install iced-x86:
 
 ```bash

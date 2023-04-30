@@ -19,13 +19,16 @@ if(RA2YRCPP_DEBUG_LOG)
   add_compile_definitions(DEBUG_LOG)
 endif()
 
+if(NOT RA2YRCPP_PROTOBUF_LIB)
+  set(RA2YRCPP_PROTOBUF_LIB protobuf)
+endif()
+
 # FIXME: needed?
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-# FIXME: conditional if native protoc present
-if(NOT PROTOC_EXE)
-  set(PROTOC_EXE protoc.exe)
+
+if(NOT PROTOC_PATH)
+  find_program(PROTOC_PATH protoc REQUIRED)
 endif()
-set(PROTOC_PATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PROTOC_EXE})
 
 include(FetchContent)
 FetchContent_Declare(
@@ -74,33 +77,25 @@ find_package(ZLIB REQUIRED)
 if(WIN32)
   add_compile_definitions(protobuf_MSVC_STATIC_RUNTIME=OFF)
 endif(WIN32)
-# Find protobuf and generate sources
-add_compile_definitions(protobuf_WITH_ZLIB=ON)
+set(protobuf_WITH_ZLIB
+    ON
+    CACHE BOOL "" FORCE)
 if(MINGW)
   add_compile_definitions(_WEBSOCKETPP_CPP11_THREAD_)
 endif()
 add_compile_definitions(ASIO_STANDALONE)
-set(Protobuf_USE_STATIC_LIBS ON)
+set(Protobuf_USE_STATIC_LIBS
+    ON
+    CACHE BOOL "" FORCE)
+
 if(ZLIB_INCLUDE_DIR)
   include_directories(${ZLIB_INCLUDE_DIR})
 endif()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src/protocol)
+# FIXME: REMOVE!
 include_directories(src)
-set(protobuf_BUILD_EXAMPLES
-    OFF
-    CACHE BOOL "" FORCE)
-set(protobuf_BUILD_TESTS
-    OFF
-    CACHE BOOL "" FORCE)
-set(protobuf_MODULE_COMPATIBLE
-    ON
-    CACHE BOOL "" FORCE)
-set(protobuf_INSTALL
-    ON
-    CACHE BOOL "" FORCE)
-add_subdirectory(3rdparty/protobuf ${CMAKE_CURRENT_BINARY_DIR}/bin)
 include_directories(3rdparty/protobuf/src)
 include_directories(3rdparty/xbyak)
 include_directories(3rdparty/argparse/include)

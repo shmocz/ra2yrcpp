@@ -1,3 +1,4 @@
+# FIXME: make this general purpose and usable both within Docker and natively
 set(CMAKE_SYSTEM_NAME Windows)
 set(HOST_ARCH i686)
 set(TOOLCHAIN_PREFIX i686-w64-mingw32)
@@ -13,16 +14,15 @@ set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
 set(CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES /usr/lib/gcc/${TOOLCHAIN_PREFIX}/${TC_VERSION}/include)
 
 set(OPT_DIR "$ENV{PWD}/opt")
-set(PROTOC_PATH "${OPT_DIR}/protoc")
 
 # Need these to find headers etc.
+# TODO: copy the native protoc executable to pkg
 set(CMAKE_FIND_ROOT_PATH "${WINSDK_LIB};$ENV{PWD}/build-protobuf/mingw-w64-i686-Release/pkg")
 
-set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM BOTH)
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM ALWAYS)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 
 # Enable these to strip symbols
 # set(CMAKE_SHARED_LINKER_FLAGS -s)

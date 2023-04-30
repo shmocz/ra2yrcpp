@@ -17,17 +17,10 @@ endforeach()
 
 set(BDIR "${CMAKE_CURRENT_BINARY_DIR}")
 set(SDIR "${CMAKE_CURRENT_SOURCE_DIR}")
-set(PROTOBUF_SOURCES "${protobuf_SOURCE_DIR}/src")
-
-# Convert to Windows path for protoc.exe if cross-compiling
-if(CMAKE_CROSSCOMPILING)
-  string(REPLACE "/" "\\\\" BDIR "${BDIR}")
-  string(REPLACE "/" "\\\\" SDIR "${SDIR}")
-  string(REPLACE "/" "\\\\" PROTOBUF_SOURCES "${PROTOBUF_SOURCES}")
-  string(PREPEND BDIR "Z:")
-  string(PREPEND SDIR "Z:")
-  string(PREPEND PROTOBUF_SOURCES "Z:")
+if(NOT protobuf_SOURCE_DIR)
+  set(protobuf_SOURCE_DIR "${CMAKE_SOURCE_DIR}/3rdparty/protobuf")
 endif()
+set(PROTOBUF_SOURCES "${protobuf_SOURCE_DIR}/src")
 
 add_custom_target(compile-protobuf ALL DEPENDS ${PROTO_SRCS} ${PROTO_HDRS})
 add_custom_command(
@@ -36,11 +29,12 @@ add_custom_command(
     ${PROTOC_PATH} -I=. -I="${SDIR}" -I="${PROTOBUF_SOURCES}" --pyi_out=${BDIR}
     --python_out=${BDIR} --cpp_out=${BDIR} ${PROTO_FILES}
   DEPENDS ${PROTO_FILES})
-add_dependencies(compile-protobuf protoc)
 
 add_library(protocol_o OBJECT protocol.cpp ${PROTO_SRCS} ../util_string.cpp)
 add_library(protocol INTERFACE protocol.cpp)
-add_dependencies(protocol_o compile-protobuf)
+if(NOT protobuf_PROTOC_EXE)
+  add_dependencies(protocol_o compile-protobuf)
+endif()
 target_link_libraries(protocol INTERFACE protocol_o)
 
-# TODO: should make generated headers as intall targets
+# TODO: should make generated headers as install targets

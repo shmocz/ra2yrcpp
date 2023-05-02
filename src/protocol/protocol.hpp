@@ -1,4 +1,5 @@
 #pragma once
+#include "errors.hpp"
 #include "types.h"
 #include "util_string.hpp"
 
@@ -79,7 +80,12 @@ bool read_message(google::protobuf::Message* M,
 google::protobuf::Message* create_command_message(MessageBuilder* B,
                                                   const std::string args);
 
-// TODO: rename this and above better
+///
+/// Create command message.
+/// @param cmd message to be set as command field
+/// @param type command type
+/// @exception yrclient::protocol_error if message packing fails
+///
 ra2yrproto::Command create_command(
     const google::protobuf::Message& cmd,
     ra2yrproto::CommandType type = ra2yrproto::CLIENT_COMMAND);

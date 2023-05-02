@@ -84,11 +84,7 @@ ra2yrproto::Response InstrumentationClient::send_command_old(
 
 ra2yrproto::Response InstrumentationClient::send_command(
     const google::protobuf::Message& cmd, ra2yrproto::CommandType type) {
-  ra2yrproto::Command C;
-  C.set_command_type(type);
-  if (!C.mutable_command()->PackFrom(cmd)) {
-    throw yrclient::general_error("Packging message failed");
-  }
+  auto C = yrclient::create_command(cmd, type);
   return send_message(C);
 }
 

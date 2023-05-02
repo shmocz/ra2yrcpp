@@ -88,7 +88,7 @@ ra2yrproto::Command yrclient::create_command(
   ra2yrproto::Command C;
   C.set_command_type(type);
   if (!C.mutable_command()->PackFrom(cmd)) {
-    throw std::runtime_error("Packging message failed");
+    throw yrclient::protocol_error("packing message failed");
   }
   return C;
 }

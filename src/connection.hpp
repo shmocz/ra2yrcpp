@@ -138,9 +138,11 @@ class ClientConnection {
   bool send_data(std::vector<u8>&& bytes);
 
   ///
-  /// Read a length-prefixed data message from connection
+  /// Read a length-prefixed data message from connection. A previous call to
+  /// send_data must've occurred, or no data will be available to read.
   ///
   /// @exception std::runtime_error on read failure
+  /// @exception yrclient::protocol_error
   virtual vecu8 read_data() = 0;
   virtual void stop();
   connection::State state();

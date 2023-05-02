@@ -16,13 +16,20 @@ class not_implemented : public std::exception {
   std::string message_;
 };
 
-class general_error : public std::exception {
+class ra2yrcpp_exception_base : public std::exception {
  public:
-  explicit general_error(const std::string message);
+  explicit ra2yrcpp_exception_base(const std::string prefix,
+                                   const std::string message);
   virtual const char* what() const throw();
 
- private:
+ protected:
+  std::string prefix_;
   std::string message_;
+};
+
+class general_error : public ra2yrcpp_exception_base {
+ public:
+  explicit general_error(const std::string message);
 };
 
 class system_error : public std::exception {
@@ -42,6 +49,11 @@ class timeout : public std::exception {
 
  private:
   std::string message_;
+};
+
+class protocol_error : public ra2yrcpp_exception_base {
+ public:
+  explicit protocol_error(const std::string message = "");
 };
 
 }  // namespace yrclient

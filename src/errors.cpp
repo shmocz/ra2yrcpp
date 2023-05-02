@@ -19,9 +19,18 @@ int yrclient::get_last_error() {
 #endif
 }
 
-general_error::general_error(const std::string message) : message_(message) {}
+ra2yrcpp_exception_base::ra2yrcpp_exception_base(const std::string prefix,
+                                                 const std::string message)
+    : prefix_(prefix), message_(message) {}
 
-const char* general_error::what() const throw() { return message_.c_str(); }
+const char* ra2yrcpp_exception_base::what() const throw() {
+  return message_.c_str();
+}
+
+general_error::general_error(const std::string message)
+    : ra2yrcpp_exception_base("General error", message) {
+  message_ = prefix_ + ": " + message_;
+}
 
 std::string yrclient::get_error_message(const int error_code) {
   if (error_code == 0) {
@@ -68,3 +77,6 @@ const char* system_error::what() const throw() { return message_.c_str(); }
 timeout::timeout(const std::string message) : message_(message) {}
 
 const char* timeout::what() const throw() { return message_.c_str(); }
+
+protocol_error::protocol_error(const std::string message)
+    : ra2yrcpp_exception_base("Protocol error", message) {}

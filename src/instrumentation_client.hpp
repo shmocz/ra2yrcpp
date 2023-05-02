@@ -31,6 +31,7 @@ class InstrumentationClient {
   ///
   /// Send encoded message to server and read response back.
   /// @exception std::runtime_error on read/write failure.
+  /// @exception yrclient::protocol_error on message serialization failure.
   ///
   ra2yrproto::Response send_message(const vecu8& data);
   /// Send protobuf message to server.
@@ -40,7 +41,12 @@ class InstrumentationClient {
       std::string name, std::string args,
       ra2yrproto::CommandType type = ra2yrproto::CLIENT_COMMAND_OLD);
 
-  /// Send a command of given type to server and read response.
+  ///
+  /// Send a command of given type to server and read response. This can block
+  /// if there's nothing to be read.
+  ///
+  /// @exception std::runtime_error on read/write failure.
+  ///
   ra2yrproto::Response send_command(const google::protobuf::Message& cmd,
                                     ra2yrproto::CommandType type);
 

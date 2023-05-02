@@ -88,15 +88,15 @@ TEST_F(ISStressTest, DISABLED_ManyConnections) {
   // spam  storevalue
   size_t total_bytes = 1e9;
   size_t chunk_size = 1e4 * 5;
-  size_t chunks = (total_bytes / chunk_size);
   ra2yrproto::commands::StoreValue sv;
   std::string k1(chunk_size, 'A');
   sv.mutable_args()->set_value(k1);
   sv.mutable_args()->set_key("tdata");
 
-  for (int i = 0; i < chunks; i++) {
+  for (size_t chunks = total_bytes / chunk_size; chunks > 0; chunks--) {
     auto r = c->send_command(sv);
   }
+
   // remove a client
 #if 0
   try {

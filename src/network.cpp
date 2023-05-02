@@ -86,9 +86,8 @@ void network::set_io_timeout(socket_t s, const unsigned long timeout,
   auto* pt = reinterpret_cast<const char*>(&p);
   // on linux, the input is astruct timeval
 #elif __linux__
-  auto tsec = timeout / 1000;
-  timeval p{.tv_sec = tsec, .tv_usec = (timeout - tsec * 1000) * 1000};
-  // timeval p{timeout, 0};
+  auto t = static_cast<long int>(timeout);
+  timeval p{.tv_sec = (t / 1000), .tv_usec = (t - (t / 1000) * 1000) * 1000};
   auto* pt = reinterpret_cast<const char*>(&p);
 #endif
   setsockopt(s, SOCK_LEVEL::L_SOL_SOCKET, SOCK_OPT::SNDTIMEO, pt, sizeof(p));

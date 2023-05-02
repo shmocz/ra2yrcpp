@@ -866,7 +866,7 @@ void convert_map_data(ra2yrproto::ra2yr::MapDataSoA* dst,
                       ra2yrproto::ra2yr::MapData* src) {
   const auto sz = src->cells().size();
 
-  for (auto i = 0U; i < sz; i++) {
+  for (int i = 0U; i < sz; i++) {
     dst->add_land_type(src->cells(i).land_type());
     dst->add_radiation_level(src->cells(i).radiation_level());
     dst->add_height(src->cells(i).height());

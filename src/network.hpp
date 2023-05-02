@@ -101,6 +101,9 @@ ssize_t recv(socket_t s, void* buffer, const size_t length, int flags);
 ssize_t send(socket_t s, const void* buffer, const size_t length, int flags);
 int setsockopt(socket_t s, SOCK_LEVEL, SOCK_OPT optname, const char* optval,
                int optlen);
+///
+/// Set timeout for send/receive, in milliseconds.
+///
 void set_io_timeout(socket_t s, const unsigned long timeout,
                     const bool nodelay = true);
 ///

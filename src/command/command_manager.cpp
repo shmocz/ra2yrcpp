@@ -1,5 +1,10 @@
 #include "command/command_manager.hpp"
 
+#include "errors.hpp"
+#include "logging.hpp"
+
+#include <fmt/chrono.h>
+
 using namespace command;
 
 CommandEntry::CommandEntry(const std::string name, Command::handler_t handler)
@@ -34,8 +39,9 @@ Command* CommandFactory::make_command(
   return C;
 }
 
-CommandManager::CommandManager()
-    : timeout_(0ms), worker_thread_([this]() {
+CommandManager::CommandManager(const duration_t results_acquire_timeout)
+    : results_acquire_timeout_(results_acquire_timeout),
+      worker_thread_([this]() {
         try {
           this->worker();
         } catch (const std::exception& e) {
@@ -52,23 +58,33 @@ CommandManager::~CommandManager() {
 
 CommandFactory& CommandManager::factory() { return factory_; }
 
-results_queue_t& CommandManager::results_queue() { return results_queue_; }
+util::acquire_t<results_queue_t*, std::timed_mutex>
+CommandManager::aq_results_queue() {
+  try {
+    return util::acquire(mut_results_, &results_queue_,
+                         results_acquire_timeout_);
+  } catch (const std::exception& e) {
+    throw std::runtime_error(
+        fmt::format("failed to acquire results queue within {}: {}",
+                    results_acquire_timeout_, e.what()));
+  }
+}
 
 void CommandManager::create_queue(const uint64_t id,
                                   const std::size_t max_size) {
-  std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
+  auto [l, q] = aq_results_queue();
   dprintf("queue_id={}", id);
-  if (results_queue_.find(id) != results_queue_.end()) {
-    throw std::runtime_error(fmt::format("existsing queue_id={}", id));
+  if (q->find(id) != q->end()) {
+    throw std::runtime_error(fmt::format("existing queue_id={}", id));
   }
-  results_queue_[id] =
-      std::make_shared<result_queue_t>(result_queue_t::queue_t(max_size));
+  q->try_emplace(
+      id, std::make_shared<result_queue_t>(result_queue_t::queue_t(max_size)));
 }
 
 void CommandManager::destroy_queue(const uint64_t id) {
-  std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
+  auto [l, q] = aq_results_queue();
   dprintf("queue_id={}", id);
-  results_queue_.erase(id);
+  q->erase(id);
 }
 
 void CommandManager::invoke_user_command(std::shared_ptr<Command> cmd) {
@@ -81,7 +97,8 @@ void CommandManager::invoke_user_command(std::shared_ptr<Command> cmd) {
     cmd->error_message()->assign(e.what());
     cmd->result_code().store(ResultCode::ERROR);
   }
-  std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
+
+  auto [l, rq] = aq_results_queue();
   if (cmd->pending()) {
     std::unique_lock<decltype(pending_commands_mut_)> lp(pending_commands_mut_);
     pending_commands_.push_back(cmd);
@@ -153,13 +170,12 @@ void CommandManager::worker() {
 // command, and only flush the result after it has been cleared. Also ensure
 // thread safety of command's internal state manipulation.
 std::vector<std::shared_ptr<Command>> CommandManager::flush_results(
-    const uint64_t id, const std::chrono::milliseconds timeout,
-    const std::size_t count) {
-  std::unique_lock<decltype(mut_results_)> l(mut_results_, timeout_);
-  if (results_queue_.find(id) == results_queue_.end()) {
+    const uint64_t id, const duration_t timeout, const std::size_t count) {
+  auto [l, rq] = aq_results_queue();
+  if (rq->find(id) == rq->end()) {
     throw std::out_of_range(std::string("no such queue ") + std::to_string(id));
   }
-  auto q = results_queue_.at(id);
+  auto q = rq->at(id);
   l.unlock();
   // pop all non pending results
   auto res =

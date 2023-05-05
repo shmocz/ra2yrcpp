@@ -79,8 +79,8 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
           duration_t dur = c->timestamp().time_since_epoch();
           conn->set_timestamp(dur.count());
         }
-        // NB. this is safe. We're in cmd manager's main loop thread
-        for (const auto& [k, v] : Q->I()->cmd_manager().results_queue()) {
+        auto [l, rq] = Q->I()->cmd_manager().aq_results_queue();
+        for (const auto& [k, v] : *rq) {
           state->add_queues()->set_queue_id(k);
         }
         state->set_directory(process::getcwd());

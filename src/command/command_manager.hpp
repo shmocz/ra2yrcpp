@@ -2,11 +2,9 @@
 
 #include "async_queue.hpp"
 #include "command.hpp"
-#include "errors.hpp"
-#include "logging.hpp"
+#include "config.hpp"
 #include "ring_buffer.hpp"
 #include "utility/sync.hpp"
-#include "utility/time.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -18,9 +16,7 @@
 #include <queue>
 #include <stdexcept>
 #include <string>
-#include <system_error>
 #include <thread>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -73,7 +69,8 @@ using results_queue_t = std::map<uint64_t, std::shared_ptr<result_queue_t>>;
 
 class CommandManager {
  public:
-  CommandManager();
+  explicit CommandManager(const duration_t results_acquire_timeout =
+                              cfg::COMMAND_RESULTS_ACQUIRE_TIMEOUT);
   /// Shutdown and join worker
   ~CommandManager();
 
@@ -92,16 +89,24 @@ class CommandManager {
   /// Puts a shutdown Command to work queue
   void shutdown();
   ///
-  results_queue_t& results_queue();
   CommandFactory& factory();
+  util::acquire_t<results_queue_t*, std::timed_mutex> aq_results_queue();
+  ///
+  /// Remove and return all non-pending items from a given queue.
+  ///
+  /// @param id Queue id
+  /// @param timeout How long to wait for items to appear if the queue is empty
+  /// @param count Number of items to retrieve. If 0, retrieve all items.
+  /// @throws std::out_of_range if queue with the given id wasn't found
+  ///
   std::vector<std::shared_ptr<Command>> flush_results(
-      const uint64_t id, const std::chrono::milliseconds timeout = 0ms,
+      const uint64_t id, const duration_t timeout = 0.0s,
       const std::size_t count = 0u);
   std::vector<std::shared_ptr<Command>>& pending_commands();
 
  private:
   std::atomic_bool active_{true};
-  std::chrono::milliseconds timeout_;
+  duration_t results_acquire_timeout_;
   std::thread worker_thread_;
   CommandFactory factory_;
   std::priority_queue<std::shared_ptr<Command>,

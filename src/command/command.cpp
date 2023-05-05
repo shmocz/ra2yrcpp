@@ -1,5 +1,7 @@
 #include "command/command.hpp"
 
+#include <utility>
+
 using namespace command;
 
 Command::Command(const std::string name, handler_t handler,

@@ -10,9 +10,9 @@ template <typename T, typename MutexT = std::mutex>
 using acquire_t = std::tuple<std::unique_lock<MutexT>, T>;
 
 /// Obtain exclusive access to resource @v guarded by mutex @m
-template <typename T, typename MutexT = std::mutex>
-inline auto acquire(MutexT& m, T* v) {  // NOLINT
-  return std::make_tuple(std::move(std::unique_lock<MutexT>(m)), v);
+template <typename T, typename MutexT = std::mutex, typename... MutexArgs>
+inline auto acquire(MutexT& m, T* v, MutexArgs... args) {  // NOLINT
+  return std::make_tuple(std::move(std::unique_lock<MutexT>(m, args...)), v);
 }
 
 template <typename FnT, typename MutexT = std::mutex>

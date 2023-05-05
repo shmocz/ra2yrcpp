@@ -10,14 +10,22 @@
 
 namespace util_command {
 
-//
-// Wrapper which takes Protobuf Message and constructs a command function
-// compatible with that message type, and provides access to
-// InstrumentationService.
-//
+///
+/// Wrapper which takes constructs a command function compatible with a supplied
+/// protobuf message type, and provides access to InstrumentationService.
+///
+/// NOTE: in async commands, don't access the internal data of the object after
+/// exiting the command (e.g. executing a gameloop callback), because the object
+/// is destroyed. To access the original args, make a copy and pass by value.
+/// See mission_clicked() in commands_yr.cpp for example.
+///
+/// TODO(shmocz): make a mechanism to wrap async commands so that pending flag
+/// is cleared automatically after execution or after exception.
+///
 template <typename T>
 struct ISCommand {
   using result_t = decltype(std::declval<T>().result());
+  using message_t = T;
 
   explicit ISCommand(command::Command* c)
       : c(c),
@@ -50,6 +58,15 @@ struct ISCommand {
     }
   }
 
+  ///
+  /// Mark this command as async. Allocate the command result and set the
+  /// pending flag.
+  ///
+  void async() {
+    save_command_result();
+    c->pending().store(true);
+  }
+
   auto* I() { return a_->I; }
 
   auto* M() { return a_->M; }
@@ -68,6 +85,18 @@ std::pair<std::string, command::Command::handler_t> get_cmd(
             dprintf("exec {} ", MessageT().GetTypeName());
             fn(&Q);
           }};
+}
+
+///
+/// Unpacks the message stored in cmd->result() to appropriate message type, and
+/// returns pointer to the result and instance of the message.
+///
+template <typename MessageT>
+auto message_result(command::Command* cmd) {
+  MessageT m;
+  auto* p = reinterpret_cast<ra2yrproto::CommandResult*>(cmd->result());
+  p->mutable_result()->UnpackTo(&m);
+  return std::make_tuple(p, m);
 }
 
 }  // namespace util_command

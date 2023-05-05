@@ -35,8 +35,8 @@ class MultiClientTest : public ::testing::Test {
         cfg::MAX_CLIENTS, cfg::SERVER_PORT, cfg::WEBSOCKET_PROXY_PORT,
         "127.0.0.1", true};
     AutoPollClient::Options aopts{
-        opts.host, std::to_string(opts.ws_port), 1000ms,
-        250ms,     CONNECTION_TYPE::WEBSOCKET,   nullptr};
+        opts.host, std::to_string(opts.ws_port), 1.0s,
+        0.25s,     CONNECTION_TYPE::WEBSOCKET,   nullptr};
 
     std::map<std::string, command::Command::handler_t> cmds;
 

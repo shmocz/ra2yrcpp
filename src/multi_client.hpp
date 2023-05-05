@@ -27,7 +27,6 @@
 namespace multi_client {
 namespace {
 using namespace instrumentation_client;
-using namespace std::chrono_literals;
 using namespace async_map;
 
 }  // namespace
@@ -47,8 +46,8 @@ class AutoPollClient {
   struct Options {
     std::string host;
     std::string port;
-    std::chrono::milliseconds poll_timeout;
-    std::chrono::milliseconds command_timeout;
+    duration_t poll_timeout;
+    duration_t command_timeout;
     CONNECTION_TYPE ctype = CONNECTION_TYPE::TCP;
     void* io_service;
   };
@@ -59,8 +58,8 @@ class AutoPollClient {
   /// connection.
   ///
   AutoPollClient(const std::string host, const std::string port,
-                 const std::chrono::milliseconds poll_timeout = 1000ms,
-                 const std::chrono::milliseconds command_timeout = 250ms,
+                 const duration_t poll_timeout = cfg::POLL_RESULTS_TIMEOUT,
+                 const duration_t command_timeout = cfg::COMMAND_ACK_TIMEOUT,
                  CONNECTION_TYPE ctype = CONNECTION_TYPE::TCP,
                  void* io_service = nullptr);
   explicit AutoPollClient(AutoPollClient::Options o);
@@ -80,8 +79,8 @@ class AutoPollClient {
  private:
   std::string host_;
   std::string port_;
-  const std::chrono::milliseconds poll_timeout_;
-  const std::chrono::milliseconds command_timeout_;
+  const duration_t poll_timeout_;
+  const duration_t command_timeout_;
   CONNECTION_TYPE ctype_;
   void* io_service_;
   std::atomic_bool active_;

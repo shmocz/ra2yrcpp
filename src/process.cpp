@@ -407,7 +407,7 @@ void Process::for_each_thread(std::function<void(Thread*, void*)> callback,
 }
 
 void Process::suspend_threads(const thread_id_t main_tid,
-                              const std::chrono::milliseconds delay) const {
+                              const duration_t delay) const {
 #ifdef _WIN32
   suspend_threads(std::vector<thread_id_t>{main_tid}, delay);
 #elif __linux__
@@ -418,7 +418,7 @@ void Process::suspend_threads(const thread_id_t main_tid,
 }
 
 void Process::suspend_threads(const std::vector<thread_id_t> no_suspend,
-                              const std::chrono::milliseconds delay) const {
+                              const duration_t delay) const {
 #ifdef _WIN32
   util::sleep_ms(delay);
   for_each_thread([&no_suspend](Thread* T, void* ctx) {

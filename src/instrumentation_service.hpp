@@ -31,9 +31,6 @@
 
 namespace yrclient {
 
-namespace {
-using namespace std::chrono_literals;
-};
 
 // Forward declaration
 class InstrumentationService;
@@ -122,7 +119,7 @@ class InstrumentationService {
 
  private:
   ra2yrproto::PollResults flush_results(
-      const u64 queue_id, const std::chrono::milliseconds delay = 1000ms);
+      const u64 queue_id, const duration_t delay = cfg::POLL_RESULTS_TIMEOUT);
   ra2yrproto::Response process_request(connection::Connection* C, vecu8* bytes);
 
   IServiceOptions opts_;

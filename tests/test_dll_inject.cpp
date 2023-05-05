@@ -100,7 +100,7 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
 
   std::unique_ptr<InstrumentationClient> client;
 
-  util::call_until(5000ms, 1000ms, [&client]() {
+  util::call_until(5.0s, 1.0s, [&client]() {
     try {
       auto conn = std::make_shared<connection::ClientTCPConnection>(
           cfg::SERVER_ADDRESS, std::to_string(cfg::SERVER_PORT));

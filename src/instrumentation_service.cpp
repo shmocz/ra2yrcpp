@@ -63,7 +63,7 @@ static ra2yrproto::TextResponse text_response(const std::string message) {
 }
 
 ra2yrproto::PollResults InstrumentationService::flush_results(
-    const u64 queue_id, const std::chrono::milliseconds delay) {
+    const u64 queue_id, const duration_t delay) {
   auto results = cmd_manager().flush_results(queue_id, delay, 0);
   ra2yrproto::PollResults P;
   auto* PR = P.mutable_result();
@@ -140,9 +140,11 @@ ra2yrproto::Response InstrumentationService::process_request(
       // TODO: correct check?
       const u64 queue_id =
           R.args().queue_id() > 0 ? R.args().queue_id() : (u64)C->socket();
-      const auto timeout = std::chrono::milliseconds(
-          R.args().IsInitialized() ? (u32)R.args().timeout()
-                                   : cfg::POLL_BLOCKING_TIMEOUT_MS);
+      const auto timeout =
+          R.args().IsInitialized()
+              ? duration_t(static_cast<double>((u32)R.args().timeout()) /
+                           1000.0)
+              : cfg::POLL_BLOCKING_TIMEOUT;
       return yrclient::make_response(flush_results(queue_id, timeout));
     }
     case ra2yrproto::SHUTDOWN:
@@ -168,8 +170,9 @@ vecu8 InstrumentationService::on_receive_bytes(connection::Connection* C,
 
 void InstrumentationService::on_accept(connection::Connection* C) {
   // Create result queue
-  cmd_manager().enqueue_builtin(command::CommandType::CREATE_QUEUE, C->socket(),
-                                command::BuiltinArgs{.queue_size = 32});
+  cmd_manager().enqueue_builtin(
+      command::CommandType::CREATE_QUEUE, C->socket(),
+      command::BuiltinArgs{.queue_size = cfg::RESULT_QUEUE_SIZE});
 }
 
 void InstrumentationService::on_close(connection::Connection* C) {

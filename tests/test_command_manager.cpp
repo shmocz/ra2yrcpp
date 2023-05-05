@@ -63,7 +63,7 @@ TEST_F(CommandManagerTest, RegisterAndRunCommandWithResources) {
     M.enqueue_command(cmd);
   }
   std::vector<command::cmd_entry_t> tot;
-  util::call_until(5000ms, 10ms, [&]() {
+  util::call_until(5.0s, 0.01s, [&]() {
     auto r = M.flush_results(queue);
     if (!r.empty()) {
       tot.insert(tot.end(), r.begin(), r.end());
@@ -86,7 +86,7 @@ TEST_F(CommandManagerTest, RegisterAndRunCommand) {
   M.create_queue(queue);
   M.enqueue_command(cmd);
   std::vector<command::cmd_entry_t> r;
-  util::call_until(5000ms, 100ms, [&]() {
+  util::call_until(5.0s, 0.1s, [&]() {
     r = M.flush_results(queue);
     return r.size() < 1;
   });

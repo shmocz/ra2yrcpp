@@ -183,11 +183,9 @@ void is_context::inject_dll(
     DLLInjectOptions dll) {
   using namespace std::chrono_literals;
   if (pid == 0u) {
-    util::call_until(std::chrono::milliseconds(
-                         dll.wait_process > 0 ? dll.wait_process : UINT_MAX),
-                     500ms, [&]() {
-                       return (pid = process::get_pid(dll.process_name)) == 0u;
-                     });
+    util::call_until(
+        duration_t(dll.wait_process > 0 ? dll.wait_process : UINT_MAX), 0.5s,
+        [&]() { return (pid = process::get_pid(dll.process_name)) == 0u; });
     if (pid == 0u) {
       throw std::runtime_error("gamemd process not found");
     }
@@ -211,9 +209,8 @@ void is_context::inject_dll(
                           cfg::INIT_NAME, options.max_clients, options.port);
   auto p = L.getCode<u8*>();
   vecu8 sc(p, p + L.getSize());
-  dll_inject::suspend_inject_resume(
-      P.handle(), sc, std::chrono::milliseconds(dll.delay_post), 1000ms,
-      std::chrono::milliseconds(dll.delay_pre));
+  dll_inject::suspend_inject_resume(P.handle(), sc, duration_t(dll.delay_post),
+                                    1.0s, duration_t(dll.delay_pre));
 }
 
 void* is_context::get_context(unsigned int max_clients, unsigned int port,

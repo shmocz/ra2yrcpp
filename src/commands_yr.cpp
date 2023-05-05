@@ -208,9 +208,9 @@ struct CBExecuteGameLoopCommand : public MyCB<CBExecuteGameLoopCommand> {
   CBExecuteGameLoopCommand() = default;
 
   void exec() override {
-    auto items = work.pop(0, 0ms);
     for (const auto& it : items) {
       it.fn(this, it.data.get());
+    auto items = work.pop(0, 0.0s);
     }
   }
 };

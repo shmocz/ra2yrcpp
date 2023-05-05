@@ -51,9 +51,6 @@ class InstrumentationClient {
                                     ra2yrproto::CommandType type);
 
   ra2yrproto::Response poll(const std::chrono::milliseconds timeout = 0ms);
-  ra2yrproto::PollResults poll_blocking(
-      const std::chrono::milliseconds timeout = 5000ms,
-      const u64 queue_id = (u64)-1);
   ra2yrproto::PollResults poll_until(
       const std::chrono::milliseconds timeout = 5000ms);
   ///
@@ -65,6 +62,8 @@ class InstrumentationClient {
   /// time interval.
   ///
   ra2yrproto::CommandResult run_one(const google::protobuf::Message& M);
+  ra2yrproto::PollResults poll_blocking(const duration_t timeout,
+                                        const u64 queue_id = (u64)-1);
   std::string shutdown();
   connection::ClientConnection* connection();
 

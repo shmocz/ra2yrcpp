@@ -16,7 +16,7 @@ std::unique_ptr<T> uptr(T* o) {
 }
 
 auto get_client(const std::string host, const std::string port) {
-  return uptr(new multi_client::AutoPollClient(host, port, 250ms, 40000ms));
+  return uptr(new multi_client::AutoPollClient(host, port, 0.25s, 40s));
 }
 
 std::vector<const google::protobuf::Descriptor*> get_messages(

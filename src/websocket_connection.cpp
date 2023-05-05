@@ -92,7 +92,8 @@ bool ClientWebsocketConnection::send_data(const std::vector<u8>& bytes) {
 
 vecu8 ClientWebsocketConnection::read_data() {
   try {
-    auto res = in_q_.pop(1, 5000ms);
+    auto res = in_q_.pop(
+        1, std::chrono::duration_cast<duration_t>(cfg::WEBSOCKET_READ_TIMEOUT));
     return *res.at(0);
   } catch (const std::exception& e) {
     throw std::runtime_error(

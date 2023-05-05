@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 
+#include <chrono>
 #include <vector>
 
 #define X(s) typedef uint##s##_t u##s
@@ -27,3 +28,4 @@ union X86Regs {
 };
 
 using vecu8 = std::vector<unsigned char>;
+using duration_t = std::chrono::duration<double>;

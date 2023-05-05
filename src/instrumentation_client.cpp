@@ -24,7 +24,7 @@ auto unpack(const ra2yrproto::Response& R) {
 }
 
 ra2yrproto::PollResults InstrumentationClient::poll_blocking(
-    const std::chrono::milliseconds timeout, const u64 queue_id) {
+    const duration_t timeout, const u64 queue_id) {
   ra2yrproto::PollResults C;
   if (queue_id < (u64)-1) {
     auto* args = C.mutable_args();

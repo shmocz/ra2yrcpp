@@ -17,7 +17,7 @@ using namespace std::chrono_literals;
 
 template <typename PredT, typename LockT = std::mutex>
 bool wait_until(std::unique_lock<LockT>* lock, std::condition_variable* cv,
-                PredT pred, const std::chrono::milliseconds timeout = 0ms) {
+                PredT pred, const duration_t timeout = 0.0s) {
   return (cv->wait_for(*lock, timeout, pred));
 }
 
@@ -35,10 +35,10 @@ class AsyncMap : public async_queue::AsyncContainer {
   }
 
   /// Get item by key. If not found until timeout, throw exception.
-  T get(const KeyT key, const std::chrono::milliseconds timeout = 0ms) {
+  T get(const KeyT key, const duration_t timeout = 0.0s) {
     auto* a = a_.get();
     std::unique_lock<decltype(a->m)> l(a->m);
-    if (timeout > 0ms) {
+    if (timeout > 0.0s) {
       dprintf("key={}", key);
       if (!wait_until(
               &l, &a->cv, [&] { return (data_.find(key) != data_.end()); },

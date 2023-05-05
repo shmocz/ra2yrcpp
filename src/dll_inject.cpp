@@ -28,11 +28,10 @@ void dll_inject::inject_code(process::Process* P, int thread_id,
   T.set_gpr(x86Reg::eip, reinterpret_cast<int>(sc_addr));
 }
 
-void dll_inject::suspend_inject_resume(
-    handle_t ex_handle, vecu8 shellcode,
-    const std::chrono::milliseconds delay_post_suspend,
-    const std::chrono::milliseconds delay_post_inject,
-    const std::chrono::milliseconds delay_pre_resume) {
+void dll_inject::suspend_inject_resume(handle_t ex_handle, vecu8 shellcode,
+                                       const duration_t delay_post_suspend,
+                                       const duration_t delay_post_inject,
+                                       const duration_t delay_pre_resume) {
   process::Process P(ex_handle);
   P.suspend_threads(-1);
   int tid = -1;

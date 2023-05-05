@@ -16,8 +16,8 @@ static connection::ClientConnection* get_connection(const std::string host,
 }
 
 AutoPollClient::AutoPollClient(const std::string host, const std::string port,
-                               const std::chrono::milliseconds poll_timeout,
-                               const std::chrono::milliseconds command_timeout,
+                               const duration_t poll_timeout,
+                               const duration_t command_timeout,
                                CONNECTION_TYPE ctype, void* io_service)
     : host_(host),
       port_(port),

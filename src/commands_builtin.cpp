@@ -60,8 +60,7 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
         for (auto& c : active_connections) {
           auto* conn = state->add_connections();
           conn->set_socket_id(c->c().socket());
-          auto dur =
-              std::chrono::duration<double>(c->timestamp().time_since_epoch());
+          duration_t dur = c->timestamp().time_since_epoch();
           conn->set_timestamp(dur.count());
         }
         // NB. this is safe. We're in cmd manager's main loop thread

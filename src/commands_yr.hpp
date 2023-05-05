@@ -1,36 +1,10 @@
 #pragma once
-#include "protocol/protocol.hpp"
-
-#include "async_queue.hpp"
-#include "auto_thread.hpp"
 #include "command/command.hpp"
-#include "errors.hpp"
-#include "hook.hpp"
-#include "instrumentation_service.hpp"
-#include "logging.hpp"
-#include "ra2/abi.hpp"
-#include "ra2/state_parser.hpp"
-#include "util_command.hpp"
-#include "util_string.hpp"
-#include "utility.h"
-#include "utility/array_iterator.hpp"
-#include "utility/memtools.hpp"
-#include "utility/serialize.hpp"
 
-#include <YRPP.h>
-#include <algorithm>
-#include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/repeated_ptr_field.h>
 #include <map>
-#include <memory>
 #include <string>
-#include <tuple>
-#include <utility>
-#include <vector>
 
 namespace commands_yr {
-
-using yrclient::InstrumentationService;
 
 std::map<std::string, command::Command::handler_t> get_commands();
 

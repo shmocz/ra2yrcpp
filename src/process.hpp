@@ -118,10 +118,10 @@ class Process {
                        void* cb_ctx = nullptr) const;
   // Suspend all threads. If main_tid > -1, suspend if thread's id != main_tid
   void suspend_threads(const thread_id_t tmain_tid = -1,
-                       const std::chrono::milliseconds delay = 1000ms) const;
+                       const duration_t delay = 1.0s) const;
   // Suspend all threads, except threads in no_suspend
   void suspend_threads(const std::vector<thread_id_t> no_suspend = {},
-                       const std::chrono::milliseconds delay = 1000ms) const;
+                       const duration_t delay = 1.0s) const;
   void resume_threads(const thread_id_t main_tid = -1) const;
   void resume_threads(const std::vector<thread_id_t> no_resume = {}) const;
   std::vector<std::string> list_loaded_modules() const;

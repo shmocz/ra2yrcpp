@@ -67,9 +67,12 @@ TEST_F(ISStressTest, DISABLED_ManyConnections) {
   yrclient::InstrumentationService::IServiceOptions opts{
       cfg::MAX_CLIENTS, cfg::SERVER_PORT, cfg::WEBSOCKET_PROXY_PORT,
       "127.0.0.1", true};
-  AutoPollClient::Options aopts{
-      opts.host, std::to_string(opts.ws_port), 1000ms,
-      250ms,     CONNECTION_TYPE::WEBSOCKET,   nullptr};
+  AutoPollClient::Options aopts{opts.host,
+                                std::to_string(opts.ws_port),
+                                cfg::POLL_RESULTS_TIMEOUT,
+                                cfg::COMMAND_ACK_TIMEOUT,
+                                CONNECTION_TYPE::WEBSOCKET,
+                                nullptr};
 
   ra2yrproto::commands::GetSystemState cmd;
   // TODO: make the failed connections fail more quickly

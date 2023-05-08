@@ -28,10 +28,19 @@ ra2yrproto::Response yrclient::make_response(
   return r;
 }
 
+static int get_fileno(FILE* fp) {
+#ifdef _WIN32
+  return _fileno(fp);
+#else
+  return fileno(fp);
+#endif
+}
+
+// TODO(shmocz): fix warning about deprecated fileno on clang
 CompressedOutputStream::CompressedOutputStream(const std::string path)
     : fd(std::unique_ptr<FILE, void (*)(FILE*)>(fopen(path.c_str(), "wb"),
                                                 [](FILE* fp) { fclose(fp); })),
-      s_fo(fileno(fd.get())),
+      s_fo(get_fileno(fd.get())),
       s_g(&s_fo) {}
 
 bool yrclient::write_message(const google::protobuf::Message* M,

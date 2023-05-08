@@ -28,6 +28,7 @@ using namespace std::chrono_literals;
 using google::protobuf::RepeatedPtrField;
 using util_command::get_cmd;
 using cb_map_t = std::map<std::string, std::unique_ptr<yrclient::ISCallback>>;
+using util_command::message_result;
 
 // static keys for callbacks, hooks and misc. data
 constexpr char key_callbacks_yr[] = "callbacks_yr";
@@ -61,7 +62,6 @@ static ra2yrproto::commands::Configuration* ensure_configuration(
     yrclient::InstrumentationService* I, yrclient::storage_t* s) {
   static constexpr char key_configuration[] = "yr_config";
   if (s->find(key_configuration) == s->end()) {
-    dprintf("replace config!");
     (void)ensure_storage_value<ra2yrproto::commands::Configuration>(
         I, s, key_configuration, default_configuration());
   }
@@ -69,7 +69,6 @@ static ra2yrproto::commands::Configuration* ensure_configuration(
       I, s, key_configuration);
 }
 
-// TODO: specify name of taks in make_work to aid diagnostics
 struct CBYR : public yrclient::ISCallback {
   yrclient::storage_t* storage{nullptr};
   ra2::abi::ABIGameMD* abi_{nullptr};
@@ -90,10 +89,7 @@ struct CBYR : public yrclient::ISCallback {
   }
 
   auto* abi() {
-    if (abi_ != nullptr) {
-      return abi_;
-    }
-    return storage_value<ra2::abi::ABIGameMD>("abi");
+    return abi_ != nullptr ? abi_ : storage_value<ra2::abi::ABIGameMD>("abi");
   }
 
   void do_call(yrclient::InstrumentationService* I) override {
@@ -128,10 +124,9 @@ struct CBYR : public yrclient::ISCallback {
   virtual void exec() { throw std::runtime_error("Not implemented"); }
 
   ra2yrproto::commands::Configuration* configuration() {
-    if (config_ == nullptr) {
-      config_ = ensure_configuration(this->I, this->storage);
-    }
-    return config_;
+    return config_ != nullptr
+               ? config_
+               : config_ = ensure_configuration(this->I, this->storage);
   }
 };
 
@@ -219,22 +214,38 @@ struct CBUpdateLoadProgress : public MyCB<CBUpdateLoadProgress> {
   }
 };
 
-struct entry {
-  std::shared_ptr<void> data;
-  std::function<void(CBYR*, void*)> fn;
-};
-
 struct CBExecuteGameLoopCommand : public MyCB<CBExecuteGameLoopCommand> {
   static constexpr char key_name[] = "cb_execute_gameloop_command";
   static constexpr char key_target[] = "on_frame_update";
-  async_queue::AsyncQueue<entry> work;
+
+  struct work_item {
+    CBYR* cb;
+    command::Command* cmd;
+    std::function<void(work_item*)> fn;
+  };
+
+  async_queue::AsyncQueue<work_item> work;
 
   CBExecuteGameLoopCommand() = default;
 
+  void put_work(std::function<void(work_item*)> fn, command::Command* cmd) {
+    bool async = cmd->pending();
+    work.push({this, cmd, [async, fn](auto* it) {
+                 try {
+                   fn(it);
+                 } catch (const std::exception& e) {
+                   eprintf("gameloop command: {}", e.what());
+                 }
+                 if (async) {
+                   it->cmd->pending().store(false);
+                 }
+               }});
+  }
+
   void exec() override {
-    for (const auto& it : items) {
-      it.fn(this, it.data.get());
     auto items = work.pop(0, 0.0s);
+    for (auto& it : items) {
+      it.fn(&it);
     }
   }
 };
@@ -563,49 +574,47 @@ static auto* get_callback(yrclient::InstrumentationService* I) {
       reinterpret_cast<u32>(get_callbacks(I)->at(T::key_name).get()));
 }
 
-template <typename ArgT>
-entry make_work(const ArgT& aa, std::function<void(CBYR*, ArgT*)> fn) {
-  return {utility::make_sptr<ArgT>(aa),
-          [fn](CBYR* C, void* data) { fn(C, static_cast<ArgT*>(data)); }};
+static void put_gameloop_command(
+    yrclient::InstrumentationService* I, command::Command* cmd,
+    std::function<void(CBExecuteGameLoopCommand::work_item*)> fn) {
+  get_callback<CBExecuteGameLoopCommand>(I)->put_work(fn, cmd);
 }
 
 namespace cmd {
 auto click_event() {
   return get_cmd<ra2yrproto::commands::ClickEvent>([](auto* Q) {
-    auto [mut, s] = Q->I()->aq_storage();
-    auto a = Q->args();
+    auto args = Q->args();
 
-    get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
-        make_work<decltype(a)>(a, [](CBYR* C, auto* args) {
-          auto& O = C->game_state()->objects();
-          for (auto k : args->object_addresses()) {
-            if (std::find_if(O.begin(), O.end(), [k](auto& v) {
-                  return v.pointer_self() == k;
-                }) != O.end()) {
-              dprintf("clickevent {} {}", k, static_cast<int>(args->event()));
-              (void)C->abi()->ClickEvent(k, args->event());
-            }
-          }
-        }));
+    put_gameloop_command(Q->I(), Q->c, [args](auto* it) {
+      auto C = it->cb;
+      auto& O = C->game_state()->objects();
+      for (auto k : args.object_addresses()) {
+        if (std::find_if(O.begin(), O.end(), [k](auto& v) {
+              return v.pointer_self() == k;
+            }) != O.end()) {
+          dprintf("clickevent {} {}", k, static_cast<int>(args.event()));
+          (void)C->abi()->ClickEvent(k, args.event());
+        }
+      }
+    });
   });
 }
 
 auto unit_command() {
   return get_cmd<ra2yrproto::commands::UnitCommand>([](auto* Q) {
-    auto [mut, s] = Q->I()->aq_storage();
-    auto a = Q->args();
+    auto args = Q->args();
 
-    get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
-        make_work<decltype(a)>(a, [](CBYR* C, auto* args) {
-          auto& O = C->game_state()->objects();
-          for (auto k : args->object_addresses()) {
-            if (std::find_if(O.begin(), O.end(), [k](auto& v) {
-                  return v.pointer_self() == k;
-                }) != O.end()) {
-              unit_action(k, args->action(), C->abi());
-            }
-          }
-        }));
+    put_gameloop_command(Q->I(), Q->c, [args](auto* it) {
+      auto C = it->cb;
+      auto& O = C->game_state()->objects();
+      for (auto k : args.object_addresses()) {
+        if (std::find_if(O.begin(), O.end(), [k](auto& v) {
+              return v.pointer_self() == k;
+            }) != O.end()) {
+          unit_action(k, args.action(), C->abi());
+        }
+      }
+    });
   });
 }
 
@@ -696,14 +705,14 @@ auto get_game_state() {
   });
 }
 
-// FIXME: setting values not working
 auto inspect_configuration() {
   return get_cmd<ra2yrproto::commands::InspectConfiguration>([](auto* Q) {
     auto [mut, s] = Q->I()->aq_storage();
     auto res = Q->command_data().mutable_result();
-    res->mutable_config()->CopyFrom(
-        *ensure_storage_value<ra2yrproto::commands::Configuration>(
-            Q->I(), s, CBYR::key_configuration));
+    auto* I = Q->I();
+    auto* cfg = ensure_configuration(I, &I->storage());
+    cfg->MergeFrom(Q->command_data().args().config());
+    res->mutable_config()->CopyFrom(*cfg);
   });
 }
 
@@ -712,177 +721,160 @@ auto inspect_configuration() {
 // FIXME: need to implement GetCellAt(coords)
 auto mission_clicked() {
   return get_cmd<ra2yrproto::commands::MissionClicked>([](auto* Q) {
-    auto [mut, s] = Q->I()->aq_storage();
-    auto a = Q->args();
+    auto args = Q->args();
 
-    get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
-        make_work<decltype(a)>(a, [](CBYR* C, auto* args) {
-          auto& O = C->game_state()->objects();
-          for (auto k : args->object_addresses()) {
-            if (std::find_if(O.begin(), O.end(), [k](auto& v) {
-                  return v.pointer_self() == k && !v.in_limbo();
-                }) != O.end()) {
-              auto c1 = args->coordinates();
-              auto coords = CoordStruct{.X = c1.x(), .Y = c1.y(), .Z = c1.z()};
-              auto cell = MapClass::Instance.get()->TryGetCellAt(coords);
-              auto* p = reinterpret_cast<CellClass*>(cell);
-              auto b = ra2::abi::ClickMission::call(
-                  C->abi(), k, static_cast<Mission>(args->event()),
-                  args->target_object(), p, nullptr);
-              if (!b) {
-                eprintf("click mission error");
-              }
-            }
+    // TODO(shmocz): the command protobuf message is already stored in the
+    // Command object, so in theory a copy could be avoided. However the
+    // protobuf message has Any type, so a message of proper type needs to be
+    // allocated for unpacking regardless.
+    put_gameloop_command(Q->I(), Q->c, [args](auto* it) {
+      auto* C = it->cb;
+      auto& O = C->game_state()->objects();
+      for (auto k : args.object_addresses()) {
+        if (std::find_if(O.begin(), O.end(), [k](auto& v) {
+              return v.pointer_self() == k && !v.in_limbo();
+            }) != O.end()) {
+          auto c1 = args.coordinates();
+          auto coords = CoordStruct{.X = c1.x(), .Y = c1.y(), .Z = c1.z()};
+          auto cell = MapClass::Instance.get()->TryGetCellAt(coords);
+          auto* p = reinterpret_cast<CellClass*>(cell);
+          auto b = ra2::abi::ClickMission::call(
+              C->abi(), k, static_cast<Mission>(args.event()),
+              args.target_object(), p, nullptr);
+          if (!b) {
+            eprintf("click mission error");
           }
-        }));
+        }
+      }
+    });
   });
 }
 
 // TODO(shmocz): add checks for invalid rtti_id's
 auto add_event() {
   return get_cmd<ra2yrproto::commands::AddEvent>([](auto* Q) {
-    auto [mut, s] = Q->I()->aq_storage();
-    auto a = Q->args();
-    auto cmd = Q->c;
-    Q->save_command_result();
-    cmd->pending().store(true);
+    auto args = Q->args();
+    Q->async();
 
-    get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
-        make_work<decltype(a)>(a, [cmd](CBYR* C, auto* args) {
-          const auto frame_delay = args->frame_delay();
+    put_gameloop_command(Q->I(), Q->c, [args](auto* it) {
+      const auto frame_delay = args.frame_delay();
+      auto* C = it->cb;
+      auto* cmd = it->cmd;
 
-          auto frame = Unsorted::CurrentFrame + frame_delay;
-          auto house_index = args->spoof()
-                                 ? args->event().house_index()
-                                 : HouseClass::CurrentPlayer->ArrayIndex;
-          // This is how the frame is computed for protocol zero.
-          if (frame_delay == 0) {
-            const auto& fsr = Game::Network::FrameSendRate;
-            frame =
-                (((fsr + Unsorted::CurrentFrame - 1 + Game::Network::MaxAhead) /
+      auto frame = Unsorted::CurrentFrame + frame_delay;
+      auto house_index = args.spoof() ? args.event().house_index()
+                                      : HouseClass::CurrentPlayer->ArrayIndex;
+      // This is how the frame is computed for protocol zero.
+      if (frame_delay == 0) {
+        const auto& fsr = Game::Network::FrameSendRate;
+        frame = (((fsr + Unsorted::CurrentFrame - 1 + Game::Network::MaxAhead) /
                   fsr) *
                  fsr);
-          }
-          // Set the frame to negative value to indicate that house index and
-          // frame number should be spoofed
-          frame = frame * (args->spoof() ? -1 : 1);
+      }
+      // Set the frame to negative value to indicate that house index and
+      // frame number should be spoofed
+      frame = frame * (args.spoof() ? -1 : 1);
 
-          EventClass E(static_cast<EventType>(args->event().event_type()),
-                       false, static_cast<char>(house_index),
-                       static_cast<u32>(frame));
+      EventClass E(static_cast<EventType>(args.event().event_type()), false,
+                   static_cast<char>(house_index), static_cast<u32>(frame));
 
-          auto ts = C->abi()->timeGetTime();
-          if (args->event().has_production()) {
-            auto& ev = args->event().production();
-            E.Data.Production = {.RTTI_ID = ev.rtti_id(),
-                                 .Heap_ID = ev.heap_id(),
-                                 .IsNaval = ev.is_naval()};
-            if (!EventClass::AddEvent(E, ts)) {
-              throw std::runtime_error("failed to add event");
-            }
-          } else if (args->event().has_place()) {
-            auto& ev = args->event().place();
-            auto loc = ev.location();
-            auto S = CoordStruct{.X = loc.x(), .Y = loc.y(), .Z = loc.z()};
-            E.Data.Place = {
-                .RTTIType = static_cast<AbstractType>(ev.rtti_type()),
-                .HeapID = ev.heap_id(),
-                .IsNaval = ev.is_naval(),
-                .Location = CellClass::Coord2Cell(S)};
-            (void)EventClass::AddEvent(E, ts);
-          } else {
-            // generic event
-            (void)EventClass::AddEvent(E, ts);
-          }
+      auto ts = C->abi()->timeGetTime();
+      if (args.event().has_production()) {
+        auto& ev = args.event().production();
+        E.Data.Production = {.RTTI_ID = ev.rtti_id(),
+                             .Heap_ID = ev.heap_id(),
+                             .IsNaval = ev.is_naval()};
+        if (!EventClass::AddEvent(E, ts)) {
+          throw std::runtime_error("failed to add event");
+        }
+      } else if (args.event().has_place()) {
+        auto& ev = args.event().place();
+        auto loc = ev.location();
+        auto S = CoordStruct{.X = loc.x(), .Y = loc.y(), .Z = loc.z()};
+        E.Data.Place = {.RTTIType = static_cast<AbstractType>(ev.rtti_type()),
+                        .HeapID = ev.heap_id(),
+                        .IsNaval = ev.is_naval(),
+                        .Location = CellClass::Coord2Cell(S)};
+        (void)EventClass::AddEvent(E, ts);
+      } else {
+        // generic event
+        (void)EventClass::AddEvent(E, ts);
+      }
 
-          auto* p = reinterpret_cast<ra2yrproto::CommandResult*>(cmd->result());
-          ra2yrproto::commands::AddEvent r2;
-          p->mutable_result()->UnpackTo(&r2);
-          auto* ev = r2.mutable_result()->mutable_event();
-          ev->CopyFrom(args->event());
-          ev->set_timing(ts);
-          p->mutable_result()->PackFrom(r2);
-          cmd->pending().store(false);
-        }));
+      auto [p, r] = message_result<ra2yrproto::commands::AddEvent>(cmd);
+      auto* ev = r.mutable_result()->mutable_event();
+      ev->CopyFrom(args.event());
+      ev->set_timing(ts);
+      p->mutable_result()->PackFrom(r);
+    });
   });
 }
 
 auto place_query() {
   return get_cmd<ra2yrproto::commands::PlaceQuery>([](auto* Q) {
-    auto [mut, s] = Q->I()->aq_storage();
-    auto a = Q->args();
-    auto cmd = Q->c;
-    Q->save_command_result();
-    cmd->pending().store(true);
+    auto args = Q->args();
+    Q->async();
 
-    get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
-        make_work<decltype(a)>(a, [cmd](CBYR* C, auto* args) {
-          auto A = ra2::abi::DVCIterator(TechnoTypeClass::Array.get());
-          auto B = std::find_if(A.begin(), A.end(), [args](auto* p) {
-            return utility::asint(p) == args->type_class();
-          });
-          // Get HouseClass
-          auto& H = C->game_state()->houses();
+    put_gameloop_command(Q->I(), Q->c, [args](auto* it) {
+      auto [C, cmd, fn] = *it;
+      auto A = ra2::abi::DVCIterator(TechnoTypeClass::Array.get());
+      auto B = std::find_if(A.begin(), A.end(), [args](auto* p) {
+        return reinterpret_cast<u32>(p) == args.type_class();
+      });
+      // Get HouseClass
+      auto& H = C->game_state()->houses();
 
-          // TODO(shmocz): make helper method
-          auto house = std::find_if(H.begin(), H.end(), [](const auto& h) {
-            return h.current_player();
-          });
-          if (args->house_class()) {
-            house = std::find_if(H.begin(), H.end(), [args](const auto& h) {
-              return h.self() == args->house_class();
-            });
+      // TODO(shmocz): make helper method
+      auto house = std::find_if(
+          H.begin(), H.end(), [](const auto& h) { return h.current_player(); });
+      if (args.house_class()) {
+        house = std::find_if(H.begin(), H.end(), [args](const auto& h) {
+          return h.self() == args.house_class();
+        });
+      }
+
+      auto [p, r] = message_result<ra2yrproto::commands::PlaceQuery>(cmd);
+      auto* res = r.mutable_result();
+
+      // Call for each cell
+      if (B != A.end()) {
+        auto* q = static_cast<BuildingTypeClass*>(*B);
+        for (auto& c : args.coordinates()) {
+          auto coords = CoordStruct{.X = c.x(), .Y = c.y(), .Z = c.z()};
+          auto cell_s = CellClass::Coord2Cell(coords);
+          if (cell_s.X < 0 || cell_s.Y < 0) {
+            continue;
           }
+          auto* cs = reinterpret_cast<CellStruct*>(&cell_s);
 
-          ra2yrproto::commands::PlaceQuery r2;
-
-          auto* p = reinterpret_cast<ra2yrproto::CommandResult*>(cmd->result());
-          p->mutable_result()->UnpackTo(&r2);
-          auto r2_res = r2.mutable_result();
-
-          // Call for each cell
-          if (B != A.end()) {
-            auto* q = static_cast<BuildingTypeClass*>(*B);
-            for (auto& c : args->coordinates()) {
-              auto coords = CoordStruct{.X = c.x(), .Y = c.y(), .Z = c.z()};
-              auto cell_s = CellClass::Coord2Cell(coords);
-              if (cell_s.X < 0 || cell_s.Y < 0) {
-                continue;
-              }
-              auto* cs = reinterpret_cast<CellStruct*>(&cell_s);
-
-              auto p_DisplayClass = 0x87F7E8u;
-              // FIXME: rename BuildingClass to BuildingTypeClass
-              if (C->abi()->DisplayClass_Passes_Proximity_Check(
-                      p_DisplayClass, reinterpret_cast<BuildingTypeClass*>(q),
-                      house->array_index(), cs) &&
-                  C->abi()->BuildingClass_CanPlaceHere(utility::asint(q), cs,
-                                                       house->self())) {
-                auto* cnew = r2_res->add_coordinates();
-                cnew->CopyFrom(c);
-              }
-            }
-          } else {
-            eprintf("could not locate building tc");
+          auto p_DisplayClass = 0x87F7E8u;
+          // FIXME: rename BuildingClass to BuildingTypeClass
+          if (C->abi()->DisplayClass_Passes_Proximity_Check(
+                  p_DisplayClass, reinterpret_cast<BuildingTypeClass*>(q),
+                  house->array_index(), cs) &&
+              C->abi()->BuildingClass_CanPlaceHere(
+                  reinterpret_cast<std::uintptr_t>(q), cs, house->self())) {
+            auto* cnew = res->add_coordinates();
+            cnew->CopyFrom(c);
           }
-          // copy results
-          p->mutable_result()->PackFrom(r2);
-
-          cmd->pending().store(false);
-        }));
+        }
+      } else {
+        eprintf("could not locate building tc");
+      }
+      // copy results
+      p->mutable_result()->PackFrom(r);
+    });
   });
 }
 
 auto send_message() {
   return get_cmd<ra2yrproto::commands::AddMessage>([](auto* Q) {
-    auto [mut, s] = Q->I()->aq_storage();
-    auto a = Q->args();
+    auto args = Q->args();
 
-    get_callback<CBExecuteGameLoopCommand>(Q->I())->work.push(
-        make_work<decltype(a)>(a, [](CBYR* C, auto* args) {
-          C->abi()->AddMessage(1, args->message(), args->color(), 0x4046,
-                               args->duration_frames(), false);
-        }));
+    put_gameloop_command(Q->I(), Q->c, [args](auto* it) {
+      it->cb->abi()->AddMessage(1, args.message(), args.color(), 0x4046,
+                                args.duration_frames(), false);
+    });
   });
 }
 
@@ -913,10 +905,9 @@ void convert_map_data(ra2yrproto::ra2yr::MapDataSoA* dst,
 auto read_value() {
   return get_cmd<ra2yrproto::commands::ReadValue>([](auto* Q) {
     auto [mut, s] = Q->I()->aq_storage();
-    auto a = Q->args();
     auto* D = Q->command_data().mutable_result()->mutable_data();
     // find the first field that's been set
-    auto sf = yrclient::find_set_fields(a.data());
+    auto sf = yrclient::find_set_fields(Q->args().data());
     if (sf.empty()) {
       throw std::runtime_error("no field specified");
     }

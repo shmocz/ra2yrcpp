@@ -189,7 +189,6 @@ struct CBExitGameLoop : public MyCB<CBExitGameLoop, yrclient::ISCallback> {
 };
 
 struct CBUpdateLoadProgress : public MyCB<CBUpdateLoadProgress> {
-  static constexpr char key_state[] = "progress";
   static constexpr char key_name[] = "cb_progress_update";
   static constexpr char key_target[] = "on_progress_update";
 
@@ -199,7 +198,7 @@ struct CBUpdateLoadProgress : public MyCB<CBUpdateLoadProgress> {
     // this = ESI
     auto* P = reinterpret_cast<ProgressScreenClass*>(cpu_state->esi);
     auto* B = P->PlayerProgresses;
-    auto* local_state = storage_value<ra2yrproto::ra2yr::GameState>(key_state);
+    auto* local_state = get_storage(I, storage)->mutable_load_state();
     if (local_state->load_progresses().empty()) {
       for (auto i = 0U; i < (sizeof(*B) / sizeof(B)); i++) {
         local_state->add_load_progresses(0.0);
@@ -251,22 +250,18 @@ struct CBExecuteGameLoopCommand : public MyCB<CBExecuteGameLoopCommand> {
 };
 
 struct CBSaveState : public MyCB<CBSaveState> {
-  static constexpr char key_name[] = "save_state";
-  static constexpr char key_target[] = "on_frame_update";
-  const std::string record_path;
-  std::uint64_t fps_last_checked;
-  std::uint64_t frame_previous;
-
   std::unique_ptr<yrclient::CompressedOutputStream> out;
   utility::worker_util<std::shared_ptr<ra2yrproto::ra2yr::GameState>> work;
+  ra2yrproto::ra2yr::GameState* initial_state;
   std::vector<ra2::Cell> cells;
 
+  static constexpr char key_name[] = "save_state";
+  static constexpr char key_target[] = "on_frame_update";
+
   explicit CBSaveState(const std::string record_path)
-      : record_path(record_path),
-        fps_last_checked(0U),
-        frame_previous(0U),
-        out(std::make_unique<yrclient::CompressedOutputStream>(record_path)),
-        work([this](const auto& w) { this->serialize_state(*w.get()); }, 10U) {}
+      : out(std::make_unique<yrclient::CompressedOutputStream>(record_path)),
+        work([this](const auto& w) { this->serialize_state(*w.get()); }, 10U),
+        initial_state(nullptr) {}
 
   void serialize_state(const ra2yrproto::ra2yr::GameState& G) const {
     if (out != nullptr) {
@@ -275,75 +270,6 @@ struct CBSaveState : public MyCB<CBSaveState> {
       if (!yrclient::write_message(&G, &co)) {
         throw std::runtime_error("write_message");
       }
-    }
-  }
-
-  void parse_Objects(ra2yrproto::ra2yr::GameState* G) {
-    auto* D = TechnoClass::Array.get();
-    auto* H = G->mutable_objects();
-    if (H->size() != D->Count) {
-      yrclient::fill_repeated_empty(H, D->Count);
-    }
-    for (int i = 0; i < D->Count; i++) {
-      auto* I = D->Items[i];
-      auto& O = H->at(i);
-      ra2::ClassParser P({abi(), I}, &O);
-      P.parse();
-    }
-  }
-
-  void parse_Factories(ra2yrproto::ra2yr::GameState* G) {
-    auto* D = FactoryClass::Array.get();
-    auto* H = G->mutable_factories();
-    if (H->size() != D->Count) {
-      yrclient::fill_repeated_empty(H, D->Count);
-    }
-
-    for (int i = 0; i < D->Count; i++) {
-      auto* I = D->Items[i];
-      auto& O = H->at(i);
-      O.set_object(reinterpret_cast<u32>(I->Object));
-      O.set_owner(reinterpret_cast<u32>(I->Owner));
-      O.set_progress_timer(I->Production.Value);
-      O.set_on_hold(I->OnHold);
-      auto A = ra2::abi::DVCIterator(&I->QueuedObjects);
-      O.clear_queued_objects();
-      for (auto* p : A) {
-        O.add_queued_objects(reinterpret_cast<u32>(p));
-      }
-    }
-  }
-
-  void parse_HouseClasses(ra2yrproto::ra2yr::GameState* G) {
-    auto* D = HouseClass::Array.get();
-    auto* H = G->mutable_houses();
-    if (H->size() != D->Count) {
-      yrclient::fill_repeated_empty(H, D->Count);
-    }
-
-    for (int i = 0; i < D->Count; i++) {
-      auto* I = D->Items[i];
-      auto& O = H->at(i);
-      ra2::parse_HouseClass(&O, I);
-    }
-  }
-
-  void parse_AbstractTypeClasses(
-      RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* T) {
-    auto* D = AbstractTypeClass::Array.get();
-
-    // Initialize if no types haven't been parsed yet
-    if (T->size() != D->Count) {
-      yrclient::fill_repeated_empty(T, D->Count);
-    }
-
-    // Parse the types
-    for (int i = 0; i < D->Count; i++) {
-      auto* I = D->Items[i];
-      auto& A = T->at(i);
-      // TODO: UB?
-      ra2::TypeClassParser P({abi(), I}, &A);
-      P.parse();
     }
   }
 
@@ -361,26 +287,24 @@ struct CBSaveState : public MyCB<CBSaveState> {
 
     // put load stages
     gbuf->mutable_load_progresses()->CopyFrom(
-        storage_value<ra2yrproto::ra2yr::GameState>(
-            CBUpdateLoadProgress::key_state)
-            ->load_progresses());
+        get_storage(I, storage)->load_state().load_progresses());
+
+    gbuf->clear_object_types();
+    gbuf->clear_prerequisite_groups();
 
     // Parse type classes only once
     if (do_type_classes) {
-      parse_AbstractTypeClasses(type_classes());
+      ra2::parse_AbstractTypeClasses(type_classes(), abi());
       ra2::parse_prerequisiteGroups(prerequisite_groups());
       gbuf->mutable_object_types()->CopyFrom(*type_classes());
       gbuf->mutable_prerequisite_groups()->CopyFrom(*prerequisite_groups());
-    } else {
-      gbuf->clear_object_types();
-      gbuf->clear_prerequisite_groups();
     }
 
     gbuf->set_current_frame(Unsorted::CurrentFrame);
     gbuf->set_tech_level(Game::TechLevel);
-    parse_HouseClasses(gbuf);
-    parse_Objects(gbuf);
-    parse_Factories(gbuf);
+    ra2::parse_HouseClasses(gbuf);
+    ra2::parse_Objects(gbuf, abi());
+    ra2::parse_Factories(gbuf->mutable_factories());
 
     gbuf->set_stage(ra2yrproto::ra2yr::LoadStage::STAGE_INGAME);
 
@@ -407,10 +331,9 @@ struct CBSaveState : public MyCB<CBSaveState> {
                      gbuf->cells_difference());
     }
 
-    if (do_type_classes) {
-      auto* gbuf_initial =
-          get_storage(I, storage)->mutable_initial_game_state();
-      gbuf_initial->CopyFrom(*gbuf);
+    if (initial_state == nullptr) {
+      initial_state = get_storage(I, storage)->mutable_initial_game_state();
+      initial_state->CopyFrom(*gbuf);
     }
 
     ra2::parse_EventLists(gbuf, get_storage(I, storage)->mutable_event_buffer(),
@@ -878,8 +801,8 @@ auto send_message() {
   });
 }
 
-void convert_map_data(ra2yrproto::ra2yr::MapDataSoA* dst,
-                      ra2yrproto::ra2yr::MapData* src) {
+static void convert_map_data(ra2yrproto::ra2yr::MapDataSoA* dst,
+                             ra2yrproto::ra2yr::MapData* src) {
   const auto sz = src->cells().size();
 
   for (int i = 0U; i < sz; i++) {
@@ -914,9 +837,8 @@ auto read_value() {
     auto* fld = sf[0];
 
     if (fld->name() == "map_data_soa") {
-      ra2yrproto::ra2yr::MapDataSoA MS;
-      convert_map_data(&MS, get_storage(Q->I(), s)->mutable_map_data());
-      D->mutable_map_data_soa()->CopyFrom(MS);
+      convert_map_data(D->mutable_map_data_soa(),
+                       get_storage(Q->I(), s)->mutable_map_data());
     } else {
       // TODO: put this stuff to protocol.cpp
       // copy the data

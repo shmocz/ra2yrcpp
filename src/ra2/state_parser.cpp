@@ -349,7 +349,7 @@ std::vector<CellClass*> ra2::get_valid_cells(MapClass* M) {
 
 static void parse_cells(Cell* dest, CellClass** src, const std::size_t c,
                         const LTRBStruct& L) {
-  for (int k = 0; k < c; k++) {
+  for (std::size_t k = 0; k < c; k++) {
     auto* cc = src[k];
     const int ix = (L.Right + 1) * (cc->MapCoords.Y) + (cc->MapCoords.X);
 
@@ -361,7 +361,7 @@ static void parse_cells(Cell* dest, CellClass** src, const std::size_t c,
 static void update_modified_cells(
     const Cell* current, Cell* previous, const std::size_t c,
     RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference) {
-  for (int k = 0; k < c; k++) {
+  for (std::size_t k = 0; k < c; k++) {
     auto& C = current[k];
     if (!bytes_equal<sizeof(Cell)>(&C, &previous[k])) {
       C.copy_to(difference->Add(), &C);
@@ -494,7 +494,7 @@ void ra2::parse_EventLists(ra2yrproto::ra2yr::GameState* G,
   EL.mutable_do_list()->CopyFrom(G->do_list());
   EL.mutable_megamission_list()->CopyFrom(G->megamission_list());
   // remove first if size exceeded
-  if (L->size() >= max_size) {
+  if (L->size() >= static_cast<int>(max_size)) {
     L->erase(L->begin());
     F->erase(F->begin());
   }
@@ -537,4 +537,57 @@ void ra2::parse_HouseClass(ra2yrproto::ra2yr::House* dst,
   dst->set_allied_infiltrated(src->Side0TechInfiltrated);
   dst->set_soviet_infiltrated(src->Side1TechInfiltrated);
   dst->set_third_infiltrated(src->Side2TechInfiltrated);
+}
+
+void ra2::parse_Factories(RepeatedPtrField<ra2yrproto::ra2yr::Factory>* dst) {
+  auto* D = FactoryClass::Array.get();
+  if (dst->size() != D->Count) {
+    yrclient::fill_repeated_empty(dst, D->Count);
+  }
+
+  for (int i = 0; i < D->Count; i++) {
+    auto* I = D->Items[i];
+    auto& O = dst->at(i);
+    O.set_object(reinterpret_cast<u32>(I->Object));
+    O.set_owner(reinterpret_cast<u32>(I->Owner));
+    O.set_progress_timer(I->Production.Value);
+    O.set_on_hold(I->OnHold);
+    auto A = ra2::abi::DVCIterator(&I->QueuedObjects);
+    O.clear_queued_objects();
+    for (auto* p : A) {
+      O.add_queued_objects(reinterpret_cast<u32>(p));
+    }
+  }
+}
+
+RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>*
+ra2::parse_AbstractTypeClasses(
+    RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* T,
+    ra2::abi::ABIGameMD* abi) {
+  auto [D, T_] = init_arrays<AbstractTypeClass>(T);
+
+  for (int i = 0; i < D->Count; i++) {
+    // TODO: UB?
+    ra2::TypeClassParser P({abi, D->Items[i]}, &T->at(i));
+    P.parse();
+  }
+  return T;
+}
+
+void ra2::parse_Objects(ra2yrproto::ra2yr::GameState* G,
+                        ra2::abi::ABIGameMD* abi) {
+  auto [D, H] = init_arrays<TechnoClass>(G->mutable_objects());
+
+  for (int i = 0; i < D->Count; i++) {
+    ra2::ClassParser P({abi, D->Items[i]}, &H->at(i));
+    P.parse();
+  }
+}
+
+void ra2::parse_HouseClasses(ra2yrproto::ra2yr::GameState* G) {
+  auto [D, H] = init_arrays<HouseClass>(G->mutable_houses());
+
+  for (int i = 0; i < D->Count; i++) {
+    ra2::parse_HouseClass(&H->at(i), D->Items[i]);
+  }
 }

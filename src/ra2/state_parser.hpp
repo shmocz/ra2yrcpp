@@ -135,4 +135,22 @@ void parse_map(std::vector<Cell>* previous, MapClass* D,
 
 std::vector<CellClass*> get_valid_cells(MapClass* M);
 
+void parse_Factories(RepeatedPtrField<ra2yrproto::ra2yr::Factory>* dst);
+
+template <typename T, typename U>
+static auto init_arrays(U* dst) {
+  auto* D = T::Array.get();
+  if (dst->size() != D->Count) {
+    yrclient::fill_repeated_empty(dst, D->Count);
+  }
+  return std::make_tuple(D, dst);
+}
+
+RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* parse_AbstractTypeClasses(
+    RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* T,
+    ra2::abi::ABIGameMD* abi);
+
+void parse_Objects(ra2yrproto::ra2yr::GameState* G, ra2::abi::ABIGameMD* abi);
+void parse_HouseClasses(ra2yrproto::ra2yr::GameState* G);
+
 }  // namespace ra2

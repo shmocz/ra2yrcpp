@@ -44,6 +44,7 @@ message StorageValue {
   ra2yrproto.ra2yr.GameState initial_game_state = 3;
   ra2yrproto.ra2yr.EventListsSnapshot event_buffer = 4;
   ra2yrproto.ra2yr.MapDataSoA map_data_soa = 5;
+  ra2yrproto.ra2yr.GameState load_state = 6;
 }
 
 message ReadValue {

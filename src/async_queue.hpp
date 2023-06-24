@@ -113,6 +113,7 @@ class AsyncQueue : public AsyncContainer {
       for (auto p : pred_false) {
         q_.push(p);
       }
+      pred_false.clear();
     } while (res.size() < count);
     return res;
   }

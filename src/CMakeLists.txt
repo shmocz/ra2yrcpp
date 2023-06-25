@@ -67,7 +67,21 @@ if(RA2YRCPP_BUILD_MAIN_DLL)
   endif()
 
   add_library(ra2yrcpp_dll SHARED yrclient_dll.cpp)
-  target_link_libraries(ra2yrcpp_dll PUBLIC yrclient)
+
+  if(MINGW)
+    target_link_libraries(
+      ra2yrcpp_dll
+      PUBLIC Threads::Threads
+             yrclient
+             -static-libgcc
+             -static-libstdc++
+             -Wl,-Bstatic,--whole-archive
+             -lwinpthread
+             -Wl,--no-whole-archive)
+  else()
+    target_link_libraries(ra2yrcpp_dll PUBLIC yrclient)
+  endif()
+
   set_target_properties(ra2yrcpp_dll PROPERTIES OUTPUT_NAME
                                                 ${RA2YRCPP_LIBRARY_NAME})
 

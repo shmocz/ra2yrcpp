@@ -1,4 +1,5 @@
-# FIXME: find better way to include protocol stuff
+# With MINGW, Tests that don't depend on main DLL link dynamically to all
+# standard libraries.
 
 include_directories(../src)
 
@@ -6,7 +7,6 @@ set(YRCLIENT_LIB yrclient)
 # MinGW exports everything automatically, so we can link to DLL for better
 # performance
 if(MINGW)
-  message("LINKAGE SHARED")
   set(YRCLIENT_LIB ra2yrcpp_dll)
 endif()
 
@@ -43,18 +43,20 @@ if(RA2YRCPP_BUILD_MAIN_DLL)
     LIB ${YRCLIENT_LIB} fmt::fmt)
 endif()
 
+# Tests that don't depend on the main DLL
 add_library(common_multi STATIC common_multi.cpp)
-target_link_libraries(common_multi PUBLIC ra2yrcpp_core)
+target_link_libraries(common_multi PUBLIC ra2yrcpp_core ZLIB::ZLIB)
 
 new_make_test(
   NAME test_instrumentation_service
   SRC test_instrumentation_service.cpp
-  LIB ra2yrcpp_core)
+  LIB ra2yrcpp_core "${PROTO_LIB}" ZLIB::ZLIB)
 
 new_make_test(
   NAME test_server
   SRC test_server.cpp
   LIB ra2yrcpp_core)
+
 new_make_test(
   NAME test_multi_client
   SRC test_multi_client.cpp

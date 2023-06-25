@@ -43,6 +43,7 @@ if(WIN32)
   if(MINGW)
     find_library(LIB_WSOCK32 wsock32 REQUIRED)
     find_library(LIB_WS2_32 ws2_32 REQUIRED)
+    find_package(Threads REQUIRED)
   else()
     set(LIB_WSOCK32 wsock32)
     set(LIB_WS2_32 ws2_32)
@@ -50,9 +51,10 @@ if(WIN32)
 endif()
 
 if(MINGW)
-  # find MinGW libraries
-  set(MINGW_LIBS libgcc_s_dw2-1.dll libstdc++-6.dll libwinpthread-1.dll
-                 zlib1.dll)
+  # find MinGW libraries these are copied just for test executables, to avoid
+  # statically linking each of them
+  set(MINGW_LIBS zlib1.dll libgcc_s_dw2-1.dll libstdc++-6.dll
+                 libwinpthread-1.dll)
   set(MINGW_LIBS_FULL "")
   foreach(X IN LISTS MINGW_LIBS)
     find_file(LIB_OUT ${X} PATHS ${CMAKE_SYSROOT}/lib ${CMAKE_SYSROOT}/bin

@@ -1,7 +1,48 @@
 #include "hook.hpp"
 
+#include "logging.hpp"
+#include "utility/serialize.hpp"
+#include "utility/time.hpp"
+#include "x86.hpp"
+
 using namespace hook;
 using namespace std::chrono_literals;
+
+DetourMain::DetourMain(const addr_t target, const addr_t hook,
+                       const size_t code_length, const addr_t call_hook,
+                       unsigned int* count_enter, unsigned int* count_exit) {
+  nop(code_length, false);  // placeholder for original instruction(s)
+  x86::save_regs(this);
+  push(hook);
+  mov(eax, call_hook);
+  lock();
+  inc(dword[count_enter]);
+  call(eax);
+  lock();
+  inc(dword[count_exit]);
+  add(esp, 0x4);
+  x86::restore_regs(this);
+  push(target + code_length);
+  ret();
+}
+
+DetourMain::DetourMain(Hook* h)
+    : DetourMain(h->detour().src_address, reinterpret_cast<addr_t>(h),
+                 h->detour().code_length, reinterpret_cast<addr_t>(&h->call),
+                 h->count_enter(), h->count_exit()) {}
+
+// TODO: fail if code is too short
+struct DetourTrampoline : Xbyak::CodeGenerator {
+  DetourTrampoline(const u8* target, const size_t code_length) {
+    push(reinterpret_cast<std::uintptr_t>(target));
+    ret();
+    const size_t pad_length = code_length - getSize();
+    if (pad_length > 0) {
+      nop(pad_length, false);
+    }
+    dprintf("Trampoline size={}", getSize());
+  }
+};
 
 unsigned int num_threads_at_tgt(const process::Process& P, const u8* target,
                                 const size_t length) {
@@ -51,7 +92,7 @@ Hook::Hook(addr_t src_address, const size_t code_length, const std::string name,
 }
 
 void threads_resume_wait_pause(const process::Process& P,
-                               std::chrono::milliseconds m = 10ms) {
+                               duration_t m = 0.01s) {
   auto main_tid = process::get_current_tid();
   P.resume_threads(main_tid);
   util::sleep_ms(m);

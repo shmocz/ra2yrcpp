@@ -1,21 +1,14 @@
 #pragma once
 
 #include "errors.hpp"
-#include "logging.hpp"
 #include "process.hpp"
 #include "types.h"
-#include "utility/serialize.hpp"
-#include "utility/time.hpp"
-#include "x86.hpp"
 
 #include <xbyak/xbyak.h>
 #undef ERROR
 #undef OK
-#include <chrono>
-#include <functional>
 #include <mutex>
 #include <string>
-#include <thread>
 #include <tuple>
 #include <vector>
 
@@ -34,6 +27,16 @@ struct Detour {
   addr_t src_address;
   addr_t detour_address;
   size_t code_length;
+};
+
+class Hook;
+
+struct DetourMain : Xbyak::CodeGenerator {
+  DetourMain(const addr_t target, const addr_t hook, const size_t code_length,
+             const addr_t call_hook, unsigned int* count_enter,
+             unsigned int* count_exit);
+
+  explicit DetourMain(Hook* h);
 };
 
 ///
@@ -64,45 +67,6 @@ class Hook {
     // How many times to invoke the callback before removal. 0 = never.
     unsigned max_calls{0u};
     std::string name{""};
-  };
-
-  // TODO: fail if code is too short
-  struct DetourTrampoline : Xbyak::CodeGenerator {
-    DetourTrampoline(const u8* target, const size_t code_length) {
-      push(reinterpret_cast<std::uintptr_t>(target));
-      ret();
-      const size_t pad_length = code_length - getSize();
-      if (pad_length > 0) {
-        nop(pad_length, false);
-      }
-      dprintf("Trampoline size={}", getSize());
-    }
-  };
-
-  struct DetourMain : Xbyak::CodeGenerator {
-    DetourMain(const addr_t target, const addr_t hook, const size_t code_length,
-               const addr_t call_hook, unsigned int* count_enter,
-               unsigned int* count_exit) {
-      nop(code_length, false);  // placeholder for original instruction(s)
-      x86::save_regs(this);
-      push(hook);
-      mov(eax, call_hook);
-      lock();
-      inc(dword[count_enter]);
-      call(eax);
-      lock();
-      inc(dword[count_exit]);
-      add(esp, 0x4);
-      x86::restore_regs(this);
-      push(target + code_length);
-      ret();
-    }
-
-    explicit DetourMain(Hook* h)
-        : DetourMain(h->detour().src_address, reinterpret_cast<addr_t>(h),
-                     h->detour().code_length,
-                     reinterpret_cast<addr_t>(&h->call), h->count_enter(),
-                     h->count_exit()) {}
   };
 
   ///

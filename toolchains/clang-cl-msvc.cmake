@@ -6,7 +6,7 @@ set(CMAKE_CROSSCOMPILING ON)
 # WinSDK/MSVC related settings
 set(WINSDK_VER "10.0.22621.0")
 set(WINSDK_BASE "/opt/msvc/kits/10")
-set(MSVC_BASE "/opt/msvc/VC/Tools/MSVC/14.34.31933")
+set(MSVC_BASE "/opt/msvc/VC/Tools/MSVC/14.36.32532")
 
 # Protobuf
 set(protobuf_WITH_ZLIB ON CACHE BOOL "")

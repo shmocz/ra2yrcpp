@@ -25,6 +25,8 @@ constexpr char INIT_NAME[] = "init_iservice";
 constexpr unsigned int EVENT_BUFFER_SIZE = 600;
 constexpr unsigned int RESULT_QUEUE_SIZE = 32U;
 constexpr duration_t COMMAND_RESULTS_ACQUIRE_TIMEOUT = 5.0s;
+// General purpose "maximum" timeout value to avoid overflow in wait_for() etc.
+constexpr duration_t MAX_TIMEOUT = (60 * 60 * 24) * 1.0s;
 constexpr duration_t WEBSOCKET_READ_TIMEOUT = 5.0s;
 // Timeout for client when polling results from a queue.
 constexpr duration_t POLL_RESULTS_TIMEOUT = 1.0s;

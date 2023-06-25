@@ -1,6 +1,7 @@
 #pragma once
 
 #include "async_queue.hpp"
+#include "config.hpp"
 #include "logging.hpp"
 
 #include <chrono>
@@ -62,8 +63,10 @@ struct worker_util {
   void worker() {
     try {
       while (true) {
-        // FIXME: make sure this is a sane value
-        auto V = work.pop(1, 1000ms * (3600));
+        auto V = work.pop(1, cfg::MAX_TIMEOUT);
+        if (V.empty()) {
+          break;
+        }
         auto w = V.back();
         if (w.destroy) {
           break;

@@ -4,8 +4,9 @@
 #include "instrumentation_service.hpp"
 #include "ra2yrcppcli.hpp"
 
-#include <fstream>
 #include <google/protobuf/descriptor.h>
+
+#include <fstream>
 
 using namespace ra2yrcppcli;
 using namespace std::chrono_literals;

@@ -2,8 +2,8 @@
 
 #include "process.hpp"
 #include "types.h"
-#include "utility/time.hpp"
 
+#include <stdexcept>
 #include <vector>
 
 namespace dll_inject {

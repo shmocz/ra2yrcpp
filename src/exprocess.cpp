@@ -1,6 +1,7 @@
 #include "exprocess.hpp"
 
 #include "errors.hpp"
+#include "logging.hpp"
 
 #include <synchapi.h>
 #include <windows.h>

@@ -1,8 +1,24 @@
 #include "commands_builtin.hpp"
 
-// TODO: rename this to avoid confusion between command manager builtins
+#include "connection.hpp"
+#include "hook.hpp"
+#include "instrumentation_service.hpp"
+#include "process.hpp"
+#include "ra2yrproto/commands_builtin.pb.h"
+#include "server.hpp"
+#include "types.h"
+#include "util_command.hpp"
+#include "util_string.hpp"
 
-using util_command::ISCommand;
+#include <xbyak/xbyak.h>
+
+#include <algorithm>
+#include <cstddef>
+#include <deque>
+#include <iterator>
+#include <mutex>
+#include <utility>
+#include <vector>
 
 using util_command::get_cmd;
 

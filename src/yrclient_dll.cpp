@@ -1,5 +1,11 @@
 #include "yrclient_dll.hpp"
 
+#include "is_context.hpp"
+#include "network.hpp"
+
+#include <memory>
+#include <mutex>
+
 static void* g_context = nullptr;
 
 void yrclient_dll::initialize(const unsigned int max_clients,

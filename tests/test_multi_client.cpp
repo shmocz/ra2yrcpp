@@ -13,10 +13,13 @@
 #include "utility/time.hpp"
 #include "websocket_server.hpp"
 
+#include <google/protobuf/io/gzip_stream.h>
+
 #include <chrono>
 #include <exception>
 #include <future>
 #include <memory>
+#include <regex>
 #include <thread>
 #include <vector>
 

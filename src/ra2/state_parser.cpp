@@ -1,5 +1,9 @@
 #include "ra2/state_parser.hpp"
 
+#include "logging.hpp"
+#include "utility/array_iterator.hpp"
+#include "utility/serialize.hpp"
+
 using namespace ra2;
 
 ClassParser::ClassParser(Cookie c, ra2yrproto::ra2yr::Object* T) : c(c), T(T) {}

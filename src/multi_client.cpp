@@ -1,5 +1,25 @@
 #include "multi_client.hpp"
 
+#include "protocol/protocol.hpp"
+
+#include "errors.hpp"
+#include "logging.hpp"
+#include "ra2yrproto/commands_builtin.pb.h"
+#include "websocket_connection.hpp"
+
+#include <fmt/core.h>
+#include <google/protobuf/repeated_ptr_field.h>
+
+#include <array>
+#include <exception>
+#include <stdexcept>
+
+namespace google {
+namespace protobuf {
+class Message;
+}
+}  // namespace google
+
 using namespace multi_client;
 
 static connection::ClientConnection* get_connection(const std::string host,

@@ -1,5 +1,12 @@
 #include "process.hpp"
 
+#include "logging.hpp"
+#include "utility.h"
+#include "utility/scope_guard.hpp"
+#include "utility/time.hpp"
+
+#include <cstdlib>
+
 using namespace process;
 using yrclient::not_implemented;
 

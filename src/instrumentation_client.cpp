@@ -1,5 +1,16 @@
 #include "instrumentation_client.hpp"
 
+#include "protocol/protocol.hpp"
+
+#include "connection.hpp"
+#include "errors.hpp"
+#include "logging.hpp"
+
+#include <google/protobuf/any.pb.h>
+#include <google/protobuf/message.h>
+
+#include <stdexcept>
+
 using namespace instrumentation_client;
 using yrclient::to_json;
 

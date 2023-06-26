@@ -1,6 +1,5 @@
 #include "process.hpp"
 #include "utility.h"
-#include "utility/scope_guard.hpp"
 #include "utility/time.hpp"
 
 #include <gtest/gtest.h>

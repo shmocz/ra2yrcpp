@@ -1,6 +1,10 @@
 #include "server.hpp"
 
+#include "logging.hpp"
+#include "network.hpp"
+
 using namespace server;
+using network::socket_t;
 
 Server::Server(unsigned int num_clients, unsigned int port, Callbacks callbacks,
                const unsigned int accept_timeout_ms)

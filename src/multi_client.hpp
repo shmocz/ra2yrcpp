@@ -1,28 +1,22 @@
 #pragma once
-#include "protocol/protocol.hpp"
-
 #include "async_map.hpp"
-#include "client_utils.hpp"
+#include "config.hpp"
 #include "connection.hpp"
-#include "errors.hpp"
 #include "instrumentation_client.hpp"
-#include "logging.hpp"
-#include "network.hpp"
-#include "websocket_connection.hpp"
+#include "ra2yrproto/core.pb.h"
+#include "types.h"
+#include "utility/sync.hpp"
 
-#include <fmt/core.h>
-
-#include <cstdint>
-
-#include <algorithm>
-#include <array>
-#include <atomic>
-#include <chrono>
 #include <map>
 #include <memory>
-#include <stdexcept>
 #include <string>
-#include <vector>
+#include <thread>
+
+namespace google {
+namespace protobuf {
+class Message;
+}
+}  // namespace google
 
 namespace multi_client {
 namespace {

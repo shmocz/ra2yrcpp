@@ -2,15 +2,13 @@
 
 #include "protocol/protocol.hpp"
 
-#include "logging.hpp"
 #include "ra2/abi.hpp"
 #include "ra2yrproto/ra2yr.pb.h"
-#include "utility/array_iterator.hpp"
-#include "utility/serialize.hpp"
+
+#include <google/protobuf/repeated_ptr_field.h>
 
 #include <YRPP.h>
 #include <algorithm>
-#include <google/protobuf/repeated_ptr_field.h>
 #include <vector>
 
 namespace ra2 {

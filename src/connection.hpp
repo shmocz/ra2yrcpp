@@ -1,24 +1,17 @@
 #pragma once
-#include "async_queue.hpp"
-#include "errors.hpp"
-#include "logging.hpp"
+#include "config.hpp"
 #include "network.hpp"
 #include "types.h"
-#include "utility/memtools.hpp"
-#include "utility/scope_guard.hpp"
 #include "utility/serialize.hpp"
 #include "utility/sync.hpp"
 
 #include <cstring>
 
-#include <algorithm>
-#include <atomic>
 #include <functional>
-#include <future>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
-#include <thread>
 #include <vector>
 
 namespace connection {

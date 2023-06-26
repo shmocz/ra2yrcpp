@@ -1,5 +1,11 @@
 #include "protocol/protocol.hpp"
 
+#include "util_string.hpp"
+
+#include <google/protobuf/util/json_util.h>
+
+#include <cstdio>
+
 using namespace yrclient;
 
 std::string yrclient::to_json(const google::protobuf::Message& m) {

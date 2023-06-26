@@ -1,8 +1,22 @@
 #include "instrumentation_service.hpp"
 
-using namespace yrclient;
+#include "protocol/protocol.hpp"
 
-using ra2yrcpp::websocket_server::IOService;
+#include "asio_utils.hpp"
+#include "connection.hpp"
+#include "errors.hpp"
+#include "logging.hpp"
+#include "util_string.hpp"
+
+#include <fmt/core.h>
+
+#include <algorithm>
+#include <exception>
+#include <iterator>
+#include <stdexcept>
+#include <utility>
+
+using namespace yrclient;
 
 yrclient::ISCallback::ISCallback() : I(nullptr) {}
 

@@ -1,5 +1,7 @@
 #include "util_string.hpp"
 
+#include <regex>
+
 std::vector<std::string> yrclient::split_string(const std::string& str,
                                                 const std::string delim) {
   std::vector<std::string> tokens;

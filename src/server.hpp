@@ -2,25 +2,17 @@
 #include "config.hpp"
 #include "connection.hpp"
 #include "errors.hpp"
-#include "logging.hpp"
-#include "network.hpp"
 #include "process.hpp"
 #include "utility/sync.hpp"
 #include "utility/time.hpp"
 
-#include <algorithm>
-#include <atomic>
 #include <deque>
-#include <functional>
 #include <memory>
-#include <mutex>
 #include <string>
-#include <thread>
 #include <utility>
 #include <vector>
 
 namespace server {
-using network::socket_t;
 // TODO: dont use this
 template <typename T>
 using uptr = std::unique_ptr<T>;

@@ -1,23 +1,19 @@
 #pragma once
 #include "errors.hpp"
+#include "ra2yrproto/commands_builtin.pb.h"
+#include "ra2yrproto/commands_yr.pb.h"
+#include "ra2yrproto/core.pb.h"
+#include "ra2yrproto/game.pb.h"
 #include "types.h"
-#include "util_string.hpp"
 
-#include <cstdio>
-
-#include <fstream>
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/dynamic_message.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/message.h>
-#include <google/protobuf/util/json_util.h>
-#include <map>
+
+#include <fstream>
 #include <memory>
-#include <ra2yrproto/commands_builtin.pb.h>
-#include <ra2yrproto/commands_yr.pb.h>
-#include <ra2yrproto/core.pb.h>
-#include <ra2yrproto/game.pb.h>
 #include <string>
 #include <vector>
 

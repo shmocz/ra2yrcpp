@@ -1,5 +1,14 @@
 #include "connection.hpp"
 
+#include "errors.hpp"
+#include "logging.hpp"
+#include "utility/memtools.hpp"
+#include "utility/scope_guard.hpp"
+
+#include <fmt/core.h>
+
+#include <algorithm>
+
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>

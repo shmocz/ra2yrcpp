@@ -1,32 +1,23 @@
 #pragma once
-#include "protocol/protocol.hpp"
-
 #include "command/command.hpp"
 #include "command/command_manager.hpp"
 #include "config.hpp"
-#include "connection.hpp"
-#include "errors.hpp"
 #include "hook.hpp"
-#include "logging.hpp"
 #include "process.hpp"
+#include "ra2yrproto/core.pb.h"
 #include "server.hpp"
 #include "types.h"
-#include "util_string.hpp"
-#include "utility.h"
 #include "utility/sync.hpp"
 #include "websocket_server.hpp"
 
-#include <algorithm>
-#include <chrono>
+#include <google/protobuf/any.pb.h>
+
+#include <cstddef>
 #include <functional>
-#include <future>
 #include <map>
 #include <memory>
 #include <mutex>
-#include <stdexcept>
 #include <string>
-#include <tuple>
-#include <utility>
 #include <vector>
 
 namespace yrclient {

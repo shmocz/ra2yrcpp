@@ -1,5 +1,7 @@
 #include "dll_inject.hpp"
 
+#include "utility/time.hpp"
+
 #include <xbyak/xbyak.h>
 
 #include <handleapi.h>

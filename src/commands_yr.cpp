@@ -1,5 +1,29 @@
 #include "commands_yr.hpp"
 
+#include "protocol/protocol.hpp"
+
+#include "async_queue.hpp"
+#include "auto_thread.hpp"
+#include "errors.hpp"
+#include "hook.hpp"
+#include "instrumentation_service.hpp"
+#include "logging.hpp"
+#include "ra2/abi.hpp"
+#include "ra2/state_parser.hpp"
+#include "util_command.hpp"
+#include "utility/memtools.hpp"
+#include "utility/serialize.hpp"
+
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/repeated_ptr_field.h>
+
+#include <YRPP.h>
+#include <algorithm>
+#include <memory>
+#include <utility>
+#include <vector>
+
+using yrclient::InstrumentationService;
 using namespace std::chrono_literals;
 using google::protobuf::RepeatedPtrField;
 using util_command::get_cmd;

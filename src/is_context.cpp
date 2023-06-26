@@ -1,5 +1,15 @@
 #include "is_context.hpp"
 
+#include "command/command.hpp"
+#include "commands_builtin.hpp"
+#include "commands_yr.hpp"
+#include "dll_inject.hpp"
+#include "util_string.hpp"
+#include "x86.hpp"
+
+#include <map>
+#include <memory>
+
 using namespace std::chrono_literals;
 
 using namespace is_context;

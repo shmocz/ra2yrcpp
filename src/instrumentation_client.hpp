@@ -1,16 +1,10 @@
 #pragma once
-#include "protocol/protocol.hpp"
+#include "ra2yrproto/core.pb.h"
+#include "types.h"
 
-#include "connection.hpp"
-#include "errors.hpp"
-#include "util_string.hpp"
-#include "utility/time.hpp"
-
-#include <cassert>
-#include <chrono>
+#include <cstddef>
 #include <memory>
 #include <string>
-#include <vector>
 
 namespace instrumentation_client {
 

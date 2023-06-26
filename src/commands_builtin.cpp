@@ -74,8 +74,9 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
         // NB: ensure correct radix
         // FIXME: proper locking
         auto [lk, s] = Q->I()->aq_storage();
-        Q->command_data().mutable_result()->set_result(yrclient::to_string(
-            *yrclient::as<vecu8*>(Q->I()->get_value(Q->args().key(), false))));
+        Q->command_data().mutable_result()->set_result(
+            yrclient::to_string(*reinterpret_cast<vecu8*>(
+                Q->I()->get_value(Q->args().key(), false))));
       }),
       get_cmd<ra2yrproto::commands::HookableCommand>([](auto* Q) {
         static TestProgram t;

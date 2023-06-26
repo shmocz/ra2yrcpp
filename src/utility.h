@@ -16,16 +16,6 @@ inline bool contains(const std::map<K, V>& m, const V& value) {
   return m.find(value) != m.end();
 }
 
-template <typename T, typename U>
-inline T* asptr(U u) {
-  return reinterpret_cast<T*>(u);
-}
-
-template <typename T, typename U>
-inline T as(U u) {
-  return reinterpret_cast<T>(u);
-}
-
 template <typename C, typename T, typename U>
 auto band(const T& t, const U& u) {
   return ((C)t) & ((C)u);

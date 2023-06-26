@@ -1,7 +1,6 @@
 #include "client_utils.hpp"
 #include "config.hpp"
 #include "connection.hpp"
-#include "debug_helpers.h"
 #include "dll_inject.hpp"
 #include "exprocess.hpp"
 #include "gtest/gtest.h"
@@ -28,12 +27,10 @@ class DLLInjectTest : public ::testing::Test {
     p_GetProcAddress = is_context::get_proc_address("GetProcAddress");
   }
 
-  // FIXME: avoid hardcoding
   std::string path_dll{cfg::DLL_NAME};
   std::string name_init{cfg::INIT_NAME};
   u32 p_LoadLibrary;
   u32 p_GetProcAddress;
-  // void TearDown() override {}
 };
 
 struct B2STest : Xbyak::CodeGenerator {

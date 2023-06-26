@@ -65,12 +65,12 @@ static ra2yrproto::TextResponse text_response(const std::string message) {
 ra2yrproto::PollResults InstrumentationService::flush_results(
     const u64 queue_id, const std::chrono::milliseconds delay) {
   auto results = cmd_manager().flush_results(queue_id, delay, 0);
-  ra2yrproto::Response R;
   ra2yrproto::PollResults P;
   auto* PR = P.mutable_result();
   while (!results.empty()) {
     auto item = results.back();
-    auto* cmd_result = as<ra2yrproto::CommandResult*>(item->result());
+    auto* cmd_result =
+        reinterpret_cast<ra2yrproto::CommandResult*>(item->result());
     auto* res = PR->add_results();
     res->set_command_id(cmd_result->command_id());
     res->mutable_result()->CopyFrom(cmd_result->result());

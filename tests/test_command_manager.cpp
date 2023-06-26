@@ -1,5 +1,4 @@
 #include "command/command_manager.hpp"
-#include "debug_helpers.h"
 #include "gtest/gtest.h"
 #include "utility.h"
 #include "utility/time.hpp"
@@ -8,7 +7,6 @@
 #include <memory>
 #include <vector>
 
-using yrclient::as;
 using namespace std::chrono_literals;
 
 class CommandManagerTest : public ::testing::Test {
@@ -46,7 +44,7 @@ TEST_F(CommandManagerTest, RegisterAndRunCommandWithResources) {
   std::uint64_t queue = 0u;
   const size_t count = 100;
   M.factory().add_entry(cmd_name, [&flag](command::Command* c) {
-    auto* G = as<GenerateReadableString*>(c->args());
+    auto* G = reinterpret_cast<GenerateReadableString*>(c->args());
     (*G)({1, 2, 3, 4, 5});
     flag.assign(G->msg());
   });
@@ -81,7 +79,7 @@ TEST_F(CommandManagerTest, RegisterAndRunCommand) {
   const std::string cmd_name = "test_cmd";
   std::uint64_t queue = 0u;
   M.factory().add_entry(cmd_name, [&key](command::Command* c) {
-    as<decltype(flag)*>(c->args())->assign(key);
+    reinterpret_cast<decltype(flag)*>(c->args())->assign(key);
   });
   auto cmd = std::shared_ptr<command::Command>(
       M.factory().make_command(cmd_name, &flag, queue));

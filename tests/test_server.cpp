@@ -1,6 +1,5 @@
 #include "config.hpp"
 #include "connection.hpp"
-#include "debug_helpers.h"
 #include "errors.hpp"
 #include "gtest/gtest.h"
 #include "server.hpp"

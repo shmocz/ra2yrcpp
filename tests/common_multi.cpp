@@ -9,7 +9,6 @@ MultiClientTestContext::MultiClientTestContext()
 
 MultiClientTestContext::~MultiClientTestContext() {
   clients.clear();
-  // FIME: may not be needed
   io_service_guard = nullptr;
 }
 

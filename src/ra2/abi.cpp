@@ -31,11 +31,11 @@ bool ABIGameMD::ClickEvent(const u32 address, const u8 event) {
 
 void ABIGameMD::sprintf(char** buf, const std::uintptr_t args_start) {
   char fake_stack[128];
-  auto val = ::utility::asint(buf);
+  auto val = reinterpret_cast<std::uintptr_t>(buf);
   std::memset(&fake_stack[0], 0, sizeof(fake_stack));
   std::memcpy(&fake_stack[0], &val, 4U);
   // copy rest of the args (WARNING: out of bounds read)
-  std::memcpy(&fake_stack[4], ::utility::asptr<char*>(args_start),
+  std::memcpy(&fake_stack[4], reinterpret_cast<char*>(args_start),
               sizeof(fake_stack) - 4U);
   ra2::abi::sprintf::call(this, &fake_stack[0], sizeof(fake_stack));
 }

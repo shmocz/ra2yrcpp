@@ -4,7 +4,6 @@
 #include "types.h"
 #include "utility/time.hpp"
 
-#include <string>
 #include <vector>
 
 namespace dll_inject {

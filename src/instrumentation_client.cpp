@@ -36,7 +36,6 @@ ra2yrproto::PollResults InstrumentationClient::poll_blocking(
 
   if (resp.code() == yrclient::RESPONSE_ERROR) {
     auto msg = yrclient::from_any<ra2yrproto::TextResponse>(resp.body());
-    dprintf("{}", to_json(msg).c_str());
     throw yrclient::system_error(msg.message());
   }
   return yrclient::from_any<ra2yrproto::PollResults>(resp.body());
@@ -65,7 +64,6 @@ ra2yrproto::Response InstrumentationClient::send_message(const vecu8& data) {
 ra2yrproto::Response InstrumentationClient::send_message(
     const google::protobuf::Message& M) {
   auto data = yrclient::to_vecu8(M);
-  assert(!data.empty());
   return send_message(data);
 }
 

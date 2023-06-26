@@ -113,8 +113,8 @@ struct CBYR : public yrclient::ISCallback {
 
 static auto* get_callbacks(yrclient::InstrumentationService* I,
                            const bool acquire = false) {
-  return utility::asptr<cb_map_t*>(
-      utility::asint(I->get_value(key_callbacks_yr, acquire)));
+  return reinterpret_cast<cb_map_t*>(reinterpret_cast<std::uintptr_t>(
+      I->get_value(key_callbacks_yr, acquire)));
 }
 
 // Combining CRTP with polymorphism.
@@ -445,7 +445,7 @@ struct CBTunnelRecvFrom : public CBTunnel<CBTunnelRecvFrom> {
       : CBTunnel(std::move(out)) {}
 
   packet_buffer buffer() override {
-    return {utility::asptr(cpu_state->ebp + 0x3f074),
+    return {reinterpret_cast<void*>(cpu_state->ebp + 0x3f074),
             static_cast<i32>(cpu_state->esi), 1U, 0U};
   }
 };
@@ -458,8 +458,8 @@ struct CBTunnelSendTo : public CBTunnel<CBTunnelSendTo> {
       : CBTunnel(std::move(out)) {}
 
   packet_buffer buffer() override {
-    return {utility::asptr(cpu_state->ecx), static_cast<i32>(cpu_state->eax),
-            0U, 1U};
+    return {reinterpret_cast<void*>(cpu_state->ecx),
+            static_cast<i32>(cpu_state->eax), 0U, 1U};
   }
 };
 
@@ -535,8 +535,8 @@ static void unit_action(const u32 p_object,
 
 template <typename T>
 static auto* get_callback(yrclient::InstrumentationService* I) {
-  return utility::asptr<T*>(
-      utility::asint(get_callbacks(I)->at(T::key_name).get()));
+  return reinterpret_cast<T*>(
+      reinterpret_cast<u32>(get_callbacks(I)->at(T::key_name).get()));
 }
 
 template <typename ArgT>
@@ -656,7 +656,7 @@ auto create_hooks() {
     // create hooks
     for (const auto& [k, v] : gg_hooks) {
       auto [p_target, code_size] = hook::get_hook_entry(v);
-      Q->I()->create_hook(k, utility::asptr<u8*>(p_target), code_size);
+      Q->I()->create_hook(k, reinterpret_cast<u8*>(p_target), code_size);
     }
     if (!a.no_suspend_threads()) {
       P.resume_threads(ns);

@@ -101,6 +101,25 @@ $(GAMEMD_PATCHED): $(BUILD_DIR)/p_text2.txt
 		-i $(BUILD_DIR)/.gamemd-spawn.exe > $(BUILD_DIR)/.gamemd-spawn-patched.exe
 	install -D $(BUILD_DIR)/.gamemd-spawn-patched.exe $@
 
+build_protobuf:
+	mkdir -p $(BUILD_DIR)
+	CMAKE_TOOLCHAIN_FILE=$(abspath $(CMAKE_TOOLCHAIN_FILE)) cmake \
+		-DCMAKE_INSTALL_PREFIX=$(DEST_DIR) \
+		$(CMAKE_EXTRA_ARGS) \
+		-G "Unix Makefiles" \
+		-Dprotobuf_BUILD_LIBPROTOC=ON \
+		-Dprotobuf_WITH_ZLIB=ON \
+		-DProtobuf_USE_STATIC_LIBS=ON \
+		-Dprotobuf_MSVC_STATIC_RUNTIME=OFF \
+		-Dprotobuf_BUILD_EXAMPLES=OFF \
+		-Dprotobuf_INSTALL=ON \
+		-Dprotobuf_BUILD_TESTS=OFF  \
+		-DZLIB_LIB=/usr/i686-w64-mingw32/lib \
+		-DZLIB_INCLUDE_DIR=/usr/i686-w64-mingw32/include \
+		-S 3rdparty/protobuf -B $(BUILD_DIR)
+	cmake --build $(BUILD_DIR) --parallel $(nproc)
+	cmake --build $(BUILD_DIR) --config $(CMAKE_BUILD_TYPE) --target install
+
 test:
 	set -e; for f in $(TESTS); do \
 		wine $(DEST_DIR)/$$f; done

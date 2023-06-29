@@ -2,6 +2,20 @@
 
 Library for interacting with Red Alert 2 Yuri's Revenge game process with protobuf based protocol over TCP. Inspired by [s2client-api](https://github.com/Blizzard/s2client-api).
 
+## Usage
+
+Copy `libra2yrcpp.dll` and patched `gamemd-spawn.exe` to the CnCNet installation folder (overwriting the original `gamemd-spawn.exe`), or ensure some other way that LoadLibrary can locate the DLL by it's base name.
+
+This spawns a TCP server bound to port 14521 and WebSocket proxy to it on port 14525. To override these, set the environment variables `RA2YRCPP_PORT` and `RA2YRCPP_WS_PORT`.
+
+### Recording game data
+
+A callback is created to save game state at the beginning of each frame. To output these to a file, set the environment variable `RA2YRCPP_RECORD_PATH=<name>.pb.gz`. The states are stored as compressed consecutive serialized protobuf messages. After exiting the game, the recording can be dumped as lines of JSON strings with the tool `ra2yrcppcli.exe`. **WARNING**: the uncompressed recording can get very large. Consider downsampling or transforming it into less verbose format for further processing.
+
+### Recording traffic
+
+Set the environment variable `RA2YRCPP_RECORD_TRAFFIC=<name>.pb.gz`
+
 ## Building
 
 `ra2yrcpp` depends on following software:
@@ -22,15 +36,15 @@ All dependencies except cmake, python, zlib and wine are already included as sub
 Get the sources and submodules and place `gamemd-spawn.exe` from CnCNet distribution into the project source directory.
 
 ```bash
-$ git clone --recurse-submodules https://github.com/CnCNet/ra2yrcpp.git
-$ cd ra2yrcpp
-$ cp <CNCNET_FOLDER>/gamemd-spawn.exe .
+git clone --recurse-submodules https://github.com/CnCNet/ra2yrcpp.git
+cd ra2yrcpp
+cp <CNCNET_FOLDER>/gamemd-spawn.exe .
 ```
 
-For `clang-cl`, zlib sources are also needed:
+For `clang-cl`, zlib sources might be needed:
 
 ```bash
-$ git clone -b v1.2.8 https://github.com/madler/zlib.git 3rdparty/zlib
+git clone -b v1.2.8 https://github.com/madler/zlib.git 3rdparty/zlib
 ```
 
 ### Build with Docker (recommended)
@@ -38,33 +52,56 @@ $ git clone -b v1.2.8 https://github.com/madler/zlib.git 3rdparty/zlib
 For convenience, a Docker image is provided for both MinGW and clang-cl toolchains with all necessary dependencies to build the application and related components. MinGW toolchain is used by default.
 
 ```bash
-$ make docker_build
+make docker_build
 ```
 
 ### General build instructions
 
-#### Build protobuf
+#### Obtain protobuf
 
-For the docker image, let's just build protobuf (library and native protoc) as part of the image, otherwise this gets too complicated.
+> **Warning**
+> Builds of libprotobuf lack compatibility across different compilers. Attempting to link a MinGW compiled library in MSVC/clang-cl toolchain, or vice versa, will result in errors.
 
-For native cases, we can grab the protobuf files from docker image, put to appropriate location, and point to them in the CMAke file.
+##### Option 1
 
-1. go to the protobuf source directory
-2. if cross-compiling, build libprotobuf as win32 target and protoc as native target
-3. move files to appropriate directories
-
-Make sure Python 3 is installed, then install iced-x86:
+Copy files from docker image. If you built the main docker image then protobuf has already been built and you can copy the files from there:
 
 ```bash
-$ pip install --user iced-x86
+mkdir -p opt/usr
+docker-compose cp -L builder:/usr/i686-w64-mingw32 opt/usr
+docker-compose cp -L builder:/usr/bin/protoc opt/bin
+```
+
+##### Option 2
+
+Build protobuf using a docker container. Use either the "builder" or "clang-cl" docker image:
+
+```bash
+cfg=("clang-cl-msvc" "clang-cl")
+# uncomment to use MinGW
+# cfg=("mingw-w64-i686" "builder")
+export CMAKE_TOOLCHAIN_FILE=toolchains/${cfg[0]}.cmake
+export BUILDDIR="build-protobuf"
+docker-compose run -e BUILDDIR -e CMAKE_TOOLCHAIN_FILE --rm -it "${cfg[1]}" make build_protobuf
+opt="$(realpath -s opt)"
+cd "$BUILDDIR/${cfg[0]}-Release/pkg"
+find . -type f -exec install -D "{}" "$opt/{}" \;
+```
+
+##### Install iced-x86
+
+iced-x86 Python library is used to disassemble instructions from game binary to automatically infer the number of bytes to copy when creating hooks. Make sure Python 3 is installed, then invoke:
+
+```bash
+pip install --user iced-x86
 ```
 
 Pick a toolchain of your choice, release type and run make:
 
 ```bash
-$ export CMAKE_TOOLCHAIN_FILE=<toolchain-path>
-$ export CMAKE_RELEASE_TYPE=Release
-$ make build
+export CMAKE_TOOLCHAIN_FILE=<toolchain-path>
+export CMAKE_RELEASE_TYPE=Release
+make build
 ```
 
 This performs the build and installation under `cbuild/<toolchain-id>-<release-type>`.
@@ -72,8 +109,8 @@ This performs the build and installation under `cbuild/<toolchain-id>-<release-t
 Alternatively invoke cmake directly:
 
 ```bash
-$ mkdir -p build pkg
-$ cmake \
+mkdir -p build pkg
+cmake \
   -DCMAKE_INSTALL_PREFIX=pkg \
   --toolchain <toolchain-path> \
   -S . -B build \
@@ -83,20 +120,21 @@ $ cmake \
 
 The following build options are available:
 
-- `RA2YRCPP_BUILD_TESTS` whether to build test executables. Default: `ON`
 - `RA2YRCPP_BUILD_MAIN_DLL` whether to build the main YRpp-dependent DLL and related utilities. Default: `ON`
+- `RA2YRCPP_BUILD_TESTS` whether to build test executables. Default: `ON`
+- `RA2YRCPP_DEBUG_LOG` enable debug logging even for non-debug targets. Default: `OFF`
 
 ### Build using clang-cl
 
-clang-cl is the preferred compiler for release packages, as there's no additional runtime DLL dependencies aside from Windows's CRT. You still need MSVC SDK, which will be downloaded when building the `clang-cl-msvc.Dockerfile` image. Once downloaded, modify the toolchain file at `toolchains/clang-cl-msvc.cmake` to point to correct SDK paths.
+Clang-cl requires MSVC SDK, which will be downloaded when building the `clang-cl-msvc.Dockerfile` image. Once downloaded, modify the toolchain file at `toolchains/clang-cl-msvc.cmake` to point to correct SDK paths.
 
 Also get the static zlib library, and adjust `ZLIB_LIBRARY` in the toolchain file accordingly. On Linux systems the library might be present if MinGW cross compilation toolchain has been installed.
 
 Execute build with:
 
 ```bash
-$ export CMAKE_TOOLCHAIN_FILE=toolchains/clang-cl-msvc.cmake
-$ make build
+export CMAKE_TOOLCHAIN_FILE=toolchains/clang-cl-msvc.cmake
+make build
 ```
 
 the build and install directories will be performed to `cbuild/<toolchain-name>-$CMAKE_RELEASE_TYPE`, under the names `build` and `pkg` respectively.
@@ -106,13 +144,9 @@ the build and install directories will be performed to `cbuild/<toolchain-name>-
 The instructions are identical to `clang-cl`, consult the reference toolchain file at `mingw-w64-i686.cmake`.
 
 ```bash
-$ export CMAKE_TOOLCHAIN_FILE=toolchains/mingw-w64-i686.cmake
-$ make build
+export CMAKE_TOOLCHAIN_FILE=toolchains/mingw-w64-i686.cmake
+make build
 ```
-
-### Cross-compilation on Linux and protobuf compiler
-
-The protobuf compiler is obtained as part of the build process as Windows executable, which will only work on Linux if wine is installed. Alternatively you can grab a pre-built native binary from https://github.com/protocolbuffers/protobuf/tags or build one by yourself and adjust `PROTOC_PATH` in your toolchain file, **provided your external protoc binary matches the version used by the library**.
 
 ### Build core library natively
 
@@ -127,7 +161,7 @@ set(RA2YRCPP_EXTRA_FLAGS -fsanitize=address -fsanitize=undefined)
 It's recommended to run tests using docker. Execute regular tests with:
 
 ```bash
-$ make docker_test
+make docker_test
 ```
 
 For integration tests, set the path for `gamedata` volume in `docker-compose.yml` to RA2/CnCNet directory.
@@ -145,18 +179,8 @@ volumes:
 And run the test. VNC view will be available at (http://127.0.0.1:6081/vnc.html?autoconnect=1&reconnect=1)
 
 ```bash
-$ make test_integration
+make test_integration
 ```
-
-## Usage
-
-Copy `libra2yrcpp.dll` and patched `gamemd-spawn.exe` to the CnCNet installation folder (overwriting the original `gamemd-spawn.exe`), or ensure some other way that LoadLibrary can locate the DLL by it's base name.
-
-This spawns a TCP server bound to port 14520 and WebSocket proxy to it on port 14525. To override these, set the environment variables `RA2YRCPP_PORT` and `RA2YRCPP_WS_PORT`.
-
-### Recording game data
-
-By default, a callback is created to save game state at the beginning of each frame. The states are stored as consecutive serialized protobuf messages into a file with name `record.<timestamp>.pb.gz`. After exiting the game, the recording can be dumped as lines of JSON strings with the tool `recordtool.exe`. **WARNING**: the uncompressed recording can get very large. Consider downsampling or transforming it into less verbose format for further processing.
 
 ## Acknowledgements
 

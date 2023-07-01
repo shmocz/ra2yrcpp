@@ -1,6 +1,7 @@
 #include "websocket_server.hpp"
 
 #include "logging.hpp"
+#include "util_string.hpp"
 #include "utility/serialize.hpp"
 
 #include <algorithm>
@@ -135,11 +136,11 @@ WebsocketProxy::WebsocketProxy(WebsocketProxy::Options o,
 
       // Connect to IService
       lib::asio::ip::tcp::socket sock(*service_);
-      sock.connect(
-          lib::asio::ip::tcp::endpoint{
-              lib::asio::ip::address_v4::from_string(opts.destination),
-              static_cast<u16>(opts.destination_port)},
-          ec);
+
+      sock.connect(lib::asio::ip::tcp::endpoint(
+                       lib::asio::ip::address::from_string(opts.destination),
+                       opts.destination_port),
+                   ec);
 
       if (ec) {
         eprintf("TCP connection to service failed: {}", ec.message());
@@ -176,6 +177,50 @@ WebsocketProxy::WebsocketProxy(WebsocketProxy::Options o,
     } catch (const std::exception& e) {
       eprintf("open_handler: {}", e.what());
     }
+  });
+
+  // HTTP handler for use with CURL etc.
+  s.set_http_handler([this](auto h) {
+    auto con = s.get_con_from_hdl(h);
+    std::string res = con->get_request_body();
+    error_code ec;
+
+    // Connect to IService
+    lib::asio::ip::tcp::socket sock(*service_);
+
+    sock.connect(lib::asio::ip::tcp::endpoint(
+                     lib::asio::ip::address::from_string(opts.destination),
+                     opts.destination_port),
+                 ec);
+
+    if (ec) {
+      eprintf("TCP connection to service failed: {}", ec.message());
+      return;
+    }
+
+    // Add length prefix and forward the data
+    u32 sz = res.size();
+    vecu8 ssz(sizeof(u32), 0);
+    res.insert(res.begin(), reinterpret_cast<char*>(&sz),
+               reinterpret_cast<char*>(&sz) + sizeof(sz));
+    // Write the data
+    sock.write_some(lib::asio::buffer(res), ec);
+
+    // Read response back
+    lib::asio::read(sock, lib::asio::buffer(ssz),
+                    lib::asio::transfer_exactly(sizeof(u32)));
+    sz = serialize::read_obj_le<u32>(ssz.data());
+    // Read body
+    vecu8 body(sz, 0);
+    lib::asio::read(sock, lib::asio::buffer(body),
+                    lib::asio::transfer_exactly(sz));
+
+    // Close connection
+    sock.close();
+
+    // write response
+    con->set_body(yrclient::to_string(body));
+    con->set_status(websocketpp::http::status_code::ok);
   });
 
   s.clear_access_channels(websocketpp::log::alevel::frame_payload |

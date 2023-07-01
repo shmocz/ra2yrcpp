@@ -29,6 +29,7 @@ constexpr auto RESPONSE_ERROR = ra2yrproto::ResponseCode::ERROR;
 /// @exception yrclient::protocol_error on serialization failure
 vecu8 to_vecu8(const google::protobuf::Message& msg);
 
+bool from_json(const vecu8& bytes, google::protobuf::Message* m);
 std::string to_json(const google::protobuf::Message& m);
 std::string message_type(const google::protobuf::Any& m);
 std::string message_type(const google::protobuf::Message& m);

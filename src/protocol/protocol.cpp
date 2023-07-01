@@ -2,6 +2,7 @@
 
 #include "util_string.hpp"
 
+#include <google/protobuf/stubs/status.h>
 #include <google/protobuf/util/json_util.h>
 
 #include <cstdio>
@@ -16,6 +17,15 @@ vecu8 yrclient::to_vecu8(const google::protobuf::Message& msg) {
         fmt::format("failed to serialize message {}", msg.GetTypeName()));
   }
   return res;
+}
+
+bool yrclient::from_json(const vecu8& bytes, google::protobuf::Message* m) {
+  auto s = yrclient::to_string(bytes);
+  if (google::protobuf::util::JsonStringToMessage(s, m).ok()) {
+    return true;
+  }
+
+  return false;
 }
 
 std::string yrclient::to_json(const google::protobuf::Message& m) {

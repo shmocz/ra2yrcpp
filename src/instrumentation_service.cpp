@@ -131,11 +131,15 @@ static ra2yrproto::RunCommandAck handle_cmd(InstrumentationService* I,
 
 // TODO: return just Response body/msg, not the whole Response
 ra2yrproto::Response InstrumentationService::process_request(
-    connection::Connection* C, vecu8* bytes) {
+    connection::Connection* C, vecu8* bytes, bool* is_json) {
   // read command from message
   ra2yrproto::Command cmd;
   if (!cmd.ParseFromArray(bytes->data(), bytes->size())) {
-    throw std::runtime_error("Message parse error");
+    if (!yrclient::from_json(*bytes, &cmd)) {
+      throw std::runtime_error("Message parse error");
+    } else {
+      *is_json = true;
+    }
   }
 
   // execute parsed command & write result
@@ -143,7 +147,13 @@ ra2yrproto::Response InstrumentationService::process_request(
     case ra2yrproto::CLIENT_COMMAND_OLD:
       throw std::runtime_error("Deprecated");
     case ra2yrproto::CLIENT_COMMAND: {
-      return yrclient::make_response(handle_cmd(this, C, &cmd));
+      auto ack = handle_cmd(this, C, &cmd);
+      if (cmd.blocking()) {
+        const u64 queue_id = (u64)C->socket();
+        const auto timeout = cfg::POLL_BLOCKING_TIMEOUT;
+        return yrclient::make_response(flush_results(queue_id, timeout));
+      }
+      return yrclient::make_response(ra2yrproto::RunCommandAck(ack));
     }
     case ra2yrproto::POLL: {
       return yrclient::make_response(flush_results(C->socket()));
@@ -172,12 +182,16 @@ ra2yrproto::Response InstrumentationService::process_request(
 vecu8 InstrumentationService::on_receive_bytes(connection::Connection* C,
                                                vecu8* bytes) {
   ra2yrproto::Response R;
+  bool is_json = false;
   try {
-    R = process_request(C, bytes);
+    R = process_request(C, bytes, &is_json);
     R.set_code(RESPONSE_OK);
   } catch (const std::exception& e) {
     eprintf("{}", e.what());
     R = yrclient::make_response(text_response(e.what()), RESPONSE_ERROR);
+  }
+  if (is_json) {
+    return yrclient::to_bytes(yrclient::to_json(R));
   }
   return to_vecu8(R);
 }

@@ -35,6 +35,7 @@ message Command {
   CommandType command_type = 1;
   ClientCommand client_command_old = 2;
   google.protobuf.Any command = 3;
+  bool blocking = 4;
 }
 
 message RunCommandAck {

@@ -120,7 +120,8 @@ class InstrumentationService {
  private:
   ra2yrproto::PollResults flush_results(
       const u64 queue_id, const duration_t delay = cfg::POLL_RESULTS_TIMEOUT);
-  ra2yrproto::Response process_request(connection::Connection* C, vecu8* bytes);
+  ra2yrproto::Response process_request(connection::Connection* C, vecu8* bytes,
+                                       bool* is_json);
 
   IServiceOptions opts_;
   command::CommandManager cmd_manager_;

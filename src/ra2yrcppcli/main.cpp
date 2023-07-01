@@ -4,6 +4,7 @@
 #include "instrumentation_service.hpp"
 #include "ra2yrcppcli.hpp"
 
+#include <argparse/argparse.hpp>
 #include <google/protobuf/descriptor.h>
 
 #include <fstream>
@@ -150,7 +151,25 @@ int main(int argc, char* argv[]) {
       .implicit_value(false)
       .default_value(true);
 
+  argparse::ArgumentParser record_command("record");
+  record_command.add_argument("--mode").default_value("record").help(
+      "input file");
+  record_command.add_argument("gzip").help("process gzip compressed file");
+  record_command.add_argument("input-file").help("input file");
+
+  A.add_subparser(record_command);
+
   A.parse_args(argc, argv);
+
+  if (A.is_subcommand_used("record")) {
+    const std::string input = record_command.get<std::string>("-i");
+    auto mode = record_command.get<std::string>("mode");
+    if (mode == "record") {
+      yrclient::dump_messages(input, ra2yrproto::ra2yr::GameState());
+    } else if (mode == "traffic") {
+      yrclient::dump_messages(input, ra2yrproto::ra2yr::TunnelPacket());
+    }
+  }
 
   if (A.get<bool>("list-commands")) {
     list_commands();
@@ -178,8 +197,13 @@ int main(int argc, char* argv[]) {
 
   if (A.is_used("--name")) {
     auto client = get_client(opts.host, std::to_string(opts.port));
-    send_and_print(
-        ra2yrcppcli::send_command(client.get(), A.get("name"), A.get("args")));
+    try {
+      send_and_print(ra2yrcppcli::send_command(client.get(), A.get("name"),
+                                               A.get("args")));
+    } catch (const std::exception& e) {
+      std::cerr << "failed to send command: " << e.what() << std::endl;
+      std::cerr << "use -l to see available commands" << std::endl;
+    }
     return 0;
   }
 

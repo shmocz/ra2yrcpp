@@ -77,7 +77,7 @@ MessageBuilder::MessageBuilder(const std::string name) {
   pool = google::protobuf::DescriptorPool::generated_pool();
   desc = pool->FindMessageTypeByName(name);
   if (desc == nullptr) {
-    throw std::runtime_error(name);
+    throw std::runtime_error(std::string("no such message ") + name);
   }
   auto* msg_proto = F.GetPrototype(desc);
   m = msg_proto->New();

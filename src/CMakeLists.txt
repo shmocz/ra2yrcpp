@@ -85,16 +85,13 @@ if(RA2YRCPP_BUILD_MAIN_DLL)
   set_target_properties(ra2yrcpp_dll PROPERTIES OUTPUT_NAME
                                                 ${RA2YRCPP_LIBRARY_NAME})
 
-  add_executable(recordtool recordtool.cpp)
-  target_link_libraries(recordtool PUBLIC yrclient)
-
   add_library(ra2yrcppcli OBJECT ./ra2yrcppcli/ra2yrcppcli.cpp)
   target_link_libraries(ra2yrcppcli PUBLIC yrclient)
 
   add_subdirectory(ra2yrcppcli)
 
   add_custom_target(ra2yrcpp)
-  add_dependencies(ra2yrcpp yrclient recordtool ra2yrcppcli-bin)
+  add_dependencies(ra2yrcpp yrclient ra2yrcppcli)
 
   if(MINGW)
     list(TRANSFORM MINGW_LIBS PREPEND "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/"

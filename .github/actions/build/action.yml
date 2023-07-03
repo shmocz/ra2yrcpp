@@ -1,0 +1,17 @@
+name: Build ra2yrcpp
+env:
+  CMAKE_TOOLCHAIN_FILE: toolchains/mingw-w64-i686-docker.cmake
+runs:
+  using: composite
+  steps:
+    - name: Build and verify with docker
+      shell: bash
+      run: |
+        mkdir -p cbuild wine-dir
+        make docker-release
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ra2yrcpp-${{ github.sha }}.zip
+        path: cbuild/mingw-w64-i686-docker-Release/pkg/bin/*

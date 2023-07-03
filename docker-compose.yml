@@ -36,7 +36,6 @@ services:
     volumes:
       - .:/home/user/project
       - ./wine-dir:/home/user/.wine
-      - gamedata:/home/user/RA2
     user: "${UID}:${UID}"
     env_file:
       - integration.env

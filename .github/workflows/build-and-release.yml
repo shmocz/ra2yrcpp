@@ -1,0 +1,63 @@
+name: Main workflow file
+on:
+  push:
+    branches:
+      - develop
+      - develop-*
+
+env:
+  CMAKE_TOOLCHAIN_FILE: toolchains/mingw-w64-i686-docker.cmake
+
+jobs:
+  build-docker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - run: mkdir -p ~/image-cache
+      - id: image-cache
+        uses: actions/cache@v3
+        with:
+          path: ~/image-cache
+          key: image-cache-${{ runner.os }}
+      - if: steps.image-cache.outputs.cache-hit != 'true'
+        run: |
+          docker-compose build builder
+          docker save -o ~/image-cache/builder.tar shmocz/ra2yrcpp
+  build-and-verify:
+    runs-on: ubuntu-latest
+    needs: build-docker-image
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - id: image-cache
+        uses: actions/cache@v3
+        with:
+          path: ~/image-cache
+          key: image-cache-${{ runner.os }}
+      - if: steps.image-cache.outputs.cache-hit == 'true'
+        run: |
+          docker load -i ~/image-cache/builder.tar
+      - name: Build and verify the library
+        uses: ./.github/actions/build
+
+      - name: Delete Previous Release
+        uses: dev-drprasad/delete-tag-and-release@v1.0
+        with:
+          tag_name: latest
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          delete_release: true
+        continue-on-error: true
+
+      - name: Upload New Release.
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Latest
+          tag_name: latest
+          body: Latest ra2yrcpp build.
+          files: |
+            cbuild/mingw-w64-i686-docker-Release/ra2yrcpp.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

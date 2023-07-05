@@ -3,7 +3,7 @@ export BUILDDIR ?= cbuild
 export CMAKE_BUILD_TYPE ?= Release
 
 REPO_FILES = $(shell git ls-tree -r --name-only HEAD) 
-TESTS := $(patsubst %.cpp,%.exe,$(subst tests/,bin/,$(filter tests/test_%.cpp, $(REPO_FILES))))
+TESTS := $(patsubst %.cpp,%.exe,$(subst tests/,bin/,$(shell find tests/ -iname "test_*.cpp")))
 PYTHON := python3
 
 export CMAKE_TOOLCHAIN_FILE ?= toolchains/mingw-w64-i686.cmake
@@ -22,7 +22,7 @@ EXTRA_PATCHES ?=
 
 export UID := $(shell id -u)
 export GID := $(shell id -g)
-export NPROC ?= $(nproc)
+export NPROC ?= $(shell nproc)
 export CMAKE_TARGET ?= all
 export CMAKE_EXTRA_ARGS ?=
 
@@ -133,7 +133,7 @@ docker_base:
 docker_test:
 	set -e; for f in $(TESTS); do \
 		docker-compose down --remove-orphans; \
-		COMMAND="sh -c 'BUILDDIR=$(BUILDDIR) make BUILDDIR=$(BUILDDIR) DEST_DIR=$(DEST_DIR) TESTS=$$f test'" docker-compose up --abort-on-container-exit vnc builder; done
+		COMMAND="sh -c 'UID=$(UID) BUILDDIR=$(BUILDDIR) make BUILDDIR=$(BUILDDIR) DEST_DIR=$(DEST_DIR) TESTS=$$f test'" docker-compose up --abort-on-container-exit builder; done
 
 # NB. using "run" the env. vars need to be specified with -e flag
 # actually we dont wanna pass TC in env var, because it overrides the --toolchain flag, which we use to transform relative path

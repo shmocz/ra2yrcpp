@@ -50,11 +50,13 @@ services:
     volumes:
       - .:/home/user/project
       - gamedata:/home/user/RA2
+      - ./.wine-clang:/home/user/.wine
     command: "${COMMAND}"
     working_dir: /home/user/project
     # to get debug dlls
-    environment:
-      - WINEPATH=/home/user/project/dlls
+    env_file:
+      - integration.env
+    user: "${UID}:${UID}"
   tunnel:
     build:
       context: .

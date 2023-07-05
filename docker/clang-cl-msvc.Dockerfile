@@ -25,14 +25,14 @@ RUN dpkg --add-architecture i386
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y \ 
-        clang-15  \
-        clang-tools-15 \
-        cmake \
-        libz-mingw-w64-dev \
-        lld-15 \
-        make \
-        ninja-build \
-        wine32-development
+    clang-15  \
+    clang-tools-15 \
+    cmake \
+    libz-mingw-w64-dev \
+    lld-15 \
+    make \
+    ninja-build \
+    wine32-development
 
 RUN  for p in lld-link clang-cl llvm-rc llvm-lib; do \
     ln -s /usr/bin/$p-15 /usr/bin/$p; \
@@ -48,6 +48,14 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get install -y --no-install-recommends python3 python3-pip && \
     apt-get clean -y && \
     rm -rf /var/lib/apt/lists/* && \
-    pip install -U iced-x86
+    pip install --break-system-packages -U iced-x86
 
-RUN mkdir -p /home/user/ chmod 0777 /home/user/
+# Remove unused stuff
+RUN rm -rf /opt/msvc/VC/Tools/MSVC/*/lib/{arm,arm64,arm64ec} \
+    /opt/msvc/kits/10/Lib/*/{ucrt,um}/{arm,arm64} \
+    /opt/msvc/kits/10/Redist/*/{arm,arm64} \
+    /opt/msvc/kits/10/Redist/*/ucrt/DLLs/{arm,arm64} \
+    /opt/msvc/kits/10/bin/{arm,arm64} \
+    /opt/msvc/bin/{arm,arm64}
+
+RUN useradd -m user && mkdir -p /home/user/project /home/user/.wine && chmod -R 0777 /home/user

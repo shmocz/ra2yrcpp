@@ -1,0 +1,25 @@
+From fe9e18d8dcd8d6ec8eae134025a22eb666d1f9bd Mon Sep 17 00:00:00 2001
+From: shmocz <112764837+shmocz@users.noreply.github.com>
+Date: Thu, 16 Feb 2023 04:15:27 +0200
+Subject: [PATCH] Fix to get CMake work with clang-cl
+
+---
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 04cb3303a..0a906da1d 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -271,7 +271,7 @@ if (MSVC)
+   # Suppress linker warnings about files with no symbols defined.
+   set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /ignore:4221")
+ 
+-  if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
++  if ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
+     # Configure Resource Compiler
+     enable_language(RC)
+     # use English language (0x409) in resource compiler
+-- 
+2.41.0
+

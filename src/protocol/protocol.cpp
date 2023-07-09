@@ -54,21 +54,6 @@ ra2yrproto::Response yrclient::make_response(
   return r;
 }
 
-static int get_fileno(FILE* fp) {
-#ifdef _WIN32
-  return _fileno(fp);
-#else
-  return fileno(fp);
-#endif
-}
-
-// TODO(shmocz): fix warning about deprecated fileno on clang
-CompressedOutputStream::CompressedOutputStream(const std::string path)
-    : fd(std::unique_ptr<FILE, void (*)(FILE*)>(fopen(path.c_str(), "wb"),
-                                                [](FILE* fp) { fclose(fp); })),
-      s_fo(get_fileno(fd.get())),
-      s_g(&s_fo) {}
-
 bool yrclient::write_message(const google::protobuf::Message* M,
                              google::protobuf::io::CodedOutputStream* is) {
   auto l = M->ByteSizeLong();
@@ -125,4 +110,79 @@ std::vector<const google::protobuf::FieldDescriptor*> yrclient::find_set_fields(
   std::vector<const google::protobuf::FieldDescriptor*> out;
   rfl->ListFields(M, &out);
   return out;
+}
+
+// TODO: ensure that this works OK for nullptr stream
+MessageIstream::MessageIstream(std::shared_ptr<std::istream> is, bool gzip)
+    : MessageStream(gzip),
+      is(is),
+      s_i(std::make_shared<google::protobuf::io::IstreamInputStream>(
+          is.get())) {
+  if (gzip) {
+    s_ig = std::make_shared<google::protobuf::io::GzipInputStream>(s_i.get());
+  }
+}
+
+MessageStream::MessageStream(bool gzip) : gzip(gzip) {}
+
+MessageOstream::MessageOstream(std::shared_ptr<std::ostream> os, bool gzip)
+    : MessageStream(gzip), os(os) {
+  if (os == nullptr) {
+    return;
+  }
+  s_o = std::make_shared<google::protobuf::io::OstreamOutputStream>(os.get());
+  if (gzip) {
+    s_g = std::make_shared<google::protobuf::io::GzipOutputStream>(s_o.get());
+  }
+}
+
+bool MessageOstream::write(const google::protobuf::Message& M) {
+  if (os == nullptr) {
+    return false;
+  }
+
+  if (gzip) {
+    google::protobuf::io::CodedOutputStream co(s_g.get());
+    return yrclient::write_message(&M, &co);
+  } else {
+    google::protobuf::io::CodedOutputStream co(s_o.get());
+    return yrclient::write_message(&M, &co);
+  }
+  return false;
+}
+
+bool MessageIstream::read(google::protobuf::Message* M) {
+  if (is == nullptr) {
+    return false;
+  }
+
+  if (gzip) {
+    google::protobuf::io::CodedInputStream co(s_ig.get());
+    return yrclient::read_message(M, &co);
+  } else {
+    google::protobuf::io::CodedInputStream co(s_i.get());
+    return yrclient::read_message(M, &co);
+  }
+  return false;
+}
+
+void yrclient::dump_messages(
+    const std::string path, const google::protobuf::Message& M,
+    std::function<void(google::protobuf::Message*)> cb) {
+  bool ok = true;
+  auto ii = std::make_shared<std::ifstream>(
+      path, std::ios_base::in | std::ios_base::binary);
+  yrclient::MessageBuilder B(M.GetTypeName());
+
+  const bool use_gzip = true;
+  yrclient::MessageIstream MS(ii, use_gzip);
+
+  if (cb == nullptr) {
+    cb = [](auto* M) { fmt::print("{}\n", yrclient::to_json(*M)); };
+  }
+
+  while (ok) {
+    ok = MS.read(B.m);
+    cb(B.m);
+  }
 }

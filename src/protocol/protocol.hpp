@@ -48,13 +48,6 @@ T from_any(const google::protobuf::Any& a) {
   return res;
 }
 
-struct CompressedOutputStream {
-  std::unique_ptr<FILE, void (*)(FILE*)> fd;
-  google::protobuf::io::FileOutputStream s_fo;
-  google::protobuf::io::GzipOutputStream s_g;
-  explicit CompressedOutputStream(const std::string path);
-};
-
 struct MessageBuilder {
   google::protobuf::DynamicMessageFactory F;
   const google::protobuf::DescriptorPool* pool;
@@ -98,5 +91,38 @@ void fill_repeated_empty(google::protobuf::RepeatedPtrField<T>* dst,
     dst->Add();
   }
 }
+
+struct MessageStream {
+  explicit MessageStream(bool gzip);
+  bool gzip;
+};
+
+struct MessageIstream : public MessageStream {
+  MessageIstream(std::shared_ptr<std::istream> is, bool gzip);
+  bool read(google::protobuf::Message* M);
+
+  std::shared_ptr<std::istream> is;
+  std::shared_ptr<google::protobuf::io::IstreamInputStream> s_i;
+  std::shared_ptr<google::protobuf::io::GzipInputStream> s_ig;
+};
+
+struct MessageOstream : public MessageStream {
+  MessageOstream(std::shared_ptr<std::ostream> os, bool gzip);
+  bool write(const google::protobuf::Message& M);
+
+  std::shared_ptr<std::ostream> os;
+  std::shared_ptr<google::protobuf::io::OstreamOutputStream> s_o;
+  std::shared_ptr<google::protobuf::io::GzipOutputStream> s_g;
+};
+
+/// Process stream of serialized protobuf messages of same type.
+///
+/// @param path Path to the file
+/// @param M Message type to be read
+/// @param cb Callback to invoke for each processed message. If unspecified,
+/// dumps messages as JSON to stdout
+void dump_messages(
+    const std::string path, const google::protobuf::Message& M,
+    std::function<void(google::protobuf::Message*)> cb = nullptr);
 
 }  // namespace yrclient

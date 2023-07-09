@@ -43,6 +43,15 @@ async def check_config(U: ManagerUtil = None):
     assert cfg2 == cfg2_ex
 
 
+async def check_record_output_defined(U: ManagerUtil = None):
+    # Get config
+    cmd_1 = await U.inspect_configuration()
+    cfg1 = cmd_1.result.config
+    assert (
+        cfg1.record_filename
+    ), f"Record output wasn't set. Make sure RA2YRCPP_RECORD_PATH environment variable is set."
+
+
 async def mcv_sell(app=None):
     M = Manager(poll_frequency=30)
     info("start manager")
@@ -63,6 +72,7 @@ async def mcv_sell(app=None):
     )
     info("state=ingame, players=%s", M.state.houses)
     await check_config(U)
+    await check_record_output_defined(U)
 
     # Get TC's
     info("num tc=%s", len(M.type_classes))

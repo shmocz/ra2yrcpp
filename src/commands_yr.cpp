@@ -250,7 +250,7 @@ struct CBExecuteGameLoopCommand : public MyCB<CBExecuteGameLoopCommand> {
 };
 
 struct CBSaveState : public MyCB<CBSaveState> {
-  std::unique_ptr<yrclient::CompressedOutputStream> out;
+  yrclient::MessageOstream out;
   utility::worker_util<std::shared_ptr<ra2yrproto::ra2yr::GameState>> work;
   ra2yrproto::ra2yr::GameState* initial_state;
   std::vector<ra2::Cell> cells;
@@ -258,16 +258,14 @@ struct CBSaveState : public MyCB<CBSaveState> {
   static constexpr char key_name[] = "save_state";
   static constexpr char key_target[] = "on_frame_update";
 
-  explicit CBSaveState(const std::string record_path)
-      : out(std::make_unique<yrclient::CompressedOutputStream>(record_path)),
+  explicit CBSaveState(std::shared_ptr<std::ostream> record_stream)
+      : out(record_stream, true),
         work([this](const auto& w) { this->serialize_state(*w.get()); }, 10U),
         initial_state(nullptr) {}
 
-  void serialize_state(const ra2yrproto::ra2yr::GameState& G) const {
-    if (out != nullptr) {
-      google::protobuf::io::CodedOutputStream co(&out->s_g);
-
-      if (!yrclient::write_message(&G, &co)) {
+  void serialize_state(const ra2yrproto::ra2yr::GameState& G) {
+    if (out.os != nullptr) {
+      if (!out.write(G)) {
         throw std::runtime_error("write_message");
       }
     }
@@ -349,6 +347,7 @@ struct CBSaveState : public MyCB<CBSaveState> {
       auto st = state_to_protobuf(type_classes()->empty());
       work.push(st);
     } catch (const std::exception& e) {
+      // FIXME: rename
       eprintf("FAILED {}", e.what());
       throw;
     }
@@ -358,6 +357,8 @@ struct CBSaveState : public MyCB<CBSaveState> {
 template <typename D>
 struct CBTunnel : public MyCB<D> {
  public:
+  using writer_t = std::shared_ptr<yrclient::MessageOstream>;
+
   struct packet_buffer {
     void* data;
     i32 size;  // set to -1 on error
@@ -367,20 +368,20 @@ struct CBTunnel : public MyCB<D> {
     u32 destination;
   };
 
-  std::shared_ptr<yrclient::CompressedOutputStream> out;
+  writer_t out;
 
-  explicit CBTunnel(std::shared_ptr<yrclient::CompressedOutputStream> out)
-      : out(std::move(out)) {}
+  explicit CBTunnel(writer_t out) : out(out) {}
 
   void write_packet(const u32 source, const u32 dest, const void* buf,
                     size_t len) {
     // dprintf("source={} dest={}, buf={}, len={}", source, dest, buf, len);
     ra2yrproto::ra2yr::TunnelPacket P;
-    google::protobuf::io::CodedOutputStream co(&out->s_g);
     P.set_source(source);
     P.set_destination(dest);
     P.mutable_data()->assign(static_cast<const char*>(buf), len);
-    yrclient::write_message(&P, &co);
+    if (!out->write(P)) {
+      throw std::runtime_error("write_packet failed");
+    }
   }
 
   virtual packet_buffer buffer() = 0;
@@ -398,9 +399,7 @@ struct CBTunnelRecvFrom : public CBTunnel<CBTunnelRecvFrom> {
   static constexpr char key_target[] = "cb_tunnel_recvfrom";
   static constexpr char key_name[] = "tunnel_recvfrom";
 
-  explicit CBTunnelRecvFrom(
-      std::shared_ptr<yrclient::CompressedOutputStream> out)
-      : CBTunnel(std::move(out)) {}
+  explicit CBTunnelRecvFrom(writer_t out) : CBTunnel(std::move(out)) {}
 
   packet_buffer buffer() override {
     return {reinterpret_cast<void*>(cpu_state->ebp + 0x3f074),
@@ -412,8 +411,7 @@ struct CBTunnelSendTo : public CBTunnel<CBTunnelSendTo> {
   static constexpr char key_target[] = "cb_tunnel_sendto";
   static constexpr char key_name[] = "tunnel_sendto";
 
-  explicit CBTunnelSendTo(std::shared_ptr<yrclient::CompressedOutputStream> out)
-      : CBTunnel(std::move(out)) {}
+  explicit CBTunnelSendTo(writer_t out) : CBTunnel(std::move(out)) {}
 
   packet_buffer buffer() override {
     return {reinterpret_cast<void*>(cpu_state->ecx),
@@ -450,18 +448,30 @@ static void init_callbacks(yrclient::InstrumentationService* I) {
     get_callbacks(I)->try_emplace(c->name(), std::move(c));
   };
 
-  // TODO(shmocz): customizable output path
-  const std::string traffic_out = fmt::format("traffic.{}.pb.gz", t);
-  const std::string record_out = fmt::format("record.{}.pb.gz", t);
-  std::shared_ptr<yrclient::CompressedOutputStream> out =
-      std::make_shared<yrclient::CompressedOutputStream>(traffic_out);
+  if (std::getenv("RA2YRCPP_RECORD_TRAFFIC") != nullptr) {
+    const std::string traffic_out = fmt::format("traffic.{}.pb.gz", t);
+    iprintf("record traffic to {}", traffic_out);
 
-  ensure_configuration(I, &I->storage())->set_record_filename(record_out);
-
-  f(std::make_unique<CBTunnelRecvFrom>(out));
-  f(std::make_unique<CBTunnelSendTo>(out));
+    auto out = std::make_shared<yrclient::MessageOstream>(
+        std::make_shared<std::ofstream>(
+            traffic_out, std::ios_base::out | std::ios_base::binary),
+        true);
+    f(std::make_unique<CBTunnelRecvFrom>(out));
+    f(std::make_unique<CBTunnelSendTo>(out));
+  }
   f(std::make_unique<CBExitGameLoop>());
   f(std::make_unique<CBExecuteGameLoopCommand>());
+
+  std::shared_ptr<std::ofstream> record_out = nullptr;
+
+  if (std::getenv("RA2YRCPP_RECORD_PATH") != nullptr) {
+    // TODO(shmocz): customizable output path
+    const std::string record_path = std::getenv("RA2YRCPP_RECORD_PATH");
+    ensure_configuration(I, &I->storage())->set_record_filename(record_path);
+    iprintf("record state to {}", record_path);
+    record_out = std::make_shared<std::ofstream>(
+        record_path, std::ios_base::out | std::ios_base::binary);
+  }
   f(std::make_unique<CBSaveState>(record_out));
   f(std::make_unique<CBUpdateLoadProgress>());
   f(std::make_unique<CBDebugPrint>());

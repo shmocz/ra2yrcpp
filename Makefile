@@ -7,8 +7,7 @@ TESTS := $(patsubst %.cpp,%.exe,$(subst tests/,bin/,$(shell find tests/ -iname "
 PYTHON := python3
 
 export CMAKE_TOOLCHAIN_FILE ?= toolchains/mingw-w64-i686.cmake
-TC_ID ?= $(notdir $(basename $(CMAKE_TOOLCHAIN_FILE)))
-BASE_DIR := $(BUILDDIR)/$(TC_ID)-$(CMAKE_BUILD_TYPE)
+BASE_DIR := $(BUILDDIR)/$(notdir $(basename $(CMAKE_TOOLCHAIN_FILE)))-$(CMAKE_BUILD_TYPE)
 BUILD_DIR = $(BASE_DIR)/build
 export DEST_DIR = $(BASE_DIR)/pkg
 BUILDER ?= builder
@@ -25,6 +24,7 @@ export GID := $(shell id -g)
 export NPROC ?= $(shell nproc)
 export CMAKE_TARGET ?= all
 export CMAKE_EXTRA_ARGS ?=
+export CXXFLAGS ?= -Wall -Wextra
 
 DLL_LOADER_UNIX = $(BUILD_DIR)/load_dll.bin
 DLL_LOADER = $(subst \,\\,$(shell winepath -w $(DLL_LOADER_UNIX)))
@@ -35,7 +35,7 @@ COMPOSE_ARGS ?= --abort-on-container-exit pyra2yr tunnel wm vnc novnc game-0 gam
 compose_cmd := docker-compose -f docker-compose.yml -f $(INTEGRATION_TEST)
 # need -T flag for this to work properly in shell scripts, but this causes ctrl+c not to work.
 # TODO: find a workaround
-compose_build = docker-compose run -e BUILDDIR -e CMAKE_TOOLCHAIN_FILE -e CMAKE_TARGET -e NPROC -e CMAKE_BUILD_TYPE -e EXTRA_PATCHES -e CMAKE_EXTRA_ARGS -T --rm $(BUILDER) make
+compose_build = docker-compose run -e BUILDDIR -e CMAKE_TOOLCHAIN_FILE -e CMAKE_TARGET -e NPROC -e CMAKE_BUILD_TYPE -e EXTRA_PATCHES -e CMAKE_EXTRA_ARGS -e CXXFLAGS -T --rm $(BUILDER)
 
 
 doc:
@@ -139,7 +139,7 @@ docker_test:
 # NB. using "run" the env. vars need to be specified with -e flag
 # actually we dont wanna pass TC in env var, because it overrides the --toolchain flag, which we use to transform relative path
 docker_build:
-	$(compose_build) build
+	$(compose_build) make build
 
 cppcheck:
 	./scripts/cppcheck.sh
@@ -150,5 +150,9 @@ check: cmake_format lint format
 clean:
 	rm -rf $(BUILDDIR); mkdir -p $(BUILDDIR)
 	rm -f test_data/*.status $(GAMEMD_PATCHED)
+
+# TODO: check out the special $(MAKE) variable that presumably passes flags
+docker-release:
+	$(compose_build) ./scripts/create-release.sh
 
 .PHONY: build build_cpp doc lint format test docker docker_build check cppcheck clean

@@ -10,8 +10,9 @@ size_t x86::bytes_to_stack(Xbyak::CodeGenerator* c, const vecu8 bytes) {
 
   std::vector<u32> chunks;
   for (size_t i = 0; i < bytes.size(); i += off) {
-    int ib = std::min(bytes.size(), i + off);
-    u32 dw = from_buf<u32>(it + i, it + ib);
+    u32 dw{0};
+    std::copy(it + i, it + std::min(bytes.size(), i + off),
+              reinterpret_cast<u8*>(&dw));
     chunks.push_back(dw);
   }
   // push dw:s in reverse order
@@ -22,7 +23,7 @@ size_t x86::bytes_to_stack(Xbyak::CodeGenerator* c, const vecu8 bytes) {
   return s;
 }
 
-std::vector<Xbyak::Reg32> x86::get_regs(const Xbyak::CodeGenerator& c) {
+static std::vector<Xbyak::Reg32> get_regs(const Xbyak::CodeGenerator& c) {
   return {c.eax, c.ebx, c.ecx, c.edx, c.esi, c.edi, c.ebp, c.esp};
 }
 

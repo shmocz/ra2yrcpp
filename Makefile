@@ -122,6 +122,7 @@ build_protobuf:
 
 test:
 	set -e; for f in $(TESTS); do \
+		wineboot -s; \
 		wine $(DEST_DIR)/$$f; done
 
 test_integration: $(GAMEMD_PATCHED)

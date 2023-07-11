@@ -59,7 +59,6 @@ if(RA2YRCPP_BUILD_MAIN_DLL)
     protocol
     ZLIB::ZLIB
     fmt::fmt
-    psapi
     YRpp)
 
   if(WIN32)

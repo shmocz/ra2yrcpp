@@ -15,7 +15,7 @@ set(NATIVE_TARGETS "")
 function(new_make_test)
   cmake_parse_arguments(MY_FN "" "NAME" "SRC;LIB" ${ARGN})
   add_executable("${MY_FN_NAME}" ${MY_FN_SRC})
-  target_link_libraries("${MY_FN_NAME}" PUBLIC gtest_main ${MY_FN_LIB})
+  target_link_libraries("${MY_FN_NAME}" PRIVATE gtest_main ${MY_FN_LIB})
   add_test(NAME ${MY_FN_NAME} COMMAND ${MY_FN_NAME})
   install(TARGETS "${MY_FN_NAME}" RUNTIME)
   list(APPEND NATIVE_TARGETS "${MY_FN_NAME}")
@@ -24,12 +24,12 @@ endfunction()
 if(RA2YRCPP_BUILD_MAIN_DLL)
   new_make_test(
     NAME test_process
-    SRC test_process.cpp ../src/utility/scope_guard.hpp
+    SRC test_process.cpp
     LIB ${YRCLIENT_LIB})
 
   new_make_test(
     NAME test_hooks
-    SRC test_hooks.cpp ../src/util_string.cpp
+    SRC test_hooks.cpp
     LIB ${YRCLIENT_LIB} fmt::fmt)
 
   add_executable(dummy_program dummy_program.cpp)

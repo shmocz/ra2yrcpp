@@ -5,6 +5,8 @@
 #include "utility/scope_guard.hpp"
 #include "utility/time.hpp"
 
+#include <fmt/core.h>
+
 #include <cstdlib>
 
 using namespace process;
@@ -361,9 +363,8 @@ void Process::write_memory(void* dest, const void* src, const size_t size,
 void Process::read_memory(void* dest, const void* src, const size_t size) {
 #ifdef _WIN32
   if (ReadProcessMemory(handle_, src, dest, size, nullptr) == 0) {
-    throw yrclient::system_error("ReadProcessMemory src=" +
-                                 yrclient::to_hex(reinterpret_cast<u32>(src)) +
-                                 ",count=" + std::to_string(size));
+    throw yrclient::system_error(
+        fmt::format("ReadProcessMemory src={},count={}", src, size));
   }
 #elif __linux__
   return;

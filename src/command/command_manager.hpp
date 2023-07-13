@@ -86,6 +86,9 @@ class CommandManager {
   /// Worker loop that consumes command from input queue and stores result to
   /// appropriate queue.
   void worker();
+  /// Start the main worker thread.
+  /// @exception std::runtime_error if a worker thread has already been created
+  void start();
   /// Puts a shutdown Command to work queue
   void shutdown();
   ///
@@ -107,7 +110,7 @@ class CommandManager {
  private:
   std::atomic_bool active_{true};
   duration_t results_acquire_timeout_;
-  std::thread worker_thread_;
+  std::unique_ptr<std::thread> worker_thread_;
   CommandFactory factory_;
   std::priority_queue<std::shared_ptr<Command>,
                       std::vector<std::shared_ptr<Command>>, QueueCompare>

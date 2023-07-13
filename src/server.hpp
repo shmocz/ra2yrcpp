@@ -70,6 +70,11 @@ class Server {
   std::deque<connection::Connection*>& close_queue();
   std::mutex connections_mut;
   util::AtomicVariable<Server::STATE>& state();
+  /// Start the main listener loop
+  /// @exception std::runtime_error if listener thread already exists
+  void start();
+  /// Close all active connections and stop listening
+  void shutdown();
 
  private:
   const unsigned int max_clients_;
@@ -80,7 +85,7 @@ class Server {
   util::AtomicVariable<Server::STATE> state_;
   std::deque<connection::Connection*> close_queue_;
   connection::Connection listen_connection_;
-  std::thread listen_thread_;
+  std::unique_ptr<std::thread> listen_thread_;
   std::vector<uptr<ConnectionCTX>> connections_;
   /// Remove Connections that have been marked as closed from the connections
   /// vector

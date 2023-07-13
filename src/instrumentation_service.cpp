@@ -6,6 +6,7 @@
 #include "connection.hpp"
 #include "errors.hpp"
 #include "logging.hpp"
+#include "server.hpp"
 #include "util_string.hpp"
 
 #include <fmt/core.h>
@@ -219,6 +220,8 @@ void InstrumentationService::store_value(
   storage_[key] = std::move(d);
 }
 
+// FIXME: don't accept connections until fully initialized
+// FIXME: server initialization must be atomic!
 InstrumentationService::InstrumentationService(
     InstrumentationService::IServiceOptions opt,
     std::function<std::string(InstrumentationService*)> on_shutdown,
@@ -228,6 +231,9 @@ InstrumentationService::InstrumentationService(
       server_(opt.max_clients, opt.port),
       io_service_tid_(0U),
       ws_proxy_object_(nullptr) {
+  cmd_manager_.start();
+
+  // Set server callbacks
   server_.callbacks().receive_bytes = [this](auto* c, auto* b) {
     return this->on_receive_bytes(c, b);
   };
@@ -236,6 +242,10 @@ InstrumentationService::InstrumentationService(
   };
   server_.callbacks().accept = [this](auto* c) { this->on_accept(c); };
   server_.callbacks().close = [this](auto* c) { this->on_close(c); };
+
+  // Start server and wait for it to become active
+  // TODO: should the wait just happen inside the start()?
+  server_.start();
   server_.state().wait(server::Server::STATE::ACTIVE);
 
   if (extra_init != nullptr) {
@@ -303,6 +313,9 @@ InstrumentationService::~InstrumentationService() {
     // The IO service must be stopped beforehand, or we get UAF in the ws proxy
     io_service_ = nullptr;
   }
+
+  server_.shutdown();
+  cmd_manager_.shutdown();
 }
 
 const InstrumentationService::IServiceOptions& InstrumentationService::opts()

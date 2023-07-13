@@ -14,20 +14,9 @@ Server::Server(unsigned int num_clients, unsigned int port, Callbacks callbacks,
       accept_timeout_ms_(accept_timeout_ms),
       state_(STATE::NONE),
       listen_connection_(port_),
-      listen_thread_([this]() {
-        try {
-          this->listener_thread();
-        } catch (const std::exception& e) {
-          eprintf("listener died {}", e.what());
-        }
-      }) {}
+      listen_thread_(nullptr) {}
 
-Server::~Server() {
-  // Tell all worker threads to shut down
-  state_.store(STATE::CLOSING);
-  listen_thread_.join();
-  state_.store(STATE::CLOSED);
-}
+Server::~Server() {}
 
 void Server::connection_thread(connection::Connection* C) {
   if (callbacks().accept) {
@@ -156,3 +145,24 @@ std::deque<connection::Connection*>& Server::close_queue() {
 }
 
 util::AtomicVariable<Server::STATE>& Server::state() { return state_; }
+
+void Server::start() {
+  if (listen_thread_ != nullptr) {
+    throw std::runtime_error("listener thread already created");
+  }
+
+  listen_thread_ = std::make_unique<std::thread>([this]() {
+    try {
+      this->listener_thread();
+    } catch (const std::exception& e) {
+      eprintf("listener died {}", e.what());
+    }
+  });
+}
+
+void Server::shutdown() {
+  // Tell all worker threads to shut down
+  state_.store(STATE::CLOSING);
+  listen_thread_->join();
+  state_.store(STATE::CLOSED);
+}

@@ -5,6 +5,8 @@
 
 #include <fmt/chrono.h>
 
+#include <stdexcept>
+
 using namespace command;
 
 CommandEntry::CommandEntry(const std::string name, Command::handler_t handler)
@@ -40,20 +42,26 @@ Command* CommandFactory::make_command(
 }
 
 CommandManager::CommandManager(const duration_t results_acquire_timeout)
-    : results_acquire_timeout_(results_acquire_timeout),
-      worker_thread_([this]() {
-        try {
-          this->worker();
-        } catch (const std::exception& e) {
-          eprintf("worker died {}", e.what());
-        }
-      }) {}
+    : results_acquire_timeout_(results_acquire_timeout) {}
 
-CommandManager::~CommandManager() {
+CommandManager::~CommandManager() {}
+
+void CommandManager::start() {
+  if (worker_thread_ != nullptr) {
+    throw std::runtime_error("command manager worker thread already exists");
+  }
+  worker_thread_ = std::make_unique<std::thread>([this]() {
+    try {
+      this->worker();
+    } catch (const std::exception& e) {
+      eprintf("worker died {}", e.what());
+    }
+  });
+}
+
+void CommandManager::shutdown() {
   enqueue_builtin(CommandType::SHUTDOWN, 0);
-  dprintf("joining");
-  worker_thread_.join();
-  dprintf("joined");
+  worker_thread_->join();
 }
 
 CommandFactory& CommandManager::factory() { return factory_; }
@@ -134,6 +142,7 @@ void CommandManager::enqueue_command(std::shared_ptr<Command> cmd) {
 
 void CommandManager::worker() {
   dprintf("Spawn worker");
+
   while (active_) {
     // Wait for work
     std::unique_lock<std::mutex> k(work_queue_mut_);
@@ -158,7 +167,7 @@ void CommandManager::worker() {
         throw yrclient::general_error("Unknown command type");
     }
   }
-  dprintf("exit worker");
+  iprintf("exit worker");
 }
 
 // NB. race condition if trying to flush queue, which is being destroyed at the
@@ -173,7 +182,7 @@ std::vector<std::shared_ptr<Command>> CommandManager::flush_results(
     const uint64_t id, const duration_t timeout, const std::size_t count) {
   auto [l, rq] = aq_results_queue();
   if (rq->find(id) == rq->end()) {
-    throw std::out_of_range(std::string("no such queue ") + std::to_string(id));
+    throw std::out_of_range(fmt::format("no such queue {}", id));
   }
   auto q = rq->at(id);
   l.unlock();

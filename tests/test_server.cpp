@@ -32,6 +32,7 @@ class ServerTest : public ::testing::Test {
   void SetUp() override {
     network::Init();
     S = get_server();
+    S->start();
   }
 
   std::unique_ptr<server::Server> get_server() {
@@ -41,7 +42,7 @@ class ServerTest : public ::testing::Test {
         cfg::ACCEPT_TIMEOUT_MS);
   }
 
-  void TearDown() override {}
+  void TearDown() override { S->shutdown(); }
 
   std::unique_ptr<server::Server> S;
   const unsigned int max_clients{4};

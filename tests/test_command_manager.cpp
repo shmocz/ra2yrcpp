@@ -12,6 +12,10 @@ using namespace std::chrono_literals;
 class CommandManagerTest : public ::testing::Test {
  protected:
   command::CommandManager M;
+
+  void SetUp() override { M.start(); }
+
+  void TearDown() override { M.shutdown(); }
 };
 
 class GenerateReadableString {

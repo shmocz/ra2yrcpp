@@ -5,8 +5,12 @@
 #include "instrumentation_client.hpp"
 #include "logging.hpp"
 #include "types.h"
+#include "utility/time.hpp"
+
+#include <fmt/chrono.h>
 
 #include <chrono>
+#include <exception>
 
 namespace client_utils {
 
@@ -19,12 +23,28 @@ inline ra2yrproto::PollResults poll_until(
     const duration_t timeout = 5.0s) {
   ra2yrproto::PollResults P;
   ra2yrproto::Response response;
-  P = client->poll_blocking(timeout, 0u);
+
+  constexpr int max_tries = 4;
+  constexpr int retry_ms = 1000;
+
+  for (int i = 1; i <= max_tries; i++) {
+    try {
+      P = client->poll_blocking(timeout, 0u);
+      break;
+    } catch (const std::exception& e) {
+      eprintf("poll failed: \"{}\", retry after {} ms, try {}/{}", e.what(),
+              retry_ms, i, max_tries);
+      util::sleep_ms(retry_ms);
+    }
+  }
 
   dprintf("size={}", P.result().results().size());
   return P;
 }
 
+// FIXME: this immediately gives broken connection "no such queue" in some cases
+// FIXME: race condition: the result queue may not been established yet if the
+// poll is performed immediately after connecting
 inline auto run_one(const google::protobuf::Message& M,
                     instrumentation_client::InstrumentationClient* client,
                     const duration_t poll_timeout = 5.0s) {
@@ -38,7 +58,7 @@ inline auto run_one(const google::protobuf::Message& M,
       return ra2yrproto::CommandResult();
     }
     return res.result().results()[0];
-  } catch (const std::runtime_error& e) {
+  } catch (const std::exception& e) {
     eprintf("broken connection {}", e.what());
     return ra2yrproto::CommandResult();
   }

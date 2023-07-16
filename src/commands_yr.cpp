@@ -32,7 +32,6 @@ using util_command::message_result;
 
 // static keys for callbacks, hooks and misc. data
 constexpr char key_callbacks_yr[] = "callbacks_yr";
-constexpr char key_on_load_game[] = "on_load_game";
 
 // TODO: reduce calls to this
 template <typename T, typename... ArgsT>
@@ -594,10 +593,9 @@ auto create_callbacks() {
   });
 }
 
-constexpr std::array<std::pair<const char*, u32>, 7> gg_hooks = {{
+constexpr std::array<std::pair<const char*, u32>, 6> gg_hooks = {{
     {CBExecuteGameLoopCommand::key_target, 0x55de4f},  //
     {CBExitGameLoop::key_target, 0x72dfb0},            //
-    {key_on_load_game, 0x686730},                      //
     {CBTunnelSendTo::key_target, 0x7b3d6f},            //
     {CBTunnelRecvFrom::key_target, 0x7b3f15},          //
     {CBUpdateLoadProgress::key_target, 0x643c62},      //

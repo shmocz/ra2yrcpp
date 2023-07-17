@@ -14,7 +14,6 @@
 #include "utility/memtools.hpp"
 #include "utility/serialize.hpp"
 
-#include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/repeated_ptr_field.h>
 
 #include <YRPP.h>
@@ -32,21 +31,22 @@ using util_command::message_result;
 
 // static keys for callbacks, hooks and misc. data
 constexpr char key_callbacks_yr[] = "callbacks_yr";
+constexpr char key_configuration[] = "yr_config";
 
-// TODO: reduce calls to this
+// TODO(shmocz): reduce calls to this
 template <typename T, typename... ArgsT>
 T* ensure_storage_value(yrclient::InstrumentationService* I,
-                        yrclient::storage_t* s, const std::string key,
-                        ArgsT... args) {
-  if (s->find(key) == s->end()) {
+                        const std::string key, ArgsT... args) {
+  if (I->storage().find(key) == I->storage().end()) {
     I->store_value(key, utility::make_uptr<T>(args...));
   }
-  return static_cast<T*>(s->at(key).get());
+  return static_cast<T*>(I->storage().at(key).get());
 }
 
-auto* get_storage(yrclient::InstrumentationService* I, yrclient::storage_t* s) {
+// TODO(shmocz): try to pick a name to avoid confusion with IService's storage
+auto* get_storage(yrclient::InstrumentationService* I) {
   return ensure_storage_value<ra2yrproto::commands::StorageValue>(
-      I, s, "message_storage");
+      I, "message_storage");
 }
 
 static auto default_configuration() {
@@ -56,39 +56,28 @@ static auto default_configuration() {
   return C;
 }
 
-// FIXME: dont explicitly pass storage
 static ra2yrproto::commands::Configuration* ensure_configuration(
-    yrclient::InstrumentationService* I, yrclient::storage_t* s) {
-  static constexpr char key_configuration[] = "yr_config";
-  if (s->find(key_configuration) == s->end()) {
+    yrclient::InstrumentationService* I) {
+  auto& s = I->storage();
+  if (s.find(key_configuration) == s.end()) {
     (void)ensure_storage_value<ra2yrproto::commands::Configuration>(
-        I, s, key_configuration, default_configuration());
+        I, key_configuration, default_configuration());
   }
   return ensure_storage_value<ra2yrproto::commands::Configuration>(
-      I, s, key_configuration);
+      I, key_configuration);
 }
 
 struct CBYR : public yrclient::ISCallback {
   yrclient::storage_t* storage{nullptr};
   ra2::abi::ABIGameMD* abi_{nullptr};
   ra2yrproto::commands::Configuration* config_{nullptr};
-  static constexpr char key_configuration[] = "yr_config";
 
   CBYR() = default;
 
-  template <typename T>
-  auto* storage_value(const std::string key) {
-    return ensure_storage_value<T>(this->I, this->storage, key);
-  }
-
-  template <typename T>
-  auto* storage_value() {
-    return ensure_storage_value<typename T::type>(this->I, this->storage,
-                                                  T::key);
-  }
-
   auto* abi() {
-    return abi_ != nullptr ? abi_ : storage_value<ra2::abi::ABIGameMD>("abi");
+    return abi_ != nullptr
+               ? abi_
+               : ensure_storage_value<ra2::abi::ABIGameMD>(I, "abi");
   }
 
   void do_call(yrclient::InstrumentationService* I) override {
@@ -104,18 +93,16 @@ struct CBYR : public yrclient::ISCallback {
     storage = nullptr;
   }
 
-  auto* game_state() {
-    return get_storage(this->I, this->storage)->mutable_game_state();
-  }
+  auto* game_state() { return get_storage(this->I)->mutable_game_state(); }
 
   auto* type_classes() {
-    return get_storage(this->I, this->storage)
+    return get_storage(this->I)
         ->mutable_initial_game_state()
         ->mutable_object_types();
   }
 
   auto* prerequisite_groups() {
-    return get_storage(this->I, this->storage)
+    return get_storage(this->I)
         ->mutable_initial_game_state()
         ->mutable_prerequisite_groups();
   }
@@ -123,9 +110,8 @@ struct CBYR : public yrclient::ISCallback {
   virtual void exec() { throw std::runtime_error("Not implemented"); }
 
   ra2yrproto::commands::Configuration* configuration() {
-    return config_ != nullptr
-               ? config_
-               : config_ = ensure_configuration(this->I, this->storage);
+    return config_ != nullptr ? config_
+                              : config_ = ensure_configuration(this->I);
   }
 };
 
@@ -141,8 +127,13 @@ struct MyCB : public B {
   std::string name() override { return D::key_name; }
 
   std::string target() override { return D::key_target; }
+
+  static D* get(yrclient::InstrumentationService* I) {
+    return reinterpret_cast<D*>(get_callbacks(I)->at(D::key_name).get());
+  }
 };
 
+// TODO(shmocz): do the callback initialization later
 struct CBExitGameLoop : public MyCB<CBExitGameLoop, yrclient::ISCallback> {
   static constexpr char key_target[] = "on_gameloop_exit";
   static constexpr char key_name[] = "gameloop_exit";
@@ -159,7 +150,7 @@ struct CBExitGameLoop : public MyCB<CBExitGameLoop, yrclient::ISCallback> {
     // NB. the corresponding HookCallback must be removed from Hook object
     // (shared_ptr would be handy here)
     auto [mut, s] = I->aq_storage();
-    get_storage(I, s)->mutable_game_state()->set_stage(
+    get_storage(I)->mutable_game_state()->set_stage(
         ra2yrproto::ra2yr::STAGE_EXIT_GAME);
 
     auto [lk, hhooks] = I->aq_hooks();
@@ -169,21 +160,28 @@ struct CBExitGameLoop : public MyCB<CBExitGameLoop, yrclient::ISCallback> {
     std::transform(callbacks->begin(), callbacks->end(),
                    std::back_inserter(keys),
                    [](const auto& v) { return v.first; });
+
     for (const auto& k : keys) {
-      if (k != name()) {
-        // Get corresponding hook
-        auto h = std::find_if(hhooks->begin(), hhooks->end(), [&](auto& a) {
-          return (a.second.name() == callbacks->at(k)->target());
-        });
-        // Remove callback's reference from Hook
-        if (h == hhooks->end()) {
-          throw std::runtime_error("hook not found");
-        }
+      if (k == name()) {
+        continue;
+      }
+      // Get corresponding hook
+      auto h = std::find_if(hhooks->begin(), hhooks->end(), [&](auto& a) {
+        return (a.second.name() == callbacks->at(k)->target());
+      });
+      // Remove callback's reference from Hook
+      if (h == hhooks->end()) {
+        eprintf("no hook found for callback {}", k);
+      } else {
         h->second.remove_callback(k);
         // Delete callback object
         callbacks->erase(k);
       }
     }
+
+    // Flush output in case the process is not terminated gracefully.
+    std::cerr << std::flush;
+    std::cout << std::flush;
   }
 };
 
@@ -194,10 +192,9 @@ struct CBUpdateLoadProgress : public MyCB<CBUpdateLoadProgress> {
   CBUpdateLoadProgress() = default;
 
   void exec() override {
-    // this = ESI
-    auto* P = reinterpret_cast<ProgressScreenClass*>(cpu_state->esi);
-    auto* B = P->PlayerProgresses;
-    auto* local_state = get_storage(I, storage)->mutable_load_state();
+    auto* B = ProgressScreenClass::Instance().PlayerProgresses;
+
+    auto* local_state = get_storage(I)->mutable_load_state();
     if (local_state->load_progresses().empty()) {
       for (auto i = 0U; i < (sizeof(*B) / sizeof(B)); i++) {
         local_state->add_load_progresses(0.0);
@@ -206,9 +203,8 @@ struct CBUpdateLoadProgress : public MyCB<CBUpdateLoadProgress> {
     for (int i = 0; i < local_state->load_progresses().size(); i++) {
       local_state->set_load_progresses(i, B[i]);
     }
-    get_storage(I, storage)
-        ->mutable_game_state()
-        ->set_stage(ra2yrproto::ra2yr::LoadStage::STAGE_LOADING);
+    get_storage(I)->mutable_game_state()->set_stage(
+        ra2yrproto::ra2yr::LoadStage::STAGE_LOADING);
   }
 };
 
@@ -280,11 +276,11 @@ struct CBSaveState : public MyCB<CBSaveState> {
 
   std::shared_ptr<ra2yrproto::ra2yr::GameState> state_to_protobuf(
       const bool do_type_classes = false) {
-    auto* gbuf = get_storage(I, storage)->mutable_game_state();
+    auto* gbuf = get_storage(I)->mutable_game_state();
 
     // put load stages
     gbuf->mutable_load_progresses()->CopyFrom(
-        get_storage(I, storage)->load_state().load_progresses());
+        get_storage(I)->load_state().load_progresses());
 
     gbuf->clear_object_types();
     gbuf->clear_prerequisite_groups();
@@ -307,8 +303,8 @@ struct CBSaveState : public MyCB<CBSaveState> {
 
     // Initialize MapData
     if (gbuf->current_frame() > 0U &&
-        get_storage(I, storage)->map_data().cells_size() == 0U) {
-      ra2::parse_MapData(get_storage(I, storage)->mutable_map_data(),
+        get_storage(I)->map_data().cells_size() == 0U) {
+      ra2::parse_MapData(get_storage(I)->mutable_map_data(),
                          MapClass::Instance.get(), abi());
     }
 
@@ -324,16 +320,16 @@ struct CBSaveState : public MyCB<CBSaveState> {
       gbuf->clear_cells_difference();
       ra2::parse_map(&cells, MapClass::Instance.get(),
                      gbuf->mutable_cells_difference());
-      update_MapData(get_storage(I, storage)->mutable_map_data(),
+      update_MapData(get_storage(I)->mutable_map_data(),
                      gbuf->cells_difference());
     }
 
     if (initial_state == nullptr) {
-      initial_state = get_storage(I, storage)->mutable_initial_game_state();
+      initial_state = get_storage(I)->mutable_initial_game_state();
       initial_state->CopyFrom(*gbuf);
     }
 
-    ra2::parse_EventLists(gbuf, get_storage(I, storage)->mutable_event_buffer(),
+    ra2::parse_EventLists(gbuf, get_storage(I)->mutable_event_buffer(),
                           cfg::EVENT_BUFFER_SIZE);
 
     return std::make_shared<ra2yrproto::ra2yr::GameState>(*gbuf);
@@ -342,14 +338,8 @@ struct CBSaveState : public MyCB<CBSaveState> {
   void exec() override {
     // enables event debug logs
     // *reinterpret_cast<char*>(0xa8ed74) = 1;
-    try {
-      auto st = state_to_protobuf(type_classes()->empty());
-      work.push(st);
-    } catch (const std::exception& e) {
-      // FIXME: rename
-      eprintf("FAILED {}", e.what());
-      throw;
-    }
+    auto st = state_to_protobuf(type_classes()->empty());
+    work.push(st);
   }
 };
 
@@ -464,9 +454,8 @@ static void init_callbacks(yrclient::InstrumentationService* I) {
   std::shared_ptr<std::ofstream> record_out = nullptr;
 
   if (std::getenv("RA2YRCPP_RECORD_PATH") != nullptr) {
-    // TODO(shmocz): customizable output path
     const std::string record_path = std::getenv("RA2YRCPP_RECORD_PATH");
-    ensure_configuration(I, &I->storage())->set_record_filename(record_path);
+    ensure_configuration(I)->set_record_filename(record_path);
     iprintf("record state to {}", record_path);
     record_out = std::make_shared<std::ofstream>(
         record_path, std::ios_base::out | std::ios_base::binary);
@@ -501,15 +490,10 @@ static void unit_action(const u32 p_object,
 }
 
 template <typename T>
-static auto* get_callback(yrclient::InstrumentationService* I) {
-  return reinterpret_cast<T*>(
-      reinterpret_cast<u32>(get_callbacks(I)->at(T::key_name).get()));
-}
-
 static void put_gameloop_command(
-    yrclient::InstrumentationService* I, command::Command* cmd,
+    util_command::ISCommand<T>* Q,
     std::function<void(CBExecuteGameLoopCommand::work_item*)> fn) {
-  get_callback<CBExecuteGameLoopCommand>(I)->put_work(fn, cmd);
+  CBExecuteGameLoopCommand::get(Q->I())->put_work(fn, Q->c);
 }
 
 namespace cmd {
@@ -517,7 +501,7 @@ auto click_event() {
   return get_cmd<ra2yrproto::commands::ClickEvent>([](auto* Q) {
     auto args = Q->args();
 
-    put_gameloop_command(Q->I(), Q->c, [args](auto* it) {
+    put_gameloop_command(Q, [args](auto* it) {
       auto C = it->cb;
       auto& O = C->game_state()->objects();
       for (auto k : args.object_addresses()) {
@@ -536,7 +520,7 @@ auto unit_command() {
   return get_cmd<ra2yrproto::commands::UnitCommand>([](auto* Q) {
     auto args = Q->args();
 
-    put_gameloop_command(Q->I(), Q->c, [args](auto* it) {
+    put_gameloop_command(Q, [args](auto* it) {
       auto C = it->cb;
       auto& O = C->game_state()->objects();
       for (auto k : args.object_addresses()) {
@@ -554,7 +538,7 @@ auto create_callbacks() {
   return get_cmd<ra2yrproto::commands::CreateCallbacks>([](auto* Q) {
     auto [lk_s, s] = Q->I()->aq_storage();
     // Create ABI
-    (void)ensure_storage_value<ra2::abi::ABIGameMD>(Q->I(), s, "abi");
+    (void)ensure_storage_value<ra2::abi::ABIGameMD>(Q->I(), "abi");
 
     if (s->find(key_callbacks_yr) == s->end()) {
       init_callbacks(Q->I());
@@ -581,7 +565,7 @@ auto create_callbacks() {
             "Hook {} already has a callback {}", target, hook_name));
       }
 
-      dprintf("add hook, target={} cb={}", target, hook_name);
+      iprintf("add callback, target={} cb={}", target, hook_name);
       auto cb = v.get();
       // FIXME: avoid using wrapper
       h->second.add_callback(
@@ -632,7 +616,7 @@ auto get_game_state() {
   return get_cmd<ra2yrproto::commands::GetGameState>([](auto* Q) {
     auto [mut, s] = Q->I()->aq_storage();
     Q->command_data().mutable_result()->mutable_state()->CopyFrom(
-        get_storage(Q->I(), s)->game_state());
+        get_storage(Q->I())->game_state());
   });
 }
 
@@ -640,8 +624,7 @@ auto inspect_configuration() {
   return get_cmd<ra2yrproto::commands::InspectConfiguration>([](auto* Q) {
     auto [mut, s] = Q->I()->aq_storage();
     auto res = Q->command_data().mutable_result();
-    auto* I = Q->I();
-    auto* cfg = ensure_configuration(I, &I->storage());
+    auto* cfg = ensure_configuration(Q->I());
     cfg->MergeFrom(Q->command_data().args().config());
     res->mutable_config()->CopyFrom(*cfg);
   });
@@ -649,30 +632,27 @@ auto inspect_configuration() {
 
 // NB. CellClicked not called for moving units, but for attack (and what
 // else?) ClickedMission seems to be used for various other events
-// FIXME: need to implement GetCellAt(coords)
 auto mission_clicked() {
   return get_cmd<ra2yrproto::commands::MissionClicked>([](auto* Q) {
     auto args = Q->args();
 
-    // TODO(shmocz): the command protobuf message is already stored in the
-    // Command object, so in theory a copy could be avoided. However the
-    // protobuf message has Any type, so a message of proper type needs to be
-    // allocated for unpacking regardless.
-    put_gameloop_command(Q->I(), Q->c, [args](auto* it) {
-      auto* C = it->cb;
-      auto& O = C->game_state()->objects();
-      for (auto k : args.object_addresses()) {
+    // TODO(shmocz): Figure out a way to avoid copies. the command protobuf
+    // message is already stored in the Command object, but since it's of type
+    // `Any`, a message object with appropriate type needs to be allocated for
+    // unpacking.
+    put_gameloop_command(Q, [args](auto* it) {
+      auto& O = it->cb->game_state()->objects();
+      for (const auto k : args.object_addresses()) {
         if (std::find_if(O.begin(), O.end(), [k](auto& v) {
               return v.pointer_self() == k && !v.in_limbo();
             }) != O.end()) {
-          auto c1 = args.coordinates();
-          auto coords = CoordStruct{.X = c1.x(), .Y = c1.y(), .Z = c1.z()};
-          auto cell = MapClass::Instance.get()->TryGetCellAt(coords);
-          auto* p = reinterpret_cast<CellClass*>(cell);
-          auto b = ra2::abi::ClickMission::call(
-              C->abi(), k, static_cast<Mission>(args.event()),
-              args.target_object(), p, nullptr);
-          if (!b) {
+          auto c = args.coordinates();
+          if (!ra2::abi::ClickMission::call(
+                  it->cb->abi(), k, static_cast<Mission>(args.event()),
+                  args.target_object(),
+                  MapClass::Instance.get()->TryGetCellAt(
+                      CoordStruct{.X = c.x(), .Y = c.y(), .Z = c.z()}),
+                  nullptr)) {
             eprintf("click mission error");
           }
         }
@@ -687,9 +667,8 @@ auto add_event() {
     auto args = Q->args();
     Q->async();
 
-    put_gameloop_command(Q->I(), Q->c, [args](auto* it) {
+    put_gameloop_command(Q, [args](auto* it) {
       const auto frame_delay = args.frame_delay();
-      auto* C = it->cb;
       auto* cmd = it->cmd;
 
       auto frame = Unsorted::CurrentFrame + frame_delay;
@@ -709,7 +688,7 @@ auto add_event() {
       EventClass E(static_cast<EventType>(args.event().event_type()), false,
                    static_cast<char>(house_index), static_cast<u32>(frame));
 
-      auto ts = C->abi()->timeGetTime();
+      auto ts = it->cb->abi()->timeGetTime();
       if (args.event().has_production()) {
         auto& ev = args.event().production();
         E.Data.Production = {.RTTI_ID = ev.rtti_id(),
@@ -746,7 +725,7 @@ auto place_query() {
     auto args = Q->args();
     Q->async();
 
-    put_gameloop_command(Q->I(), Q->c, [args](auto* it) {
+    put_gameloop_command(Q, [args](auto* it) {
       auto [C, cmd, fn] = *it;
       auto A = ra2::abi::DVCIterator(TechnoTypeClass::Array.get());
       auto B = std::find_if(A.begin(), A.end(), [args](auto* p) {
@@ -769,7 +748,6 @@ auto place_query() {
 
       // Call for each cell
       if (B != A.end()) {
-        auto* q = static_cast<BuildingTypeClass*>(*B);
         for (auto& c : args.coordinates()) {
           auto coords = CoordStruct{.X = c.x(), .Y = c.y(), .Z = c.z()};
           auto cell_s = CellClass::Coord2Cell(coords);
@@ -779,18 +757,19 @@ auto place_query() {
           auto* cs = reinterpret_cast<CellStruct*>(&cell_s);
 
           auto p_DisplayClass = 0x87F7E8u;
-          // FIXME: rename BuildingClass to BuildingTypeClass
+          // TODO(shmocz): rename BuildingClass to BuildingTypeClass
           if (C->abi()->DisplayClass_Passes_Proximity_Check(
-                  p_DisplayClass, reinterpret_cast<BuildingTypeClass*>(q),
+                  p_DisplayClass, reinterpret_cast<BuildingTypeClass*>(*B),
                   house->array_index(), cs) &&
               C->abi()->BuildingClass_CanPlaceHere(
-                  reinterpret_cast<std::uintptr_t>(q), cs, house->self())) {
+                  reinterpret_cast<std::uintptr_t>(*B), cs, house->self())) {
             auto* cnew = res->add_coordinates();
             cnew->CopyFrom(c);
           }
         }
       } else {
-        eprintf("could not locate building tc");
+        // TODO(shmocz): send error message back
+        eprintf("TypeClass {} does not exist", args.type_class());
       }
       // copy results
       p->mutable_result()->PackFrom(r);
@@ -802,7 +781,7 @@ auto send_message() {
   return get_cmd<ra2yrproto::commands::AddMessage>([](auto* Q) {
     auto args = Q->args();
 
-    put_gameloop_command(Q->I(), Q->c, [args](auto* it) {
+    put_gameloop_command(Q, [args](auto* it) {
       it->cb->abi()->AddMessage(1, args.message(), args.color(), 0x4046,
                                 args.duration_frames(), false);
     });
@@ -832,7 +811,6 @@ static void convert_map_data(ra2yrproto::ra2yr::MapDataSoA* dst,
 
 ///
 /// Read a protobuf message from storage determined by command argument type.
-///
 auto read_value() {
   return get_cmd<ra2yrproto::commands::ReadValue>([](auto* Q) {
     auto [mut, s] = Q->I()->aq_storage();
@@ -846,11 +824,11 @@ auto read_value() {
 
     if (fld->name() == "map_data_soa") {
       convert_map_data(D->mutable_map_data_soa(),
-                       get_storage(Q->I(), s)->mutable_map_data());
+                       get_storage(Q->I())->mutable_map_data());
     } else {
       // TODO: put this stuff to protocol.cpp
       // copy the data
-      auto* sval = get_storage(Q->I(), s);
+      auto* sval = get_storage(Q->I());
       D->GetReflection()->MutableMessage(D, fld)->CopyFrom(
           sval->GetReflection()->GetMessage(*sval, fld));
     }

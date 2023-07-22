@@ -77,3 +77,9 @@ message SystemState {
   repeated CommandQueue queues = 2;
   string directory = 3;
 }
+
+message HookEntry {
+  string name = 1;
+  uint64 address = 2;
+  uint32 code_length = 3;
+}

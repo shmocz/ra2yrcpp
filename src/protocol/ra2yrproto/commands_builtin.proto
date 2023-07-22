@@ -13,17 +13,19 @@ message GetSystemState {
   Result result = 2;
 }
 
-message InstallHook {
+// Create the given hooks
+message CreateHooks {
   message Args {
-    string name = 1;
-    uint64 address = 2;
-    uint32 code_length = 3;
+    // Don't suspend other threads during patching
+    bool no_suspend_threads = 1;
+    repeated HookEntry hooks = 2;
   }
   message Result {}
   Args args = 1;
   Result result = 2;
 }
 
+// Only used for testing
 message AddCallback {
   message Args {
     uint64 hook_address = 1;
@@ -57,12 +59,16 @@ message GetValue {
   Result result = 2;
 }
 
+// Only used for testing
 message HookableCommand {
   message Args {}
 
   message Result {
+    // Address of the test function
     uint64 address_test_function = 1;
+    // The number of bytes required for the hook
     uint32 code_size = 2;
+    // Address of the callback function
     uint64 address_test_callback = 3;
   }
   Args args = 1;

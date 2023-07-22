@@ -60,8 +60,8 @@ def map_paddr(sections: List[Section], paddr: int) -> int:
     return r
 
 
-def get_source():
-    with open("src/commands_yr.cpp", "r") as f:
+def read_file(p):
+    with open(p, "r") as f:
         return f.read()
 
 
@@ -207,6 +207,12 @@ def parse_args():
         help="Extra patches to apply in format <type><address>:<path>. <type> can be 'd' (detour) or 'r' (raw) Address is in hex.",
     )
     a.add_argument(
+        "-f",
+        "--source-file",
+        default=os.path.join("src", "hooks_yr.cpp"),
+        help="C++ source from which to parse hook addresses",
+    )
+    a.add_argument(
         "-i", "--input", default="gamemd-spawn.exe", help="gamemd path"
     )
     return a.parse_args()
@@ -235,7 +241,7 @@ def get_sections(sections: List[str]) -> List[Section]:
 def main():
     lg.basicConfig(level=lg.INFO)
     a = parse_args()
-    addrs = get_hook_addresses(get_source())
+    addrs = get_hook_addresses(read_file(a.source_file))
 
     with open(a.input, "rb") as f:
         b = bytearray(f.read())

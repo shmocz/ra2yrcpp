@@ -19,20 +19,17 @@
 
 using namespace yrclient;
 
-yrclient::ISCallback::ISCallback() : I(nullptr) {}
+ISCallback::ISCallback() : I(nullptr) {}
 
-void yrclient::ISCallback::call(hook::Hook* h, void* data, X86Regs* state) {
-  (void)h;
-  this->I = static_cast<yrclient::InstrumentationService*>(data);
-  this->cpu_state = state;
-  do_call(this->I);
-  this->cpu_state = nullptr;
-}
+ISCallback::~ISCallback() {}
 
-std::string yrclient::ISCallback::name() { throw yrclient::not_implemented(); }
-
-std::string yrclient::ISCallback::target() {
-  throw yrclient::not_implemented();
+void ISCallback::add_to_hook(hook::Hook* h,
+                             yrclient::InstrumentationService* I) {
+  this->I = I;
+  // TODO(shmocz): avoid using wrapper
+  h->add_callback([this](hook::Hook* h, void* user_data,
+                         X86Regs* state) { this->call(h, user_data, state); },
+                  nullptr, name(), 0U);
 }
 
 void InstrumentationService::add_command(std::string name,

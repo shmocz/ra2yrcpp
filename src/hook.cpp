@@ -194,13 +194,6 @@ unsigned int* Hook::count_enter() { return &count_enter_; }
 
 unsigned int* Hook::count_exit() { return &count_exit_; }
 
-// FIXME: unused
-template <typename T>
-static auto get_callback_(T* h, const std::string name) {
-  return std::find_if(h->begin(), h->end(),
-                      [&name](const auto& j) { return j.name == name; });
-}
-
 void Hook::remove_callback(const std::string name) {
   auto it = std::find_if(callbacks_.begin(), callbacks_.end(),
                          [&name](const auto& j) { return j.name == name; });
@@ -223,4 +216,12 @@ std::tuple<u32, std::size_t> hook::get_hook_entry(const u32 target) {
     }
   }
   return std::make_tuple(p_target, code_size);
+}
+
+Callback::Callback() : cpu_state(nullptr) {}
+
+void Callback::call(hook::Hook*, void*, X86Regs* state) {
+  cpu_state = state;
+  do_call();
+  cpu_state = nullptr;
 }

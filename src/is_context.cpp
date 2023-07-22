@@ -4,6 +4,7 @@
 #include "commands_builtin.hpp"
 #include "commands_yr.hpp"
 #include "dll_inject.hpp"
+#include "hooks_yr.hpp"
 #include "util_string.hpp"
 #include "x86.hpp"
 
@@ -177,7 +178,16 @@ yrclient::InstrumentationService* is_context::make_is(
 
         if (t->opts().ws_port > 0U && !t->opts().no_init_hooks) {
           ra2yrproto::commands::CreateHooks C1;
+
           C1.mutable_args()->set_no_suspend_threads(true);
+          for (const auto& [k, v] : ra2yrcpp::hooks_yr::get_hooks()) {
+            auto [p_target, code_size] = hook::get_hook_entry(v);
+            auto* H = C1.mutable_args()->add_hooks();
+            H->set_address(p_target);
+            H->set_name(k);
+            H->set_code_length(code_size);
+          }
+
           handle_cmd(t, yrclient::create_command(C1));
           ra2yrproto::commands::CreateCallbacks C2;
           handle_cmd(t, yrclient::create_command(C2));

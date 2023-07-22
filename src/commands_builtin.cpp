@@ -36,14 +36,14 @@ struct TestProgram : Xbyak::CodeGenerator {
   size_t entry_size;
 };
 
-void test_cb(hook::Hook* h, void* data, X86Regs* state) {
-  (void)h;
-  (void)state;
+static void test_cb(hook::Hook*, void* data, X86Regs*) {
   auto I = static_cast<yrclient::InstrumentationService*>(data);
   std::string s("0xbeefdead");
   I->store_value("test_key", new vecu8(s.begin(), s.end()));
 }
 
+// TODO(shmocz): ditch the old hook/cb test functions to use the common
+// functions
 std::map<std::string, command::Command::handler_t> get_commands_nn() {
   return {
       get_cmd<ra2yrproto::commands::StoreValue>([](auto* Q) {
@@ -104,11 +104,6 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
         res->set_address_test_callback(reinterpret_cast<u64>(&test_cb));
         res->set_code_size(t.entry_size);
       }),
-      get_cmd<ra2yrproto::commands::InstallHook>([](auto* Q) {
-        auto& a = Q->args();
-        Q->I()->create_hook(a.name(), reinterpret_cast<u8*>(a.address()),
-                            a.code_length());
-      }),
       get_cmd<ra2yrproto::commands::AddCallback>([](auto* Q) {
         auto& a = Q->args();
         Q->I()
@@ -118,7 +113,29 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
                 reinterpret_cast<hook::Hook::hook_cb_t>(a.callback_address()),
                 Q->I(), "", 0u);
       }),
-  };
+      get_cmd<ra2yrproto::commands::CreateHooks>([](auto* Q) {
+        // TODO(shmocz): put these to utility function and share code with
+        // Hook code.
+        auto P = process::get_current_process();
+        std::vector<process::thread_id_t> ns(Q->I()->get_connection_threads());
+
+        auto a = Q->args();
+
+        // suspend threads?
+        if (!a.no_suspend_threads()) {
+          ns.push_back(process::get_current_tid());
+          P.suspend_threads(ns);
+        }
+
+        // create hooks
+        for (auto& h : a.hooks()) {
+          Q->I()->create_hook(h.name(), reinterpret_cast<u8*>(h.address()),
+                              h.code_length());
+        }
+        if (!a.no_suspend_threads()) {
+          P.resume_threads(ns);
+        }
+      })};
 }
 
 std::map<std::string, command::Command::handler_t>

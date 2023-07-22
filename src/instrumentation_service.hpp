@@ -35,24 +35,14 @@ namespace yrclient {
 // Forward declaration
 class InstrumentationService;
 
-// Hook callback that provides access to InstrumentationService.
-// TODO(shmocz): get rid of polymorphism
-struct ISCallback {
+/// Hook callback that provides access to InstrumentationService.
+struct ISCallback : public hook::Callback {
   ISCallback();
-  // Callback entry, whose address is stored into Hook's HookCallback object.
-  // Performs necessary setup logic for IService access.
-  void call(hook::Hook* h, void* data, X86Regs* state);
-  // Subclasses implement their callback logic by overriding this.
-  virtual void do_call(yrclient::InstrumentationService* I) = 0;
-  ISCallback(const ISCallback&) = delete;
-  ISCallback& operator=(const ISCallback&) = delete;
-  virtual ~ISCallback() = default;
-  // Callbacks name. Duplicate callbacks will not be added into Hook.
-  virtual std::string name();
-  // Target hook name.
-  virtual std::string target();
+  ~ISCallback() override;
+  /// Add this callback to the given hook and assigns pointer to IService.
+  void add_to_hook(hook::Hook* h, yrclient::InstrumentationService* I);
+
   yrclient::InstrumentationService* I;
-  X86Regs* cpu_state;
 };
 
 struct ISArgs {

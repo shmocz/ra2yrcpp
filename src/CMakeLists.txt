@@ -47,6 +47,7 @@ if(RA2YRCPP_BUILD_MAIN_DLL)
     context.cpp
     dll_inject.cpp
     exprocess.cpp
+    hooks_yr.cpp
     is_context.cpp
     ra2/abi.cpp
     ra2/state_parser.cpp

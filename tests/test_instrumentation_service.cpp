@@ -97,13 +97,17 @@ TEST_F(IServiceTest, HookingGetSetWorks) {
   auto res0 = run(h);
   ASSERT_NE(res0.address_test_function(), 0);
   value_eq(flag1);
-  ra2yrproto::commands::InstallHook ih;
-  auto* ih_a = ih.mutable_args();
-  ih_a->set_address(res0.address_test_function());
-  ih_a->set_name("test_hook");
-  ih_a->set_code_length(res0.code_size());
-  auto res_ih_a = run(ih);
-  value_eq(flag1);
+  {
+    ra2yrproto::commands::CreateHooks C;
+    auto* A = C.mutable_args();
+    A->set_no_suspend_threads(true);
+    auto* H = A->add_hooks();
+    H->set_address(res0.address_test_function());
+    H->set_name("test_hook");
+    H->set_code_length(res0.code_size());
+    auto res_ih_a = run(C);
+    value_eq(flag1);
+  }
   // install callback, which modifies the value (TODO: jit the callback)
   ra2yrproto::commands::AddCallback ac;
   ac.mutable_args()->set_hook_address(res0.address_test_function());

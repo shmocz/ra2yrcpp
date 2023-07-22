@@ -13,15 +13,6 @@ enum UnitAction {
   ACTION_SELL = 5;
 }
 
-message CreateHooks {
-  message Args {
-    bool no_suspend_threads = 1;
-  }
-  message Result {}
-  Args args = 1;
-  Result result = 2;
-}
-
 message CreateCallbacks {
   message Args {}
   message Result {}

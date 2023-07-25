@@ -3,16 +3,13 @@
 #include "protocol/protocol.hpp"
 
 #include "errors.hpp"
-#include "hook.hpp"
 #include "hooks_yr.hpp"
-#include "instrumentation_service.hpp"
 #include "logging.hpp"
 #include "ra2/abi.hpp"
 #include "util_command.hpp"
 
 #include <YRPP.h>
 #include <map>
-#include <vector>
 
 using util_command::get_cmd;
 using util_command::message_result;

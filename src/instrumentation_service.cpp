@@ -144,8 +144,6 @@ ra2yrproto::Response InstrumentationService::process_request(
 
   // execute parsed command & write result
   switch (cmd.command_type()) {
-    case ra2yrproto::CLIENT_COMMAND_OLD:
-      throw std::runtime_error("Deprecated");
     case ra2yrproto::CLIENT_COMMAND: {
       auto ack = handle_cmd(this, C, &cmd);
       if (cmd.blocking()) {

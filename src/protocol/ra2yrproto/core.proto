@@ -22,7 +22,7 @@ enum CommandType {
   NONE = 0;
   SHUTDOWN = 1;
   CLIENT_COMMAND = 2;
-  CLIENT_COMMAND_OLD = 3;
+  CLIENT_COMMAND_OLD = 3 [deprecated = true];
   POLL = 4;
   POLL_BLOCKING = 5;
 }

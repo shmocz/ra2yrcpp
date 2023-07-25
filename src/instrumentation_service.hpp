@@ -82,7 +82,6 @@ class InstrumentationService {
   void on_close(connection::Connection* C);
   vecu8 on_receive_bytes(connection::Connection* C, vecu8* bytes);
   void on_send_bytes(connection::Connection* C, vecu8* bytes);
-  void on_accept_connection(connection::Connection* C);
   command::CommandManager& cmd_manager();
   server::Server& server();
   std::map<u8*, hook::Hook>& hooks();

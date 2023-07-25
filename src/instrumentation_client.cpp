@@ -6,7 +6,6 @@
 #include "errors.hpp"
 #include "logging.hpp"
 
-#include <google/protobuf/any.pb.h>
 #include <google/protobuf/message.h>
 
 #include <stdexcept>
@@ -54,7 +53,6 @@ ra2yrproto::Response InstrumentationClient::send_message(const vecu8& data) {
   }
 
   ra2yrproto::Response R;
-  // NB. FAILS HERE!
   if (!R.ParseFromArray(resp.data(), resp.size())) {
     throw std::runtime_error(
         fmt::format("failed to parse response, size={}", resp.size()));
@@ -68,30 +66,10 @@ ra2yrproto::Response InstrumentationClient::send_message(
   return send_message(data);
 }
 
-ra2yrproto::Response InstrumentationClient::send_command_old(
-    std::string name, std::string args, ra2yrproto::CommandType type) {
-  ra2yrproto::Command C;
-  C.set_command_type(type);
-  if (type == ra2yrproto::CLIENT_COMMAND_OLD) {
-    auto* CC = C.mutable_client_command_old();
-    CC->set_name(name);
-    CC->set_args(args);
-  }
-  return send_message(C);
-}
-
 ra2yrproto::Response InstrumentationClient::send_command(
     const google::protobuf::Message& cmd, ra2yrproto::CommandType type) {
   auto C = yrclient::create_command(cmd, type);
   return send_message(C);
-}
-
-// FIXME: remove old code
-std::string InstrumentationClient::shutdown() {
-  auto r = send_command_old("shutdown", {}, ra2yrproto::SHUTDOWN);
-  ra2yrproto::TextResponse T;
-  r.body().UnpackTo(&T);
-  return T.message();
 }
 
 connection::ClientConnection* InstrumentationClient::connection() {

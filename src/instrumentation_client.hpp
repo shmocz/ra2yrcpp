@@ -1,4 +1,5 @@
 #pragma once
+#include "connection.hpp"
 #include "ra2yrproto/core.pb.h"
 #include "types.h"
 
@@ -35,12 +36,8 @@ class InstrumentationClient {
   /// @exception yrclient::protocol_error on message serialization failure.
   ///
   ra2yrproto::Response send_message(const vecu8& data);
-  /// Send protobuf message to server.
+  /// Convert message to bytes and send it to server.
   ra2yrproto::Response send_message(const google::protobuf::Message& M);
-
-  ra2yrproto::Response send_command_old(
-      std::string name, std::string args,
-      ra2yrproto::CommandType type = ra2yrproto::CLIENT_COMMAND_OLD);
 
   ///
   /// Send a command of given type to server and read response. This can block
@@ -53,7 +50,6 @@ class InstrumentationClient {
   /// @exception std::system_error for internal server error
   ra2yrproto::PollResults poll_blocking(const duration_t timeout,
                                         const u64 queue_id = (u64)-1);
-  std::string shutdown();
   connection::ClientConnection* connection();
 
  private:

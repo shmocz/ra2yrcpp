@@ -177,12 +177,12 @@ ra2yrproto::Response InstrumentationService::process_request(
   }
 }
 
-vecu8 InstrumentationService::on_receive_bytes(connection::Connection* C,
-                                               vecu8* bytes) {
+static vecu8 on_receive_bytes(InstrumentationService* I,
+                              connection::Connection* C, vecu8* bytes) {
   ra2yrproto::Response R;
   bool is_json = false;
   try {
-    R = process_request(C, bytes, &is_json);
+    R = I->process_request(C, bytes, &is_json);
     R.set_code(RESPONSE_OK);
   } catch (const std::exception& e) {
     eprintf("{}", e.what());
@@ -194,22 +194,16 @@ vecu8 InstrumentationService::on_receive_bytes(connection::Connection* C,
   return to_vecu8(R);
 }
 
-void InstrumentationService::on_accept(connection::Connection* C) {
+static void on_accept(InstrumentationService* I, connection::Connection* C) {
   // Create result queue
-  cmd_manager().enqueue_builtin(
+  I->cmd_manager().enqueue_builtin(
       command::CommandType::CREATE_QUEUE, C->socket(),
       command::BuiltinArgs{.queue_size = cfg::RESULT_QUEUE_SIZE});
 }
 
-void InstrumentationService::on_close(connection::Connection* C) {
-  cmd_manager().enqueue_builtin(command::CommandType::DESTROY_QUEUE,
-                                C->socket());
-}
-
-void InstrumentationService::on_send_bytes(connection::Connection* C,
-                                           vecu8* bytes) {
-  (void)C;
-  (void)bytes;
+static void on_close(InstrumentationService* I, connection::Connection* C) {
+  I->cmd_manager().enqueue_builtin(command::CommandType::DESTROY_QUEUE,
+                                   C->socket());
 }
 
 void InstrumentationService::store_value(
@@ -232,13 +226,11 @@ InstrumentationService::InstrumentationService(
 
   // Set server callbacks
   server_.callbacks().receive_bytes = [this](auto* c, auto* b) {
-    return this->on_receive_bytes(c, b);
+    return on_receive_bytes(this, c, b);
   };
-  server_.callbacks().send_bytes = [this](auto* c, auto* b) {
-    this->on_send_bytes(c, b);
-  };
-  server_.callbacks().accept = [this](auto* c) { this->on_accept(c); };
-  server_.callbacks().close = [this](auto* c) { this->on_close(c); };
+  server_.callbacks().send_bytes = [](auto*, auto*) {};
+  server_.callbacks().accept = [this](auto* c) { on_accept(this, c); };
+  server_.callbacks().close = [this](auto* c) { on_close(this, c); };
 
   // Start server and wait for it to become active
   // TODO: should the wait just happen inside the start()?

@@ -78,10 +78,6 @@ class InstrumentationService {
   ///
   std::vector<process::thread_id_t> get_connection_threads();
   void create_hook(std::string name, u8* target, const size_t code_length);
-  void on_accept(connection::Connection* C);
-  void on_close(connection::Connection* C);
-  vecu8 on_receive_bytes(connection::Connection* C, vecu8* bytes);
-  void on_send_bytes(connection::Connection* C, vecu8* bytes);
   command::CommandManager& cmd_manager();
   server::Server& server();
   std::map<u8*, hook::Hook>& hooks();
@@ -105,12 +101,12 @@ class InstrumentationService {
       std::function<std::string(yrclient::InstrumentationService*)>
           on_shutdown = nullptr,
       std::function<void(InstrumentationService*)> extra_init = nullptr);
+  ra2yrproto::Response process_request(connection::Connection* C, vecu8* bytes,
+                                       bool* is_json);
 
  private:
   ra2yrproto::PollResults flush_results(
       const u64 queue_id, const duration_t delay = cfg::POLL_RESULTS_TIMEOUT);
-  ra2yrproto::Response process_request(connection::Connection* C, vecu8* bytes,
-                                       bool* is_json);
 
   IServiceOptions opts_;
   command::CommandManager cmd_manager_;

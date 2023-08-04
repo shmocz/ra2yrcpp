@@ -1,10 +1,17 @@
 #pragma once
+#include "types.h"
+
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <tuple>
 #include <utility>
 
 namespace util {
+
+namespace {
+using namespace std::chrono_literals;
+}
 
 template <typename T, typename MutexT = std::mutex>
 using acquire_t = std::tuple<std::unique_lock<MutexT>, T>;
@@ -26,15 +33,18 @@ class AtomicVariable {
  public:
   explicit AtomicVariable(T value) : v_(value) {}
 
-  void wait(T value) {
-    std::unique_lock<MutexT> l(m_);
-    cv_.wait(l, [this, value]() { return v_ == value; });
+  void wait(const T value, const duration_t timeout = 0.0s) {
+    wait_pred([value](const auto v) { return v == value; }, timeout);
   }
 
   template <typename PredT>
-  void wait_pred(PredT p) {
+  void wait_pred(PredT p, const duration_t timeout = 0.0s) {
     std::unique_lock<MutexT> l(m_);
-    cv_.wait(l, [this, p]() { return p(v_); });
+    if (timeout > 0.0s) {
+      cv_.wait_for(l, timeout, [this, p]() { return p(v_); });
+    } else {
+      cv_.wait(l, [this, p]() { return p(v_); });
+    }
   }
 
   void store(T v) {

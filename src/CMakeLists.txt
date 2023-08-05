@@ -23,8 +23,8 @@ add_library(
   instrumentation_service.cpp
   multi_client.cpp
   network.cpp
+  new_server.cpp
   process.cpp
-  server.cpp
   websocket_connection.cpp
   websocket_server.cpp
   x86.cpp)

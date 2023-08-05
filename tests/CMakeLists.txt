@@ -43,17 +43,13 @@ endif()
 
 # Tests that don't depend on the main DLL
 add_library(common_multi STATIC common_multi.cpp)
-target_link_libraries(common_multi PUBLIC ra2yrcpp_core ZLIB::ZLIB)
+target_link_libraries(common_multi PUBLIC ra2yrcpp_core ZLIB::ZLIB
+                                          ${PROTOBUF_EXTRA_LIBS})
 
 new_make_test(
   NAME test_instrumentation_service
   SRC test_instrumentation_service.cpp
-  LIB ra2yrcpp_core "${PROTO_LIB}" ZLIB::ZLIB)
-
-new_make_test(
-  NAME test_server
-  SRC test_server.cpp
-  LIB ra2yrcpp_core)
+  LIB ra2yrcpp_core "${PROTO_LIB}" ZLIB::ZLIB ${PROTOBUF_EXTRA_LIBS})
 
 new_make_test(
   NAME test_multi_client
@@ -73,7 +69,7 @@ new_make_test(
 new_make_test(
   NAME test_protocol
   SRC test_protocol.cpp
-  LIB ra2yrcpp_core "${PROTO_LIB}" ZLIB::ZLIB)
+  LIB ra2yrcpp_core "${PROTO_LIB}" ZLIB::ZLIB ${PROTOBUF_EXTRA_LIBS})
 
 add_library(tests_native INTERFACE ${NATIVE_TARGETS})
 

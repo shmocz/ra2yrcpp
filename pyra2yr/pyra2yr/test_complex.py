@@ -1,5 +1,4 @@
 import asyncio
-import json
 import cProfile
 import logging as lg
 import random
@@ -546,7 +545,7 @@ class MyManager(Manager):
 
     def get_shroud_targets(self, shrouded_cells, D):
         SU = self.scout_units()
-        if len(SU) < 1:
+        if not SU:
             return []
         # choose unshrouded cell closest to mcv and the scouter
         coords = np.array(coord2tuple(self.conyards()[0].coordinates)).reshape(
@@ -767,20 +766,16 @@ async def complex_test():
     M = MyManager(poll_frequency=20)
     M.start()
     lg.info("wait game to start")
-    await M.wait_state(
-        lambda: M.state.stage == ra2yr.STAGE_INGAME
-        and M.state.current_frame > 1,
-        60,
-    )
+    await M.M.wait_game_to_begin()
     lg.info("wait game to exit")
-    await M.wait_state(lambda: M.state.stage == ra2yr.STAGE_EXIT_GAME, 3600)
+    await M.M.wait_game_to_exit(timeout=None)
 
 
-async def test_sell_mcv(host: str):
+async def main():
     t = logged_task(complex_test())
     await t
 
 
 if __name__ == "__main__":
     setup_logging(level=lg.DEBUG)
-    asyncio.run(test_sell_mcv("0.0.0.0"))
+    asyncio.run(main())

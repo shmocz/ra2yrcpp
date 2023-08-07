@@ -60,16 +60,10 @@ async def mcv_sell(app=None):
     U = ManagerUtil(M)
     X = Clock()
 
-    index_player = 0
     player_name = "player_0"
 
     info("wait game to begin")
-    await M.wait_state(
-        lambda: M.state.stage == ra2yr.STAGE_INGAME
-        and M.state.current_frame > 1
-        and len(M.type_classes) > 0,
-        timeout=60,
-    )
+    await U.wait_game_to_begin()
     info("state=ingame, players=%s", M.state.houses)
     await check_config(U)
     await check_record_output_defined(U)
@@ -91,7 +85,12 @@ async def mcv_sell(app=None):
     ]
     assert len(tc_tesla) == 1
     tc_tesla = tc_tesla[0]
-    req = [t for t in M.type_classes if t.array_index in tc_tesla.prerequisites]
+    req = [
+        t
+        for t in M.type_classes
+        if t.type == ra2yr.ABSTRACT_TYPE_BUILDINGTYPE
+        and t.array_index in tc_tesla.prerequisites
+    ]
     debug("tesla=%s, req=%s", tc_tesla, req)
 
     # Get MCV pointer
@@ -201,7 +200,7 @@ async def mcv_sell(app=None):
         await U.sell_building(p.pointer_self)
 
     debug("wait game to exit")
-    await M.wait_state(lambda: M.state.stage == ra2yr.STAGE_EXIT_GAME)
+    await U.wait_game_to_exit()
 
     # get record file path
     cfg = await U.inspect_configuration()

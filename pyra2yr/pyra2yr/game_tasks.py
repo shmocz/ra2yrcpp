@@ -99,7 +99,7 @@ class ProduceTask(AsyncGameTask):
         return self.get_produce_category(self.t) in keys
 
     async def is_completed(self) -> bool:
-        if len(self.type_classes) == 0:
+        if not self.type_classes:
             return False
         # FIXME: check queued objects too
         if self.already_producing():

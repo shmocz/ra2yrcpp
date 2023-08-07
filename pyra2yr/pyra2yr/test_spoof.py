@@ -6,10 +6,8 @@ from ra2yrproto import ra2yr
 
 from pyra2yr.manager import Manager, ManagerUtil, CommandBuilder
 from pyra2yr.util import (
-    coord2cell,
     coord2tuple,
     pdist,
-    tuple2coord,
     setup_logging,
 )
 
@@ -19,12 +17,7 @@ async def main():
     M.start()
     U = ManagerUtil(M)
 
-    await M.wait_state(
-        lambda: M.state.stage == ra2yr.STAGE_INGAME
-        and M.state.current_frame > 1
-        and len(M.type_classes) > 0,
-        timeout=60,
-    )
+    await U.wait_game_to_begin()
 
     # MCV TC's
     tc_mcv = [
@@ -169,7 +162,7 @@ async def main():
         await U.sell_building(p.pointer_self)
 
     lg.info("wait game to exit")
-    await M.wait_state(lambda: M.state.stage == ra2yr.STAGE_EXIT_GAME)
+    await U.wait_game_to_exit()
     await M.stop()
 
 

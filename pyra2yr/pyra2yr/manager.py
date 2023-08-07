@@ -62,7 +62,7 @@ class Manager:
     """Manages connections and state updates for an active game process."""
 
     def __init__(
-        self, address: str = "0.0.0.0", port: int = 14525, poll_frequency=20
+        self, address: str = "0.0.0.0", port: int = 14521, poll_frequency=20
     ):
         """
         Parameters
@@ -189,7 +189,10 @@ class Manager:
                 )
                 deadline = dt.now().timestamp() + d
                 s = await self.get_state()
-                if self.state and s.current_frame == self.state.current_frame:
+                if self.state and (
+                    s.current_frame == self.state.current_frame
+                    and s.stage == self.state.stage
+                ):
                     continue
                 self.state.CopyFrom(s)
                 await self.on_state_update(s)
@@ -463,6 +466,20 @@ class ManagerUtil:
             coordinates=cell_grid(coords, rx, ry),
         )
         return res
+
+    async def wait_game_to_begin(self, timeout=60):
+        await self.manager.wait_state(
+            lambda: self.manager.state.stage == ra2yr.STAGE_INGAME
+            and self.manager.state.current_frame > 1
+            and self.manager.type_classes,
+            timeout=timeout,
+        )
+
+    async def wait_game_to_exit(self, timeout=60):
+        await self.manager.wait_state(
+            lambda: self.manager.state.stage == ra2yr.STAGE_EXIT_GAME,
+            timeout=timeout,
+        )
 
 
 class ActionTracker:

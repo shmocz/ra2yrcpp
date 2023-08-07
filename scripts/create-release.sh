@@ -7,6 +7,12 @@ TC_ID="$(basename "$CMAKE_TOOLCHAIN_FILE" .cmake)"
 BASE_DIR="$BUILDDIR/$TC_ID-$CMAKE_BUILD_TYPE"
 BUILD_DIR="$BASE_DIR/build"
 build_log="$BASE_DIR/build.log"
+: ${TAG_NAME:=""}
+
+if [ ! -z "$TAG_NAME" ]; then
+	TAG_NAME="ok-$(git rev-parse --short HEAD)"
+	echo "using tag $TAG_NAME"
+fi
 
 # Check formatting and run linter
 make check
@@ -31,3 +37,8 @@ make test
 # Prepare package
 rp="$(realpath "$BASE_DIR")"
 cd "$BASE_DIR/pkg/bin" && 7z a "$rp/ra2yrcpp.zip" . && cd -
+
+# Create OK status tag if needed
+if [ ! -z "$TAG_NAME" ]; then
+	git tag "$TAG_NAME"
+fi

@@ -35,7 +35,7 @@ COMPOSE_ARGS ?= --abort-on-container-exit pyra2yr tunnel wm vnc novnc game-0 gam
 compose_cmd := docker-compose -f docker-compose.yml -f $(INTEGRATION_TEST)
 # need -T flag for this to work properly in shell scripts, but this causes ctrl+c not to work.
 # TODO: find a workaround
-compose_build = docker-compose run -e BUILDDIR -e CMAKE_TOOLCHAIN_FILE -e CMAKE_TARGET -e NPROC -e CMAKE_BUILD_TYPE -e EXTRA_PATCHES -e CMAKE_EXTRA_ARGS -e CXXFLAGS -T --rm $(BUILDER)
+compose_build = docker-compose run -e BUILDDIR -e CMAKE_TOOLCHAIN_FILE -e CMAKE_TARGET -e NPROC -e CMAKE_BUILD_TYPE -e EXTRA_PATCHES -e CMAKE_EXTRA_ARGS -e CXXFLAGS -e TAG_NAME -T --rm $(BUILDER)
 
 
 doc:

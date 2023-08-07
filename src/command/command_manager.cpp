@@ -160,9 +160,11 @@ void CommandManager::worker() {
       case CommandType::SHUTDOWN:
         active_ = false;
         break;
-      case CommandType::USER:
+      case CommandType::USER: {
+        k.unlock();
         invoke_user_command(cmd);
         break;
+      }
       default:
         throw yrclient::general_error("Unknown command type");
     }

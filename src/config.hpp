@@ -14,7 +14,6 @@ constexpr unsigned SOCKET_SR_TIMEOUT = 5000;
 constexpr unsigned int DEFAULT_BUFLEN = 4096;
 constexpr unsigned int MAX_CLIENTS = 16;
 constexpr unsigned int SERVER_PORT = 14521;
-constexpr unsigned int WEBSOCKET_PROXY_PORT = 14525;
 constexpr unsigned int MAX_MESSAGE_LENGTH = 1e7;
 // How long a connection thread in InstrumentationService waits for item to
 // appear in target queue

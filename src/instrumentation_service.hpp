@@ -5,7 +5,6 @@
 #include "hook.hpp"
 #include "process.hpp"
 #include "ra2yrproto/core.pb.h"
-#include "server.hpp"
 #include "types.h"
 #include "utility/sync.hpp"
 #include "websocket_server.hpp"
@@ -19,10 +18,6 @@
 #include <mutex>
 #include <string>
 #include <vector>
-
-namespace connection {
-class Connection;
-}
 
 namespace ra2yrcpp {
 namespace asio_utils {
@@ -53,14 +48,13 @@ struct ISArgs {
 using deleter_t = std::function<void(void*)>;
 using storage_val = std::unique_ptr<void, deleter_t>;
 using storage_t = std::map<std::string, storage_val>;
-using ws_proxy_t = ra2yrcpp::websocket_server::WebsocketProxy;
+using ra2yrcpp::websocket_server::WebsocketServer;
 
 class InstrumentationService {
  public:
   struct IServiceOptions {
     unsigned max_clients;
     unsigned port;
-    unsigned ws_port;
     std::string host;
     bool no_init_hooks;
   };
@@ -79,7 +73,6 @@ class InstrumentationService {
   std::vector<process::thread_id_t> get_connection_threads();
   void create_hook(std::string name, u8* target, const size_t code_length);
   command::CommandManager& cmd_manager();
-  server::Server& server();
   std::map<u8*, hook::Hook>& hooks();
   // TODO: separate storage class
   util::acquire_t<std::map<u8*, hook::Hook>*> aq_hooks();
@@ -101,7 +94,7 @@ class InstrumentationService {
       std::function<std::string(yrclient::InstrumentationService*)>
           on_shutdown = nullptr,
       std::function<void(InstrumentationService*)> extra_init = nullptr);
-  ra2yrproto::Response process_request(connection::Connection* C, vecu8* bytes,
+  ra2yrproto::Response process_request(const int socket_id, vecu8* bytes,
                                        bool* is_json);
 
  private:
@@ -110,14 +103,15 @@ class InstrumentationService {
 
   IServiceOptions opts_;
   command::CommandManager cmd_manager_;
-  server::Server server_;
   std::map<u8*, hook::Hook> hooks_;
   std::mutex mut_hooks_;
   storage_t storage_;
   std::recursive_mutex mut_storage_;
   std::unique_ptr<ra2yrcpp::asio_utils::IOService> io_service_;
   util::AtomicVariable<process::thread_id_t> io_service_tid_;
-  std::unique_ptr<ws_proxy_t> ws_proxy_object_;
+
+ public:
+  std::unique_ptr<WebsocketServer> ws_server_;
 };
 
 }  // namespace yrclient

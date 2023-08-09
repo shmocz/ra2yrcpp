@@ -13,17 +13,15 @@ add_library(
   $<TARGET_OBJECTS:protocol_o>
   asio_utils.cpp
   auto_thread.cpp
+  client_connection.cpp
   command/command.cpp
   command/command_manager.cpp
   commands_builtin.cpp
-  connection.cpp
   errors.cpp
   hook.cpp
   instrumentation_client.cpp
   instrumentation_service.cpp
   multi_client.cpp
-  network.cpp
-  new_server.cpp
   process.cpp
   websocket_connection.cpp
   websocket_server.cpp

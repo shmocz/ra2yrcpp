@@ -2,6 +2,8 @@
 
 #include "protocol/protocol.hpp"
 
+#include "asio_utils.hpp"
+#include "client_connection.hpp"
 #include "errors.hpp"
 #include "logging.hpp"
 #include "ra2yrproto/commands_builtin.pb.h"
@@ -13,6 +15,7 @@
 #include <array>
 #include <exception>
 #include <stdexcept>
+#include <utility>
 
 namespace google {
 namespace protobuf {
@@ -23,70 +26,72 @@ class Message;
 using namespace multi_client;
 using connection::State;
 
-static connection::ClientConnection* get_connection(const std::string host,
-                                                    const std::string port,
-                                                    CONNECTION_TYPE t,
-                                                    void* io_service) {
-  if (t == CONNECTION_TYPE::TCP) {
-    return new connection::ClientTCPConnection(host, port);
-  } else if (t == CONNECTION_TYPE::WEBSOCKET) {
-    return new connection::ClientWebsocketConnection(host, port, io_service);
-  } else {
-    throw std::runtime_error("invalid connection type");
-  }
-}
+namespace connection = ra2yrcpp::connection;
 
 AutoPollClient::AutoPollClient(const std::string host, const std::string port,
                                const duration_t poll_timeout,
                                const duration_t command_timeout,
-                               CONNECTION_TYPE ctype, void* io_service)
+                               ra2yrcpp::asio_utils::IOService* io_service)
     : host_(host),
       port_(port),
       poll_timeout_(poll_timeout),
       command_timeout_(command_timeout),
-      ctype_(ctype),
       io_service_(io_service),
-      state_(State::NONE) {
+      state_(State::NONE),
+      poll_thread_active_(false) {}
+
+AutoPollClient::AutoPollClient(AutoPollClient::Options o)
+    : AutoPollClient(o.host, o.port, o.poll_timeout, o.command_timeout,
+                     o.io_service) {}
+
+AutoPollClient::~AutoPollClient() {
+  auto [lk, v] = state_.acquire();
+  if (*v == State::OPEN) {
+    shutdown();
+  }
+}
+
+void AutoPollClient::start() {
   static constexpr std::array<ClientType, 2> t = {ClientType::COMMAND,
                                                   ClientType::POLL};
 
+  auto [lk, v] = state_.acquire();
+  if (*v != State::NONE) {
+    throw std::runtime_error(
+        fmt::format("invalid state: {}", static_cast<int>(*v)));
+  }
   for (auto i : t) {
-    auto* c = get_connection(host, port, ctype_, io_service_);
-    is_clients_[i] = std::make_unique<InstrumentationClient>(
-        std::shared_ptr<connection::ClientConnection>(c));
-
-    is_clients_[i]->connection()->connect();
+    auto conn = std::make_unique<InstrumentationClient>(
+        std::make_shared<connection::ClientWebsocketConnection>(host_, port_,
+                                                                io_service_));
+    conn->connect();
 
     // send initial "handshake" message
     // this will also ensure we fail early in case of connection errors
     ra2yrproto::commands::GetSystemState cmd_gs;
 
-    auto r_resp =
-        is_clients_[i]->send_command(cmd_gs, ra2yrproto::CLIENT_COMMAND);
+    auto r_resp = conn->send_command(cmd_gs, ra2yrproto::CLIENT_COMMAND);
     auto ack = yrclient::from_any<ra2yrproto::RunCommandAck>(r_resp.body());
     queue_ids_[i] = ack.queue_id();
-    is_clients_[i]->poll_blocking(poll_timeout_, queue_ids_[i]);
+    conn->poll_blocking(poll_timeout_, queue_ids_[i]);
+    is_clients_.emplace(i, std::move(conn));
   }
   poll_thread_ = std::thread([this]() { poll_thread(); });
 }
 
-AutoPollClient::AutoPollClient(AutoPollClient::Options o)
-    : AutoPollClient(o.host, o.port, o.poll_timeout, o.command_timeout, o.ctype,
-                     o.io_service) {}
+void AutoPollClient::shutdown() {
+  auto [lk, v] = state_.acquire();
+  *v = State::CLOSING;
 
-// FIXME: this won't be called if constructor throws
-AutoPollClient::~AutoPollClient() {
-  // signal poll thread to exit
-  state_.store(State::CLOSING);
+  poll_thread_active_ = false;
   poll_thread_.join();
 
   // stop both connections
-  get_client(ClientType::POLL)->connection()->stop();
-  get_client(ClientType::COMMAND)->connection()->stop();
+  get_client(ClientType::POLL)->disconnect();
+  get_client(ClientType::COMMAND)->disconnect();
+  state_.store(State::CLOSED);
 }
 
-// TODO: as the command is synchronous, cmd's memory remains valid throughout
-// the entire call, eliminating the need for extra copies.
 ra2yrproto::Response AutoPollClient::send_command(
     const google::protobuf::Message& cmd) {
   // Send command
@@ -112,8 +117,9 @@ void AutoPollClient::poll_thread() {
     return v == State::OPEN;
   });
   state_.store(State::OPEN);
+  poll_thread_active_ = true;
 
-  while (state_.get() == State::OPEN) {
+  while (poll_thread_active_) {
     try {
       // TODO(shmocz): return immediately if signaled to stop
       auto R =
@@ -134,7 +140,7 @@ void AutoPollClient::poll_thread() {
 ResultMap& AutoPollClient::results() { return results_; }
 
 InstrumentationClient* AutoPollClient::get_client(const ClientType type) {
-  return is_clients_[type].get();
+  return is_clients_.at(type).get();
 }
 
 u64 AutoPollClient::get_queue_id(ClientType t) const {

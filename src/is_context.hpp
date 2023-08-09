@@ -38,7 +38,7 @@ ProcAddrs get_procaddrs();
 vecu8 vecu8cstr(const std::string s);
 void make_is_ctx(Context* c, const unsigned int max_clients = cfg::MAX_CLIENTS,
                  const unsigned int port = cfg::SERVER_PORT,
-                 const unsigned ws_port = 0U, bool no_init_hooks = true);
+                 bool no_init_hooks = true);
 
 void get_procaddr(Xbyak::CodeGenerator* c, HMODULE m, const std::string name,
                   const u32 p_GetProcAddress);
@@ -48,8 +48,7 @@ struct DLLLoader : Xbyak::CodeGenerator {
             const std::string name_init,
             const unsigned int max_clients = cfg::MAX_CLIENTS,
             const unsigned int port = cfg::SERVER_PORT,
-            const unsigned int ws_port = 0U, const bool indirect = false,
-            const bool no_init_hooks = false);
+            const bool indirect = false, const bool no_init_hooks = false);
 };
 
 ///
@@ -70,7 +69,6 @@ void inject_dll(unsigned pid, const std::string path_dll,
 
 // FIXME: do we need  to export this?
 __declspec(dllexport) void* get_context(unsigned int max_clients,
-                                        unsigned int port, unsigned ws_port,
-                                        bool no_init_hooks);
+                                        unsigned int port, bool no_init_hooks);
 
 };  // namespace is_context

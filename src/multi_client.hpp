@@ -1,16 +1,24 @@
 #pragma once
 #include "async_map.hpp"
+#include "client_connection.hpp"
 #include "config.hpp"
-#include "connection.hpp"
 #include "instrumentation_client.hpp"
 #include "ra2yrproto/core.pb.h"
 #include "types.h"
 #include "utility/sync.hpp"
 
+#include <atomic>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
+
+namespace ra2yrcpp {
+namespace asio_utils {
+class IOService;
+}
+}  // namespace ra2yrcpp
 
 namespace google {
 namespace protobuf {
@@ -25,15 +33,18 @@ using namespace async_map;
 
 }  // namespace
 
+namespace connection = ra2yrcpp::connection;
+
 enum class ClientType : i32 { COMMAND = 0, POLL = 1 };
 
 using ResultMap = AsyncMap<ra2yrproto::CommandResult, u64>;
 
-enum class CONNECTION_TYPE : int { TCP = 1, WEBSOCKET = 2 };
-
 ///
 /// Client that uses two connections to fetch results in real time. One
 /// connection issues command executions and the other polls the results.
+///
+/// The destructor will automatically call shutdown() if it hasn't been done
+/// already.
 ///
 class AutoPollClient {
  public:
@@ -42,32 +53,32 @@ class AutoPollClient {
     std::string port;
     duration_t poll_timeout;
     duration_t command_timeout;
-    CONNECTION_TYPE ctype = CONNECTION_TYPE::TCP;
-    void* io_service;
+    ra2yrcpp::asio_utils::IOService* io_service;
   };
 
-  ///
-  /// Establishes connection to InstrumentationService.
-  /// This function may (and probably will) block until succesful
-  /// connection.
-  /// TODO: don't establish connection here, write a separate method
-  /// @throws std::exception on failed connection
   /// @param host Destination address/hostname.
   /// @param port Destination port.
   /// @param poll_timeout How long the poll thread should wait for results.
   /// @param command_timeout How long the connection thread should wait for ACK
   /// from the service.
   /// @param ctype The type of connection to establish.
-  /// @param io_service (For WebSocket connections only). A pointer to an
-  /// external IO service object.
-  ///
+  /// @param io_service Pointer to an external IO service object.
+  /// @exception std::exception on failed connection
   AutoPollClient(const std::string host, const std::string port,
                  const duration_t poll_timeout = cfg::POLL_RESULTS_TIMEOUT,
                  const duration_t command_timeout = cfg::COMMAND_ACK_TIMEOUT,
-                 CONNECTION_TYPE ctype = CONNECTION_TYPE::TCP,
-                 void* io_service = nullptr);
+                 ra2yrcpp::asio_utils::IOService* io_service = nullptr);
   explicit AutoPollClient(AutoPollClient::Options o);
   ~AutoPollClient();
+
+  /// Establishes connection to InstrumentationService.
+  /// This function may (and probably will) block until succesful
+  /// connection.
+  ///
+  /// @exception std::runtime_error if attempting to start already started
+  /// object or on connection failure
+  void start();
+  void shutdown();
   ///
   /// Send command message with command client and poll results with poll client
   ///
@@ -75,6 +86,9 @@ class AutoPollClient {
   static ra2yrproto::Response get_item();
 
   ResultMap& results();
+  /// Get the providied client type initialized by start()
+  ///
+  /// @exception std::out_of_range if the client  doesn't exist.
   InstrumentationClient* get_client(const ClientType type);
   u64 get_queue_id(ClientType t) const;
 
@@ -83,9 +97,9 @@ class AutoPollClient {
   std::string port_;
   const duration_t poll_timeout_;
   const duration_t command_timeout_;
-  CONNECTION_TYPE ctype_;
-  void* io_service_;
-  util::AtomicVariable<connection::State> state_;
+  ra2yrcpp::asio_utils::IOService* io_service_;
+  util::AtomicVariable<connection::State, std::recursive_mutex> state_;
+  std::atomic_bool poll_thread_active_;
   ResultMap results_;
 
   std::map<ClientType, std::unique_ptr<InstrumentationClient>> is_clients_;

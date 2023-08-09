@@ -2,19 +2,17 @@
 
 #include "protocol/protocol.hpp"
 
-#include "connection.hpp"
+#include "client_connection.hpp"
 #include "errors.hpp"
-#include "logging.hpp"
 
-#include <google/protobuf/message.h>
+#include <fmt/core.h>
 
 #include <stdexcept>
 
 using namespace instrumentation_client;
-using yrclient::to_json;
 
 InstrumentationClient::InstrumentationClient(
-    std::shared_ptr<connection::ClientConnection> conn)
+    std::shared_ptr<ra2yrcpp::connection::ClientConnection> conn)
     : conn_(conn) {}
 
 ra2yrproto::PollResults InstrumentationClient::poll_blocking(
@@ -35,17 +33,12 @@ ra2yrproto::PollResults InstrumentationClient::poll_blocking(
   return yrclient::from_any<ra2yrproto::PollResults>(resp.body());
 }
 
-size_t InstrumentationClient::send_data(const vecu8& data) {
+void InstrumentationClient::send_data(const vecu8& data) {
   (void)conn_->send_data(data);
-  return data.size();
 }
 
 ra2yrproto::Response InstrumentationClient::send_message(const vecu8& data) {
-  // FIXME: this check is now meaningless - either accomodate WS version for
-  // this or remove completely
-  if (send_data(data) != data.size()) {
-    throw std::runtime_error("sent data size mismatch");
-  }
+  send_data(data);
 
   auto resp = conn_->read_data();
   if (resp.size() == 0U) {
@@ -72,6 +65,10 @@ ra2yrproto::Response InstrumentationClient::send_command(
   return send_message(C);
 }
 
-connection::ClientConnection* InstrumentationClient::connection() {
+ra2yrcpp::connection::ClientConnection* InstrumentationClient::connection() {
   return conn_.get();
 }
+
+void InstrumentationClient::connect() { conn_->connect(); }
+
+void InstrumentationClient::disconnect() { conn_->stop(); }

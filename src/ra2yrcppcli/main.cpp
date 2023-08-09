@@ -187,7 +187,6 @@ int main(int argc, char* argv[]) {
   opts_dll.wait_process = A.get<unsigned>("--wait");
   opts_dll.process_name = A.get("--process-name");
   opts_dll.force = A.get<bool>("--force");
-  network::Init();
 
   if (A.is_used("--game-pid")) {
     inject_dll(A.get<unsigned>("--game-pid"), A.get("--dll-file"), opts,
@@ -220,10 +219,11 @@ int main(int argc, char* argv[]) {
     } else {
       PA.p_LoadLibrary = is_context::get_proc_address("LoadLibraryA");
     }
+
     is_context::DLLLoader L(PA.p_LoadLibrary, PA.p_GetProcAddress,
                             cfg::DLL_NAME, cfg::INIT_NAME, cfg::MAX_CLIENTS,
-                            cfg::SERVER_PORT, cfg::WEBSOCKET_PROXY_PORT,
-                            A.get<bool>("--no-indirect-address"));
+                            cfg::SERVER_PORT,
+                            A.get<bool>("--no-indirect-address"), false);
     auto p = L.getCode<void __cdecl (*)(void)>();
     std::ofstream os(A.get("--generate-dll-loader"), std::ios::binary);
     os << std::string(reinterpret_cast<char*>(p), L.getSize());

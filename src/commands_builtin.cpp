@@ -1,22 +1,17 @@
 #include "commands_builtin.hpp"
 
-#include "connection.hpp"
+#include "asio_utils.hpp"
 #include "hook.hpp"
 #include "instrumentation_service.hpp"
 #include "process.hpp"
 #include "ra2yrproto/commands_builtin.pb.h"
-#include "server.hpp"
 #include "types.h"
 #include "util_command.hpp"
 #include "util_string.hpp"
 
 #include <xbyak/xbyak.h>
 
-#include <algorithm>
 #include <cstddef>
-#include <deque>
-#include <iterator>
-#include <mutex>
 #include <utility>
 #include <vector>
 
@@ -55,30 +50,16 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
         Q->command_data().mutable_result()->set_result(a.value());
       }),
       get_cmd<ra2yrproto::commands::GetSystemState>([](auto* Q) {
-        std::lock_guard<std::mutex> lk(Q->I()->server().connections_mut);
         auto* state = Q->command_data().mutable_result()->mutable_state();
-        std::vector<server::ConnectionCTX*> active_connections;
-        auto& conns = Q->I()->server().connections();
-        auto& close = Q->I()->server().close_queue();
-        std::transform(conns.begin(), conns.end(),
-                       std::back_inserter(active_connections),
-                       [](auto& ctx) { return ctx.get(); });
-        active_connections.erase(
-            std::remove_if(active_connections.begin(), active_connections.end(),
-                           [&close](auto* c) {
-                             return std::find_if(close.begin(), close.end(),
-                                                 [&c](auto* d) {
-                                                   return d->socket() ==
-                                                          c->c().socket();
-                                                 }) != close.end();
-                           }),
-            active_connections.end());
-        for (auto& c : active_connections) {
-          auto* conn = state->add_connections();
-          conn->set_socket_id(c->c().socket());
-          duration_t dur = c->timestamp().time_since_epoch();
-          conn->set_timestamp(dur.count());
-        }
+        auto* srv = Q->I()->ws_server_.get();
+        srv->service_->post([state, srv]() {
+          for (const auto& [socket_id, c] : srv->ws_conns) {
+            auto* conn = state->add_connections();
+            conn->set_socket_id(socket_id);
+            duration_t dur = c.timestamp.time_since_epoch();
+            conn->set_timestamp(dur.count());
+          }
+        });
         auto [l, rq] = Q->I()->cmd_manager().aq_results_queue();
         for (const auto& [k, v] : *rq) {
           state->add_queues()->set_queue_id(k);

@@ -6,7 +6,6 @@
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
 #include "multi_client.hpp"
-#include "network.hpp"
 
 #include <gtest/gtest.h>
 
@@ -35,13 +34,12 @@ yrclient::InstrumentationService* make_is(
   return I;
 }
 
+// FIXME: dedupe code
 class ISStressTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    network::Init();
     yrclient::InstrumentationService::IServiceOptions opts{
-        cfg::MAX_CLIENTS, cfg::SERVER_PORT, cfg::WEBSOCKET_PROXY_PORT,
-        "0.0.0.0", true};
+        cfg::MAX_CLIENTS, cfg::SERVER_PORT, cfg::SERVER_ADDRESS, true};
 
     I = std::unique_ptr<yrclient::InstrumentationService>(make_is(opts));
     ctx = std::make_unique<MultiClientTestContext>();
@@ -57,15 +55,10 @@ class ISStressTest : public ::testing::Test {
 };
 
 TEST_F(ISStressTest, DISABLED_ManyConnections) {
-  yrclient::InstrumentationService::IServiceOptions opts{
-      cfg::MAX_CLIENTS, cfg::SERVER_PORT, cfg::WEBSOCKET_PROXY_PORT,
-      "127.0.0.1", true};
-  AutoPollClient::Options aopts{opts.host,
-                                std::to_string(opts.ws_port),
+  auto& opts = I->opts();
+  AutoPollClient::Options aopts{opts.host, std::to_string(opts.port),
                                 cfg::POLL_RESULTS_TIMEOUT,
-                                cfg::COMMAND_ACK_TIMEOUT,
-                                CONNECTION_TYPE::WEBSOCKET,
-                                nullptr};
+                                cfg::COMMAND_ACK_TIMEOUT, nullptr};
 
   ra2yrproto::commands::GetSystemState cmd;
   // TODO: make the failed connections fail more quickly

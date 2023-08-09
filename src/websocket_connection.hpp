@@ -1,31 +1,36 @@
 #pragma once
 #include "async_queue.hpp"
-#include "connection.hpp"
+#include "client_connection.hpp"
 #include "types.h"
 
 #include <memory>
 #include <string>
 
-namespace connection {
+namespace ra2yrcpp {
+namespace asio_utils {
+class IOService;
+}
+}  // namespace ra2yrcpp
+
+namespace ra2yrcpp::connection {
 class ClientWebsocketConnection : public ClientConnection {
  public:
   ClientWebsocketConnection(std::string host, std::string port,
-                            void* io_service);
+                            ra2yrcpp::asio_utils::IOService* io_service);
   using item_t = std::shared_ptr<vecu8>;
   ~ClientWebsocketConnection() override;
   void connect() override;
-  bool send_data(const vecu8& bytes) override;
+  void send_data(const vecu8& bytes) override;
   vecu8 read_data() override;
-  //
-  // Puts empty vector to input message queue to signal the reader that
-  // connection is closed.
-  //
+  /// Puts empty vector to input message queue to signal the reader that
+  /// connection is closed.
   void stop() override;
+  class client_impl;
 
  private:
   async_queue::AsyncQueue<item_t> in_q_;
-  std::unique_ptr<void, void (*)(void*)> client_;
-  void* io_service_;
+  std::unique_ptr<client_impl> client_;
+  ra2yrcpp::asio_utils::IOService* io_service_;
   std::weak_ptr<void> connection_handle_;
 };
-}  // namespace connection
+}  // namespace ra2yrcpp::connection

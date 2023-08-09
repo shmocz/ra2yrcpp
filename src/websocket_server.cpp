@@ -1,119 +1,64 @@
 #include "websocket_server.hpp"
 
+#include "asio_utils.hpp"
 #include "logging.hpp"
-#include "util_string.hpp"
-#include "utility/serialize.hpp"
+#include "utility/time.hpp"
 
-#include <algorithm>
+#include <websocketpp/common/asio.hpp>
+#include <websocketpp/config/asio_no_tls.hpp>
+#include <websocketpp/logger/levels.hpp>
+#include <websocketpp/server.hpp>
+
 #include <cstddef>
+#include <exception>
 #include <functional>
+#include <memory>
+#include <utility>
 #include <vector>
 
 using namespace ra2yrcpp::websocket_server;
-using error_code = lib::error_code;
+using namespace ra2yrcpp::asio_utils;
+namespace lib = websocketpp::lib;
+using server = websocketpp::server<websocketpp::config::asio>;
 
-template <typename FnT>
-static void do_read_message_body(TCPConnection* C, FnT f, u32 message_length) {
-  auto msg = std::make_shared<vecu8>(message_length);
-  // bind the completion handler to connection object
-  auto self(C->shared_from_this());
-  lib::asio::async_read(C->s_, lib::asio::buffer(*msg),
-                        lib::asio::transfer_exactly(msg->size()),
-                        [C, f, msg, self](auto ec, std::size_t) {
-                          if (!ec) {
-                            f(*msg);
-                          } else {
-                            eprintf("err={}", ec.message());
-                          }
-                        });
-}
-
-template <typename FnT>
-static void do_read_message(TCPConnection* C, FnT f) {
-  auto msg = std::make_shared<vecu8>(sizeof(u32));
-
-  auto self(C->shared_from_this());
-  lib::asio::async_read(
-      C->s_, lib::asio::buffer(*msg), lib::asio::transfer_exactly(msg->size()),
-      [C, f, msg, self](auto ec, std::size_t) {
-        if (!ec) {
-          do_read_message_body(C, f, serialize::read_obj_le<u32>(msg->data()));
-        } else {
-          eprintf("err={}", ec.message());
-        }
-      });
-}
-
-// TODO: create a common method for length-prefixed message handling, and
-// refactor the stuff in connection.hpp to use it properly.
-template <typename FnT>
-static void do_write(TCPConnection* C, const vecu8& data, FnT f) {
-  u32 sz = data.size();
-  auto msg = std::make_shared<vecu8>(sizeof(sz));
-  // put length
-  vecu8 ssz(sizeof(u32), 0);
-  std::copy(reinterpret_cast<char*>(&sz),
-            (reinterpret_cast<char*>(&sz)) + sizeof(sz), msg->begin());
-  // put rest of the msg
-  msg->insert(msg->end(), data.begin(), data.end());
-
-  auto self(C->shared_from_this());
-  lib::asio::async_write(C->s_, lib::asio::buffer(*msg),
-                         lib::asio::transfer_exactly(msg->size()),
-                         [C, f, msg, self](auto ec, std::size_t) {
-                           if (!ec) {
-                             do_read_message(C, f);
-                           } else {
-                             eprintf("err={}", ec.message());
-                           }
-                         });
-}
-
-TCPConnection::TCPConnection(lib::asio::ip::tcp::socket s)
-    : s_(std::move(s)), f_worker(nullptr) {}
-
-void TCPConnection::shutdown() {
-  s_.shutdown(asio::socket_base::shutdown_both);
-  s_.close();
-}
-
-void WebsocketProxy::add_connection(network::socket_t src,
-                                    lib::asio::ip::tcp::socket sock) {
-  if (tcp_conns.find(src) == tcp_conns.end()) {
-    tcp_conns[src] = std::make_shared<TCPConnection>(std::move(sock));
-  } else {
-    eprintf("duplicate socket: {}", src);
+class WebsocketServer::server_impl : public server {
+ public:
+  /// This is so common operation, hence a dedicated method.
+  auto get_socket_id(connection_hdl h) {
+    return get_con_from_hdl(h)->get_socket().native_handle();
   }
-}
+};
 
-WebsocketProxy::WebsocketProxy(WebsocketProxy::Options o, void* service)
-    : WebsocketProxy(o, reinterpret_cast<lib::asio::io_service*>(service)) {}
+WebsocketServer::~WebsocketServer() {}
 
-WebsocketProxy::WebsocketProxy(WebsocketProxy::Options o,
-                               lib::asio::io_service* service)
-    : opts(o), service_(service), ready(false) {
-  // connect to destination server
-  s.set_message_handler([this](auto h, auto msg) {
+WSReply::WSReply() {}
+
+struct WSReplyImpl : public WSReply {
+  explicit WSReplyImpl(server::message_ptr msg) : msg(msg) {}
+
+  const std::string& get_payload() const override { return msg->get_payload(); }
+
+  int get_opcode() const override { return msg->get_opcode(); }
+
+  server::message_ptr msg;
+};
+
+WebsocketServer::WebsocketServer(WebsocketServer::Options o,
+                                 ra2yrcpp::asio_utils::IOService* service,
+                                 Callbacks cb)
+    : opts(o),
+      service_(service),
+      cb_(cb),
+      server_(std::make_unique<server_impl>()) {
+  auto& s = *server_.get();
+  s.set_message_handler([&](connection_hdl h, auto msg) {
     if (msg->get_opcode() == websocketpp::frame::opcode::text) {
       eprintf("got text message, expecting binary");
       return;
     }
-    // get connection associated with this client
-    error_code ec;
     try {
-      auto cptr = s.get_con_from_hdl(h);
-      auto p = msg->get_payload();
-      auto op = msg->get_opcode();
-
-      auto* conn = tcp_conns[cptr->get_socket().native_handle()].get();
-
-      conn->f_worker.push(std::make_shared<vecu8>(p.begin(), p.end()),
-                          [this, conn, h, op](auto& data) {
-                            do_write(conn, *data.get(), [this, h, op](auto r) {
-                              s.send(h, reinterpret_cast<void*>(r.data()),
-                                     r.size(), op);
-                            });
-                          });
+      WSReplyImpl R(msg);
+      send_response(h, &R);
     } catch (const std::exception& e) {
       eprintf("error while handling message: {}", e.what());
     }
@@ -124,30 +69,12 @@ WebsocketProxy::WebsocketProxy(WebsocketProxy::Options o,
     socket.set_option(asio::ip::tcp::no_delay(true));
   });
 
-  // Establish TCP connection to InstrumentationService
-  s.set_validate_handler([this](auto h) {
+  s.set_validate_handler([&](connection_hdl) {
     try {
-      if (tcp_conns.size() >= opts.max_connections) {
-        eprintf("max connections {} exceeded", tcp_conns.size());
+      if (ws_conns.size() >= opts.max_connections) {
+        eprintf("max connections {} exceeded", ws_conns.size());
         return false;
       }
-      error_code ec;
-      auto cptr = s.get_con_from_hdl(h);
-
-      // Connect to IService
-      lib::asio::ip::tcp::socket sock(*service_);
-
-      sock.connect(lib::asio::ip::tcp::endpoint(
-                       lib::asio::ip::address::from_string(opts.destination),
-                       opts.destination_port),
-                   ec);
-
-      if (ec) {
-        eprintf("TCP connection to service failed: {}", ec.message());
-        return false;
-      }
-
-      add_connection(cptr->get_socket().native_handle(), std::move(sock));
     } catch (const std::exception& e) {
       eprintf("validate_handler: {}", e.what());
       return false;
@@ -156,71 +83,64 @@ WebsocketProxy::WebsocketProxy(WebsocketProxy::Options o,
     return true;
   });
 
-  // Erase proxied TCP connection
-  s.set_close_handler([this](auto h) {
+  s.set_close_handler([&](connection_hdl h) {
     try {
-      auto cptr = s.get_con_from_hdl(h);
-      auto id = cptr->get_socket().native_handle();
-
-      tcp_conns[id]->shutdown();
-      (void)tcp_conns.erase(id);
-      (void)ws_conns.erase(id);
+      const auto socket_id = s.get_socket_id(h);
+      cb_.close(socket_id);
+      (void)ws_conns.erase(socket_id);
+      iprintf("closed conn {}", socket_id);
     } catch (const std::exception& e) {
       eprintf("close_handler: {}", e.what());
     }
   });
 
-  s.set_open_handler([this](auto h) {
+  // TODO(shmocz): thread safety
+  s.set_open_handler([&](connection_hdl h) {
     try {
-      auto cptr = s.get_con_from_hdl(h);
-      ws_conns[cptr->get_socket().native_handle()] = h;
+      add_connection(h);
+      cb_.accept(s.get_socket_id(h));
     } catch (const std::exception& e) {
       eprintf("open_handler: {}", e.what());
     }
   });
 
+  // TODO(shmocz): thread safety
+  s.set_interrupt_handler([&](connection_hdl h) {
+    size_t count = 0;
+    if ((count = ws_conns.erase(s.get_socket_id(h))) < 1) {
+      wrprintf("got interrupt, but no connections were removed");
+    }
+  });
+
   // HTTP handler for use with CURL etc.
-  s.set_http_handler([this](auto h) {
+  s.set_http_handler([&](connection_hdl h) {
     auto con = s.get_con_from_hdl(h);
-    std::string res = con->get_request_body();
-    error_code ec;
-
-    // Connect to IService
-    lib::asio::ip::tcp::socket sock(*service_);
-
-    sock.connect(lib::asio::ip::tcp::endpoint(
-                     lib::asio::ip::address::from_string(opts.destination),
-                     opts.destination_port),
-                 ec);
-
-    if (ec) {
-      eprintf("TCP connection to service failed: {}", ec.message());
+    const auto id = s.get_socket_id(h);
+    if (ws_conns.find(id) != ws_conns.end()) {
+      eprintf("duplicate connection {}", id);
       return;
     }
+    add_connection(h);
+    cb_.accept(id);
 
-    // Add length prefix and forward the data
-    u32 sz = res.size();
-    vecu8 ssz(sizeof(u32), 0);
-    res.insert(res.begin(), reinterpret_cast<char*>(&sz),
-               reinterpret_cast<char*>(&sz) + sizeof(sz));
-    // Write the data
-    sock.write_some(lib::asio::buffer(res), ec);
-
-    // Read response back
-    lib::asio::read(sock, lib::asio::buffer(ssz),
-                    lib::asio::transfer_exactly(sizeof(u32)));
-    sz = serialize::read_obj_le<u32>(ssz.data());
-    // Read body
-    vecu8 body(sz, 0);
-    lib::asio::read(sock, lib::asio::buffer(body),
-                    lib::asio::transfer_exactly(sz));
-
-    // Close connection
-    sock.close();
-
-    // write response
-    con->set_body(yrclient::to_string(body));
-    con->set_status(websocketpp::http::status_code::ok);
+    ws_conns[id].buffer = con->get_request_body();
+    con->defer_http_response();
+    ws_conns[id].executor->push(0, [this, con, id](int) {
+      auto resp = cb_.receive(id, &ws_conns[id].buffer);
+      service_->post(
+          [this, con, resp, id]() {
+            try {
+              con->set_body(resp);
+              con->set_status(websocketpp::http::status_code::ok);
+              con->send_http_response();
+              cb_.close(id);
+            } catch (const std::exception& e) {
+              eprintf("couldn't send http response: {}", e.what());
+            }
+            con->interrupt();
+          },
+          true);
+    });
   });
 
   s.clear_access_channels(websocketpp::log::alevel::frame_payload |
@@ -230,30 +150,64 @@ WebsocketProxy::WebsocketProxy(WebsocketProxy::Options o,
   s.set_access_channels(websocketpp::log::alevel::all);
   s.set_error_channels(websocketpp::log::elevel::all);
 #endif
-
-  dprintf("init asio, ws_port={}, dest_port={}", o.websocket_port,
-          o.destination_port);
-  s.init_asio(service_);
-  s.set_reuse_addr(true);
-  s.listen(lib::asio::ip::tcp::v4(), o.websocket_port);
-  s.start_accept();
-  service_->post([this]() { ready.store(true); });
 }
 
-WebsocketProxy::~WebsocketProxy() { shutdown(); }
-
-void WebsocketProxy::shutdown() {
-  if (s.is_listening()) {
-    s.stop_listening();
-  }
-
-  // Close TCP connections
-  for (auto& [k, v] : tcp_conns) {
-    v->shutdown();
+// TODO(shmocz): thread safety
+void WebsocketServer::shutdown() {
+  if (server_->is_listening()) {
+    server_->stop_listening();
   }
 
   // Close WebSocket connections
-  for (auto& [k, v] : ws_conns) {
-    s.close(v, websocketpp::close::status::going_away, "");
-  }
+  service_->post([&]() {
+    for (auto& [k, v] : ws_conns) {
+      auto cptr = server_->get_con_from_hdl(v.hdl);
+      if (cptr->get_state() == websocketpp::session::state::open) {
+        server_->close(v.hdl, websocketpp::close::status::normal, "");
+      }
+    }
+    ws_conns.clear();
+  });
+}
+
+void WebsocketServer::send_response(connection_hdl h, WSReply* msg) {
+  auto op = static_cast<websocketpp::frame::opcode::value>(msg->get_opcode());
+  auto id = server_->get_socket_id(h);
+
+  ws_conns[id].buffer = msg->get_payload();
+
+  ws_conns[id].executor->push(0, [this, op, id](int) {
+    auto& c = ws_conns[id];
+    auto resp = cb_.receive(id, &c.buffer);
+    service_->post(
+        [this, &c, resp, op]() {
+          try {
+            server_->send(c.hdl, resp, op);
+          } catch (...) {
+            eprintf("failed to send");
+          }
+        },
+        true);
+  });
+}
+
+void WebsocketServer::start() {
+  dprintf("init asio, port={}", opts.port);
+  server_->init_asio(
+      static_cast<lib::asio::io_service*>(service_->get_service()));
+  server_->set_reuse_addr(true);
+  server_->listen(lib::asio::ip::tcp::v4(), opts.port);
+  server_->start_accept();
+}
+
+void WebsocketServer::add_connection(connection_hdl h) {
+  ws_conns[server_->get_socket_id(h)] = {
+      h, util::current_time(), "",
+      std::make_unique<utility::worker_util<int>>(nullptr, 5)};
+}
+
+std::unique_ptr<WebsocketServer> ra2yrcpp::websocket_server::create_server(
+    WebsocketServer::Options o, ra2yrcpp::asio_utils::IOService* service,
+    WebsocketServer::Callbacks cb) {
+  return std::make_unique<WebsocketServer>(o, service, cb);
 }

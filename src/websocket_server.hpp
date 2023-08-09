@@ -1,75 +1,82 @@
 #pragma once
 #include "auto_thread.hpp"
-#include "network.hpp"
-#include "types.h"
-#include "utility/sync.hpp"
 
-// TODO(shmocz): namespace pollution
-#include <websocketpp/config/asio_no_tls.hpp>
-#include <websocketpp/server.hpp>
-
-#include <exception>
+#include <chrono>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
-#include <utility>
+
+namespace ra2yrcpp {
+namespace asio_utils {
+class IOService;
+}
+}  // namespace ra2yrcpp
 
 namespace ra2yrcpp {
 
 namespace websocket_server {
 
-namespace lib = websocketpp::lib;
+using connection_hdl = std::weak_ptr<void>;
 
-///
-/// Handles the communication with target TCP socket. Spawns a thread which
-/// fetches messages, and sends them through the socket using asio's async
-/// read/write functions.
-///
-class TCPConnection : public std::enable_shared_from_this<TCPConnection> {
- public:
-  explicit TCPConnection(lib::asio::ip::tcp::socket s);
-
-  ///
-  /// Shutdown (stopping read/write activity on the socket) and close the
-  /// underlying socket.
-  ///
-  void shutdown();
-
-  lib::asio::ip::tcp::socket s_;
-  utility::worker_util<std::shared_ptr<vecu8>> f_worker;
+/// This abstracts away websocketpp's message_ptr
+struct WSReply {
+  WSReply();
+  virtual ~WSReply() = default;
+  virtual const std::string& get_payload() const = 0;
+  virtual int get_opcode() const = 0;
 };
 
-/// TODO (shmocz): use websocketpp's http handler to allow responding to HTTP
-/// requests (CURL for example)
-class WebsocketProxy {
+struct SocketEntry {
+  connection_hdl hdl;
+  std::chrono::system_clock::time_point timestamp;
+  std::string buffer;
+  std::unique_ptr<utility::worker_util<int>> executor;
+};
+
+class WebsocketServer {
  public:
-  using server = websocketpp::server<websocketpp::config::asio>;
+  using socket_t = int;
 
   struct Options {
-    std::string destination;
-    unsigned destination_port;
-    unsigned websocket_port;
+    std::string host;
+    unsigned port;
     unsigned max_connections;
   };
 
-  WebsocketProxy(WebsocketProxy::Options o, void* service);
-  explicit WebsocketProxy(WebsocketProxy::Options o,
-                          lib::asio::io_service* service);
-  ~WebsocketProxy();
+  struct Callbacks {
+    std::function<std::string(socket_t, std::string*)> receive;
+    std::function<void(socket_t)> accept;
+    std::function<void(socket_t)> close;
+  };
 
-  void add_connection(network::socket_t src, lib::asio::ip::tcp::socket sock);
+  WebsocketServer() = delete;
+  WebsocketServer(WebsocketServer::Options o,
+                  ra2yrcpp::asio_utils::IOService* service, Callbacks cb);
+  ~WebsocketServer();
+
   ///
+  void start();
   /// Shutdown all active connections and stop accepting new connections.
-  ///
   void shutdown();
+  /// Send a reply for a previously received message. Must be used within
+  /// io_service's thread.
+  void send_response(connection_hdl h, WSReply* msg);
 
-  WebsocketProxy::Options opts;
-  WebsocketProxy::server s;
-  std::map<network::socket_t, std::shared_ptr<TCPConnection>> tcp_conns;
-  std::map<network::socket_t, websocketpp::connection_hdl> ws_conns;
-  lib::asio::io_service* service_;
-  util::AtomicVariable<bool> ready;
+  /// Add a recently accepted connection to internal connection list.
+  void add_connection(connection_hdl h);
+
+  WebsocketServer::Options opts;
+  std::map<unsigned int, SocketEntry> ws_conns;
+  ra2yrcpp::asio_utils::IOService* service_;
+  Callbacks cb_;
+  class server_impl;
+  std::unique_ptr<server_impl> server_;
 };
+
+std::unique_ptr<WebsocketServer> create_server(
+    WebsocketServer::Options o, ra2yrcpp::asio_utils::IOService* service,
+    WebsocketServer::Callbacks cb);
 }  // namespace websocket_server
 
 }  // namespace ra2yrcpp

@@ -1,12 +1,14 @@
+#include "asio_utils.hpp"
+#include "client_connection.hpp"
 #include "client_utils.hpp"
 #include "config.hpp"
-#include "connection.hpp"
 #include "dll_inject.hpp"
 #include "exprocess.hpp"
 #include "gtest/gtest.h"
 #include "instrumentation_client.hpp"
 #include "is_context.hpp"
 #include "utility/time.hpp"
+#include "websocket_connection.hpp"
 #include "x86.hpp"
 #include "yrclient_dll.hpp"
 
@@ -19,6 +21,7 @@
 
 using instrumentation_client::InstrumentationClient;
 using namespace std::chrono_literals;
+namespace connection = ra2yrcpp::connection;
 
 class DLLInjectTest : public ::testing::Test {
  protected:
@@ -83,24 +86,23 @@ TEST_F(DLLInjectTest, BasicLoading) {
   ASSERT_EQ(addr1, addr2);
 }
 
-// TODO: strange error??? this fails if stderr is piped to a file
 TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
   is_context::DLLLoader L(p_LoadLibrary, p_GetProcAddress, path_dll, name_init,
-                          cfg::MAX_CLIENTS, cfg::SERVER_PORT, 0u, false, true);
+                          cfg::MAX_CLIENTS, cfg::SERVER_PORT, false, true);
   L.ret();
   auto p = L.getCode<u8*>();
   vecu8 sc(p, p + L.getSize());
   exprocess::ExProcess P("dummy_program.exe 10 500");
 
   dll_inject::suspend_inject_resume(P.handle(), sc);
-  network::Init();
 
   std::unique_ptr<InstrumentationClient> client;
+  ra2yrcpp::asio_utils::IOService srv;
 
-  util::call_until(5.0s, 1.0s, [&client]() {
+  util::call_until(5.0s, 1.0s, [&client, &srv]() {
     try {
-      auto conn = std::make_shared<connection::ClientTCPConnection>(
-          cfg::SERVER_ADDRESS, std::to_string(cfg::SERVER_PORT));
+      auto conn = std::make_shared<connection::ClientWebsocketConnection>(
+          cfg::SERVER_ADDRESS, std::to_string(cfg::SERVER_PORT), &srv);
       conn->connect();
       client = std::make_unique<InstrumentationClient>(conn);
       return false;
@@ -128,6 +130,8 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
     auto r2 = client_utils::run(g, client.get()).result();
     ASSERT_EQ(r2, f1);
   }
+
+  client = nullptr;
 
   // NB. gotta wait explicitly, cuz WaitFoSingleObject could fail and we cant
   // throw from dtors

@@ -1,19 +1,26 @@
 #include "websocket_connection.hpp"
 
+#include "asio_utils.hpp"
+#include "client_connection.hpp"
 #include "config.hpp"
 #include "logging.hpp"
-#include "utility/memtools.hpp"
 #include "utility/sync.hpp"
 
 #include <websocketpp/client.hpp>
 #include <websocketpp/config/asio_no_tls_client.hpp>
-#include <websocketpp/frame.hpp>
 
-using namespace connection;
+#include <chrono>
+#include <exception>
+#include <stdexcept>
+#include <vector>
+
+using namespace ra2yrcpp::connection;
 using namespace std::chrono_literals;
 
-using client_t = websocketpp::client<websocketpp::config::asio_client>;
-using error_code = websocketpp::lib::error_code;
+using ws_error = websocketpp::lib::error_code;
+
+class ClientWebsocketConnection::client_impl
+    : public websocketpp::client<websocketpp::config::asio_client> {};
 
 void ClientWebsocketConnection::stop() {
   in_q_.push(std::make_shared<vecu8>());
@@ -21,15 +28,16 @@ void ClientWebsocketConnection::stop() {
 
 void ClientWebsocketConnection::connect() {
   state_.store(State::CONNECTING);
-  error_code ec;
-  auto c_ = reinterpret_cast<client_t*>(client_.get());
+  ws_error ec;
+  auto* c_ = client_.get();
 
 #ifdef DEBUG_WEBSOCKETPP
   c_->set_access_channels(websocketpp::log::alevel::all);
   c_->set_error_channels(websocketpp::log::elevel::all);
 #endif
 
-  c_->init_asio(reinterpret_cast<asio::io_service*>(io_service_), ec);
+  c_->init_asio(reinterpret_cast<asio::io_service*>(io_service_->get_service()),
+                ec);
 
   if (ec) {
     throw std::runtime_error("init_asio() failed: " + ec.message());
@@ -38,7 +46,7 @@ void ClientWebsocketConnection::connect() {
   c_->clear_access_channels(websocketpp::log::alevel::frame_payload |
                             websocketpp::log::alevel::frame_header);
   c_->set_fail_handler([this, c_](auto h) {
-    error_code ec_;
+    ws_error ec_;
     wrprintf("fail handler={}",
              c_->get_con_from_hdl(h, ec_)->get_socket().native_handle());
     stop();
@@ -76,23 +84,17 @@ void ClientWebsocketConnection::connect() {
   }
 }
 
-bool ClientWebsocketConnection::send_data(const vecu8& bytes) {
-  // TODO: could use websocket's interrupt_handler
-  // TODO: try use send method with a callback to get actual bytes sent
-  util::AtomicVariable<bool> done(false);
-  reinterpret_cast<asio::io_service*>(io_service_)
-      ->post([this, &bytes, &done]() {
-        auto c_ = reinterpret_cast<client_t*>(client_.get());
-        error_code ec;
-        c_->send(connection_handle_, bytes.data(), bytes.size(),
-                 websocketpp::frame::opcode::binary, ec);
-        if (ec) {
-          eprintf("failed to send data: {}", ec.message());
-        }
-        done.store(true);
-      });
-  done.wait(true);
-  return true;
+void ClientWebsocketConnection::send_data(const vecu8& bytes) {
+  ws_error ec;
+  io_service_->post([this, &bytes, &ec]() {
+    auto* c_ = client_.get();
+    c_->send(connection_handle_, bytes.data(), bytes.size(),
+             websocketpp::frame::opcode::binary, ec);
+  });
+  if (ec) {
+    throw std::runtime_error(
+        fmt::format("failed to send data: {}", ec.message()));
+  }
 }
 
 vecu8 ClientWebsocketConnection::read_data() {
@@ -107,15 +109,20 @@ vecu8 ClientWebsocketConnection::read_data() {
   }
 }
 
-ClientWebsocketConnection::ClientWebsocketConnection(std::string host,
-                                                     std::string port,
-                                                     void* io_service)
+ClientWebsocketConnection::ClientWebsocketConnection(
+    std::string host, std::string port,
+    ra2yrcpp::asio_utils::IOService* io_service)
     : ClientConnection(host, port),
-      client_(utility::make_uptr<client_t>()),
+      client_(std::make_unique<client_impl>()),
       io_service_(io_service) {}
 
 ClientWebsocketConnection::~ClientWebsocketConnection() {
-  reinterpret_cast<client_t*>(client_.get())
-      ->close(connection_handle_, websocketpp::close::status::normal, "");
+  try {
+    client_->close(connection_handle_, websocketpp::close::status::going_away,
+                   "");
+    iprintf("websocket connection closed");
+  } catch (const std::exception& e) {
+    wrprintf("failed to close gracefully: {}", e.what());
+  }
   state_.wait(State::CLOSED);
 }

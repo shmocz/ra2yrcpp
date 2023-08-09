@@ -1,13 +1,10 @@
 #pragma once
-#include "connection.hpp"
 #include "ra2yrproto/core.pb.h"
 #include "types.h"
 
-#include <cstddef>
 #include <memory>
-#include <string>
 
-namespace connection {
+namespace ra2yrcpp::connection {
 class ClientConnection;
 }
 
@@ -22,13 +19,13 @@ namespace instrumentation_client {
 class InstrumentationClient {
  public:
   explicit InstrumentationClient(
-      std::shared_ptr<connection::ClientConnection> conn);
+      std::shared_ptr<ra2yrcpp::connection::ClientConnection> conn);
 
   ///
   /// Send bytes and return number of bytes sent.
   /// @exception std::runtime_error on write failure
   ///
-  size_t send_data(const vecu8& data);
+  void send_data(const vecu8& data);
 
   ///
   /// Send encoded message to server and read response back.
@@ -50,10 +47,17 @@ class InstrumentationClient {
   /// @exception std::system_error for internal server error
   ra2yrproto::PollResults poll_blocking(const duration_t timeout,
                                         const u64 queue_id = (u64)-1);
-  connection::ClientConnection* connection();
+  ra2yrcpp::connection::ClientConnection* connection();
+  /// Establishes connection
+  ///
+  /// @exception std::runtime_error on connection failure
+  void connect();
+
+  /// Disconnects the client
+  void disconnect();
 
  private:
-  std::shared_ptr<connection::ClientConnection> conn_;
+  std::shared_ptr<ra2yrcpp::connection::ClientConnection> conn_;
 };
 
 }  // namespace instrumentation_client

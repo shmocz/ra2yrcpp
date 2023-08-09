@@ -75,7 +75,7 @@ class IServiceTest : public InstrumentationServiceTest {
 };
 
 TEST_F(IServiceTest, HookingGetSetWorks) {
-#ifdef XBYAK64
+#ifdef RA2YRCPP_64
   GTEST_SKIP();
 #endif
   // store initial flag value

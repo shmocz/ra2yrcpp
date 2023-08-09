@@ -33,3 +33,9 @@ constexpr duration_t POLL_RESULTS_TIMEOUT = 1.0s;
 // Timeout for client to get ACK from service.
 constexpr duration_t COMMAND_ACK_TIMEOUT = 0.25s;
 };  // namespace cfg
+
+#if defined(_M_X64) || defined(__amd64__)
+#define RA2YRCPP_64
+#else
+#define RA2YRCPP_32
+#endif

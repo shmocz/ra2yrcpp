@@ -3,6 +3,7 @@
 #include "utility/time.hpp"
 
 #include <gtest/gtest.h>
+
 #include <thread>
 #include <vector>
 

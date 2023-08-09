@@ -8,10 +8,11 @@
 #include "multi_client.hpp"
 #include "network.hpp"
 
+#include <gtest/gtest.h>
+
 #include <cstdlib>
 #include <exception>
 #include <functional>
-#include <gtest/gtest_pred_impl.h>
 #include <map>
 #include <memory>
 #include <string>

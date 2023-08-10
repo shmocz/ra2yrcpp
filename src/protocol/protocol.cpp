@@ -2,7 +2,6 @@
 
 #include "util_string.hpp"
 
-#include <google/protobuf/stubs/status.h>
 #include <google/protobuf/util/json_util.h>
 
 #include <cstdio>

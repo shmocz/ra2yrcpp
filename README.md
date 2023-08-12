@@ -4,9 +4,14 @@ Library for interacting with Red Alert 2 Yuri's Revenge game process with protob
 
 ## Usage
 
-Copy `libra2yrcpp.dll` and patched `gamemd-spawn.exe` to the CnCNet installation folder (overwriting the original `gamemd-spawn.exe`), or ensure some other way that LoadLibrary can locate the DLL by it's base name.
+Copy `libra2yrcpp.dll` and patched `gamemd-spawn.exe` to the CnCNet installation folder (overwriting the original `gamemd-spawn.exe`), or ensure some other way that LoadLibrary can locate the DLL by it's base name. When the game is started, the DLL will be loaded and a with WebSocket server bound to port 14521.
 
-This spawns a TCP server bound to port 14521 and WebSocket proxy to it on port 14525. To override these, set the environment variables `RA2YRCPP_PORT` and `RA2YRCPP_WS_PORT`.
+The following environment variables control the behaviour of the service:
+
+- `RA2YRCPP_ALLOWED_HOSTS_REGEX`: Regex matching the hosts allowed to connect (default: "0.0.0.0|127.0.0.1")
+- `RA2YRCPP_PORT`: The server port (default: 14521)
+- `RA2YRCPP_RECORD_PATH`: Path to state record file (disabled by default)
+- `RA2YRCPP_RECORD_TRAFFIC`: Path to traffic record file (disabled by default)
 
 ### Recording game data
 
@@ -36,7 +41,7 @@ All dependencies except cmake, python, zlib and wine are already included as sub
 Get the sources and submodules and place `gamemd-spawn.exe` from CnCNet distribution into the project source directory.
 
 ```bash
-git clone --recurse-submodules https://github.com/CnCNet/ra2yrcpp.git
+git clone --recurse-submodules https://github.com/shmocz/ra2yrcpp.git
 cd ra2yrcpp
 cp <CNCNET_FOLDER>/gamemd-spawn.exe .
 ```
@@ -120,9 +125,10 @@ cmake \
 
 The following build options are available:
 
-- `RA2YRCPP_BUILD_MAIN_DLL` whether to build the main YRpp-dependent DLL and related utilities. Default: `ON`
-- `RA2YRCPP_BUILD_TESTS` whether to build test executables. Default: `ON`
-- `RA2YRCPP_DEBUG_LOG` enable debug logging even for non-debug targets. Default: `OFF`
+- `RA2YRCPP_BUILD_MAIN_DLL` Whether to build the main YRpp-dependent DLL and related utilities. Default: `ON`
+- `RA2YRCPP_BUILD_TESTS` Whether to build test executables. Default: `ON`
+- `RA2YRCPP_DEBUG_LOG` Enable debug logging even for non-debug targets. Default: `OFF`
+- `RA2YRCPP_SYSTEM_PROTOBUF` Use system protobuf headers instead of the submodule. Useful when working on native builds. Default: `OFF`
 
 ### Build using clang-cl
 
@@ -148,13 +154,26 @@ export CMAKE_TOOLCHAIN_FILE=toolchains/mingw-w64-i686.cmake
 make build
 ```
 
-### Build core library natively
+### Build core library natively without YRpp
 
-The core component and its related tests do not depend on Windows, and can be built natively using `RA2YRCPP_BUILD_MAIN_DLL=OFF` CMake option. You can specify additional compile/link options for test executables in the `RA2YRCPP_EXTRA_FLAGS` variable. For instance, to enable ASan and UBSan on GCC or Clang:
+The core component and it's related tests do not depend on Windows, and can be built natively using `RA2YRCPP_BUILD_MAIN_DLL=OFF` CMake option. This is useful when debugging code of the main service. You can specify additional compile/link options for test executables in the `RA2YRCPP_EXTRA_FLAGS` variable. For instance, to enable ASan and UBSan on GCC or Clang:
 
 ```cmake
 set(RA2YRCPP_EXTRA_FLAGS -fsanitize=address -fsanitize=undefined)
 ```
+
+### Using different protobuf version
+
+> **Warning**
+> Currently supported only for native builds (`RA2YRCPP_BUILD_MAIN_DLL=OFF`)
+
+Newer versions of protobuf use abseil library and may require additional linking flags. These can be specified in the toolchain file like this:
+
+```cmake
+set(PROTOBUF_EXTRA_LIBS absl_status absl_log_internal_check_op absl_log_internal_message)
+```
+
+Exact list of libraries may vary across systems and protobuf versions.
 
 ### Running tests
 
@@ -181,6 +200,12 @@ And run the test. VNC view will be available at (http://127.0.0.1:6081/vnc.html?
 ```bash
 make test_integration
 ```
+
+## Troubleshooting
+
+### The game doesn't start
+
+This can happen if ra2yrcpp cannot load zlib DLL. Ensure that `zlib1.dll` is placed in the same folder as `gamemd-spawn.exe`.
 
 ## Credits
 

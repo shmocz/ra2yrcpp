@@ -262,6 +262,7 @@ set(CMAKE_SHARED_LINKER_FLAGS "${_CMAKE_SHARED_LINKER_FLAGS_INITIAL} ${LINK_FLAG
 # control which libraries they require.
 set(CMAKE_C_STANDARD_LIBRARIES "" CACHE STRING "" FORCE)
 set(CMAKE_CXX_STANDARD_LIBRARIES "" CACHE STRING "" FORCE)
+set(CMAKE_RC_FLAGS "/I ${WINSDK_INCLUDE}/um /I ${WINSDK_INCLUDE}/shared" CACHE STRING "" FORCE)
 
 # Need these to find headers etc.
 set(OPT_DIR "/home/user/project/opt")

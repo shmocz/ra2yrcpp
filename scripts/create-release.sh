@@ -36,6 +36,8 @@ make test
 
 # Prepare package
 rp="$(realpath "$BASE_DIR")"
+# Remove any old package and MinGW DLLs because we cant distribute them
+rm -f "$rp/ra2yrcpp.zip" "$BASE_DIR/pkg/bin/"{libgcc_s_dw2-1.dll,libstdc++-6.dll,libwinpthread-1.dll}
 cd "$BASE_DIR/pkg/bin" && 7z a "$rp/ra2yrcpp.zip" . && cd -
 
 # Create OK status tag if needed

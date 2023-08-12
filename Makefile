@@ -2,6 +2,8 @@
 export BUILDDIR ?= cbuild
 export CMAKE_BUILD_TYPE ?= Release
 
+VERSION = SOFT_VERSION-$(shell git rev-parse --short HEAD)
+
 REPO_FILES = $(shell git ls-tree -r --name-only HEAD) 
 TESTS := $(patsubst %.cpp,%.exe,$(subst tests/,bin/,$(shell find tests/ -iname "test_*.cpp")))
 PYTHON := python3
@@ -59,6 +61,7 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 	CMAKE_TOOLCHAIN_FILE=$(abspath $(CMAKE_TOOLCHAIN_FILE)) cmake \
 		-DCMAKE_INSTALL_PREFIX=$(DEST_DIR) \
+		-DRA2YRCPP_VERSION=$(VERSION) \
 		$(CMAKE_EXTRA_ARGS) \
 		-G "Unix Makefiles" \
 		-S . -B $(BUILD_DIR)
@@ -68,6 +71,7 @@ build_cpp: $(BUILD_DIR)
 	# check that these are defined
 	test $(NPROC)
 	test $(CMAKE_TARGET)
+	test $(VERSION)
 
 	# TODO: if using custom targets on mingw, the copied libs arent marked as deps!
 	cmake --build $(BUILD_DIR) --config $(CMAKE_BUILD_TYPE) --target $(CMAKE_TARGET) -j $(NPROC)

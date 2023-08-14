@@ -207,7 +207,7 @@ void InstrumentationService::store_value(
 }
 
 InstrumentationService::InstrumentationService(
-    InstrumentationService::IServiceOptions opt,
+    InstrumentationService::Options opt,
     std::function<std::string(InstrumentationService*)> on_shutdown,
     std::function<void(InstrumentationService*)> extra_init)
     : on_shutdown_(on_shutdown),
@@ -228,7 +228,6 @@ InstrumentationService::InstrumentationService(
   io_service_tid_.wait_pred([](auto v) { return v != 0U; });
 
   {
-    WebsocketServer::Options o{opt.host, opt.port, opt.max_clients};
     WebsocketServer::Callbacks cb{nullptr, nullptr, nullptr};
     cb.accept = [this](int id) { on_accept(this, id); };
     cb.close = [this](int id) { on_close(this, id); };
@@ -238,8 +237,8 @@ InstrumentationService::InstrumentationService(
       auto resp = on_receive_bytes(this, id, &bt);
       return to_string(resp);
     };
-    ws_server_ =
-        ra2yrcpp::websocket_server::create_server(o, io_service_.get(), cb);
+    ws_server_ = ra2yrcpp::websocket_server::create_server(
+        opts_.server, io_service_.get(), cb);
     ws_server_->start();
   }
 }
@@ -285,13 +284,12 @@ InstrumentationService::~InstrumentationService() {
   cmd_manager_.shutdown();
 }
 
-const InstrumentationService::IServiceOptions& InstrumentationService::opts()
-    const {
+const InstrumentationService::Options& InstrumentationService::opts() const {
   return opts_;
 }
 
 yrclient::InstrumentationService* InstrumentationService::create(
-    InstrumentationService::IServiceOptions O,
+    InstrumentationService::Options O,
     std::map<std::string, command::Command::handler_t>* commands,
     std::function<std::string(yrclient::InstrumentationService*)> on_shutdown,
     std::function<void(InstrumentationService*)> extra_init) {

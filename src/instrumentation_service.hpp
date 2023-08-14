@@ -52,15 +52,13 @@ using ra2yrcpp::websocket_server::WebsocketServer;
 
 class InstrumentationService {
  public:
-  struct IServiceOptions {
-    unsigned max_clients;
-    unsigned port;
-    std::string host;
+  struct Options {
+    WebsocketServer::Options server;
     bool no_init_hooks;
   };
 
   InstrumentationService(
-      IServiceOptions opt,
+      Options opt,
       std::function<std::string(InstrumentationService*)> on_shutdown,
       std::function<void(InstrumentationService*)> extra_init = nullptr);
   ~InstrumentationService();
@@ -85,11 +83,11 @@ class InstrumentationService {
   // TODO: don't expose this
   std::function<std::string(InstrumentationService*)> on_shutdown_;
   storage_t& storage();
-  const InstrumentationService::IServiceOptions& opts() const;
+  const InstrumentationService::Options& opts() const;
   std::vector<std::function<void(void*)>> stop_handlers_;
   // FIXME: dont expose
   static yrclient::InstrumentationService* create(
-      InstrumentationService::IServiceOptions O,
+      InstrumentationService::Options O,
       std::map<std::string, command::Command::handler_t>* commands,
       std::function<std::string(yrclient::InstrumentationService*)>
           on_shutdown = nullptr,
@@ -101,7 +99,7 @@ class InstrumentationService {
   ra2yrproto::PollResults flush_results(
       const u64 queue_id, const duration_t delay = cfg::POLL_RESULTS_TIMEOUT);
 
-  IServiceOptions opts_;
+  Options opts_;
   command::CommandManager cmd_manager_;
   std::map<u8*, hook::Hook> hooks_;
   std::mutex mut_hooks_;
@@ -113,5 +111,8 @@ class InstrumentationService {
  public:
   std::unique_ptr<WebsocketServer> ws_server_;
 };
+
+const InstrumentationService::Options default_options{
+    {cfg::SERVER_ADDRESS, cfg::MAX_CLIENTS, cfg::SERVER_PORT}, true};
 
 }  // namespace yrclient

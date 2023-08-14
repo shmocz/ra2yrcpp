@@ -1,5 +1,6 @@
 #include "yrclient_dll.hpp"
 
+#include "instrumentation_service.hpp"
 #include "is_context.hpp"
 
 #include <memory>
@@ -13,8 +14,11 @@ void yrclient_dll::initialize(const unsigned int max_clients,
   static std::mutex g_lock;
   g_lock.lock();
   if (g_context == nullptr) {
-    g_context = is_context::get_context(max_clients, port, no_init_hooks);
+    yrclient::InstrumentationService::Options O{
+        {cfg::SERVER_ADDRESS, port, max_clients}, no_init_hooks};
+    g_context = is_context::get_context(O);
   }
+
   g_lock.unlock();
 }
 

@@ -29,14 +29,15 @@ using instrumentation_client::InstrumentationClient;
 using namespace multi_client;
 
 using ra2yrcpp::tests::MultiClientTestContext;
+using yrclient::InstrumentationService;
 
 class MultiClientTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    yrclient::InstrumentationService::IServiceOptions opts{
-        cfg::MAX_CLIENTS, cfg::SERVER_PORT, cfg::SERVER_ADDRESS, true};
-    AutoPollClient::Options aopts{opts.host, std::to_string(opts.port), 1.0s,
-                                  0.25s, nullptr};
+    InstrumentationService::Options opts = yrclient::default_options;
+    AutoPollClient::Options aopts{opts.server.host,
+                                  std::to_string(opts.server.port), 1.0s, 0.25s,
+                                  nullptr};
 
     std::map<std::string, command::Command::handler_t> cmds;
 
@@ -44,8 +45,8 @@ class MultiClientTest : public ::testing::Test {
       cmds[name] = fn;
     }
 
-    I = std::unique_ptr<yrclient::InstrumentationService>(
-        yrclient::InstrumentationService::create(opts, &cmds, nullptr));
+    I = std::unique_ptr<InstrumentationService>(
+        InstrumentationService::create(opts, &cmds, nullptr));
     ctx = std::make_unique<MultiClientTestContext>();
     ctx->create_client(aopts);
   }
@@ -55,7 +56,7 @@ class MultiClientTest : public ::testing::Test {
     I = nullptr;
   }
 
-  std::unique_ptr<yrclient::InstrumentationService> I;
+  std::unique_ptr<InstrumentationService> I;
   std::unique_ptr<MultiClientTestContext> ctx;
 
   template <typename T>

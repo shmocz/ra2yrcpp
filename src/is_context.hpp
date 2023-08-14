@@ -36,9 +36,6 @@ struct ProcAddrs {
 
 ProcAddrs get_procaddrs();
 vecu8 vecu8cstr(const std::string s);
-void make_is_ctx(Context* c, const unsigned int max_clients = cfg::MAX_CLIENTS,
-                 const unsigned int port = cfg::SERVER_PORT,
-                 bool no_init_hooks = true);
 
 void get_procaddr(Xbyak::CodeGenerator* c, HMODULE m, const std::string name,
                   const u32 p_GetProcAddress);
@@ -56,7 +53,7 @@ struct DLLLoader : Xbyak::CodeGenerator {
 /// FIXME: make this cross platform
 ///
 yrclient::InstrumentationService* make_is(
-    yrclient::InstrumentationService::IServiceOptions O,
+    yrclient::InstrumentationService::Options O,
     std::function<std::string(yrclient::InstrumentationService*)> on_shutdown =
         nullptr);
 
@@ -64,11 +61,9 @@ yrclient::InstrumentationService* make_is(
 /// Inject ra2yrcpp DLL to target process.
 ///
 void inject_dll(unsigned pid, const std::string path_dll,
-                yrclient::InstrumentationService::IServiceOptions options,
+                yrclient::InstrumentationService::Options o,
                 DLLInjectOptions dll);
 
-// FIXME: do we need  to export this?
-__declspec(dllexport) void* get_context(unsigned int max_clients,
-                                        unsigned int port, bool no_init_hooks);
+void* get_context(const yrclient::InstrumentationService::Options O);
 
 };  // namespace is_context

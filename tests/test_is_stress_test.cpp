@@ -20,16 +20,16 @@
 using namespace multi_client;
 
 using ra2yrcpp::tests::MultiClientTestContext;
+using yrclient::InstrumentationService;
 
-static void add_builtin_commands(yrclient::InstrumentationService* I) {
+static void add_builtin_commands(InstrumentationService* I) {
   for (auto& [name, fn] : yrclient::commands_builtin::get_commands()) {
     I->add_command(name, fn);
   }
 }
 
-yrclient::InstrumentationService* make_is(
-    yrclient::InstrumentationService::IServiceOptions O) {
-  auto* I = new yrclient::InstrumentationService(O, nullptr);
+InstrumentationService* make_is(InstrumentationService::Options O) {
+  auto* I = new InstrumentationService(O, nullptr);
   add_builtin_commands(I);
   return I;
 }
@@ -38,10 +38,9 @@ yrclient::InstrumentationService* make_is(
 class ISStressTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    yrclient::InstrumentationService::IServiceOptions opts{
-        cfg::MAX_CLIENTS, cfg::SERVER_PORT, cfg::SERVER_ADDRESS, true};
+    InstrumentationService::Options opts = yrclient::default_options;
 
-    I = std::unique_ptr<yrclient::InstrumentationService>(make_is(opts));
+    I = std::unique_ptr<InstrumentationService>(make_is(opts));
     ctx = std::make_unique<MultiClientTestContext>();
   }
 
@@ -50,15 +49,15 @@ class ISStressTest : public ::testing::Test {
     I = nullptr;
   }
 
-  std::unique_ptr<yrclient::InstrumentationService> I;
+  std::unique_ptr<InstrumentationService> I;
   std::unique_ptr<MultiClientTestContext> ctx;
 };
 
 TEST_F(ISStressTest, DISABLED_ManyConnections) {
   auto& opts = I->opts();
-  AutoPollClient::Options aopts{opts.host, std::to_string(opts.port),
-                                cfg::POLL_RESULTS_TIMEOUT,
-                                cfg::COMMAND_ACK_TIMEOUT, nullptr};
+  AutoPollClient::Options aopts{
+      opts.server.host, std::to_string(opts.server.port),
+      cfg::POLL_RESULTS_TIMEOUT, cfg::COMMAND_ACK_TIMEOUT, nullptr};
 
   ra2yrproto::commands::GetSystemState cmd;
   // TODO: make the failed connections fail more quickly

@@ -5,6 +5,7 @@
 #include "commands_yr.hpp"
 #include "dll_inject.hpp"
 #include "hooks_yr.hpp"
+#include "instrumentation_service.hpp"
 #include "logging.hpp"
 #include "util_string.hpp"
 #include "x86.hpp"
@@ -36,11 +37,8 @@ vecu8 is_context::vecu8cstr(const std::string s) {
   return r;
 }
 
-void is_context::make_is_ctx(Context* c, const unsigned int max_clients,
-                             const unsigned int port, bool no_init_hooks) {
-  // FIXME: the no init  flag
-  yrclient::InstrumentationService::IServiceOptions O{
-      max_clients, port, cfg::SERVER_ADDRESS, no_init_hooks};
+static void make_is_ctx(Context* c,
+                        const yrclient::InstrumentationService::Options O) {
   auto* I = is_context::make_is(O, [c](auto* X) {
     (void)X;
     return c->on_signal();
@@ -56,7 +54,7 @@ void is_context::make_is_ctx(Context* c, const unsigned int max_clients,
 }
 
 // TODO(shmocz): rename
-// FIXME: Use IServiceOptions
+// FIXME: Use Options
 DLLLoader::DLLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress,
                      const std::string path_dll, const std::string name_init,
                      const unsigned int max_clients, const unsigned int port,
@@ -152,7 +150,7 @@ static void handle_cmd(yrclient::InstrumentationService* I,
 }
 
 yrclient::InstrumentationService* is_context::make_is(
-    yrclient::InstrumentationService::IServiceOptions O,
+    yrclient::InstrumentationService::Options O,
     std::function<std::string(yrclient::InstrumentationService*)> on_shutdown) {
   // TODO(shmocz): ensure that initialization has been completed before starting
   // the tcp server
@@ -194,10 +192,9 @@ yrclient::InstrumentationService* is_context::make_is(
   return I;
 }
 
-void is_context::inject_dll(
-    unsigned pid, const std::string path_dll,
-    yrclient::InstrumentationService::IServiceOptions options,
-    DLLInjectOptions dll) {
+void is_context::inject_dll(unsigned pid, const std::string path_dll,
+                            yrclient::InstrumentationService::Options o,
+                            DLLInjectOptions dll) {
   using namespace std::chrono_literals;
   if (pid == 0u) {
     util::call_until(
@@ -220,18 +217,19 @@ void is_context::inject_dll(
   auto addrs = is_context::get_procaddrs();
   fmt::print(stderr, "indirect={} pid={},p_load={},p_getproc={},port={}\n", pid,
              reinterpret_cast<void*>(addrs.p_LoadLibrary),
-             reinterpret_cast<void*>(addrs.p_GetProcAddress), options.port);
+             reinterpret_cast<void*>(addrs.p_GetProcAddress), o.server.port);
   is_context::DLLLoader L(addrs.p_LoadLibrary, addrs.p_GetProcAddress, path_dll,
-                          cfg::INIT_NAME, options.max_clients, options.port);
+                          cfg::INIT_NAME, o.server.max_connections,
+                          o.server.port);
   auto p = L.getCode<u8*>();
   vecu8 sc(p, p + L.getSize());
   dll_inject::suspend_inject_resume(P.handle(), sc, duration_t(dll.delay_post),
                                     1.0s, duration_t(dll.delay_pre));
 }
 
-void* is_context::get_context(unsigned int max_clients, unsigned int port,
-                              bool no_init_hooks) {
+void* is_context::get_context(
+    const yrclient::InstrumentationService::Options O) {
   auto* context = new is_context::Context();
-  is_context::make_is_ctx(context, max_clients, port, no_init_hooks);
+  make_is_ctx(context, O);
   return context;
 }

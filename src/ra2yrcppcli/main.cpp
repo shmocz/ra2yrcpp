@@ -52,11 +52,12 @@ void send_and_print(ra2yrproto::Response r) {
 }
 
 void easy_setup(const std::string path_dll,
-                yrclient::InstrumentationService::IServiceOptions iservice,
+                yrclient::InstrumentationService::Options iservice,
                 is_context::DLLInjectOptions dll) {
   inject_dll(0u, path_dll, iservice, dll);
   int tries = 3;
-  auto client = get_client(iservice.host, std::to_string(iservice.port));
+  auto client =
+      get_client(iservice.server.host, std::to_string(iservice.server.port));
 
   for (auto& s : INIT_COMMANDS) {
     while (tries > 0) {
@@ -176,10 +177,10 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  yrclient::InstrumentationService::IServiceOptions opts;
-  opts.max_clients = A.get<unsigned>("--max-clients");
-  opts.port = A.get<unsigned>("--port");
-  opts.host = A.get("--destination");
+  yrclient::InstrumentationService::Options opts{};
+  opts.server.max_connections = A.get<unsigned>("--max-clients");
+  opts.server.port = A.get<unsigned>("--port");
+  opts.server.host = A.get("--destination");
 
   is_context::DLLInjectOptions opts_dll;
   opts_dll.delay_post = A.get<unsigned>("--delay-post");
@@ -195,7 +196,8 @@ int main(int argc, char* argv[]) {
   }
 
   if (A.is_used("--name")) {
-    auto client = get_client(opts.host, std::to_string(opts.port));
+    auto client =
+        get_client(opts.server.host, std::to_string(opts.server.port));
     try {
       send_and_print(ra2yrcppcli::send_command(client.get(), A.get("name"),
                                                A.get("args")));

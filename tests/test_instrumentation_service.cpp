@@ -39,6 +39,7 @@ using namespace std::chrono_literals;
 namespace lib = websocketpp::lib;
 
 using instrumentation_client::InstrumentationClient;
+using yrclient::InstrumentationService;
 
 class InstrumentationServiceTest : public ::testing::Test {
   using conn_t = ra2yrcpp::connection::ClientWebsocketConnection;
@@ -50,7 +51,7 @@ class InstrumentationServiceTest : public ::testing::Test {
   virtual void init() = 0;
   std::unique_ptr<ra2yrcpp::asio_utils::IOService> srv;
   std::shared_ptr<conn_t> conn;
-  std::unique_ptr<yrclient::InstrumentationService> I;
+  std::unique_ptr<InstrumentationService> I;
   std::unique_ptr<InstrumentationClient> client;
 
   auto run_one(const google::protobuf::Message& M) {
@@ -59,8 +60,7 @@ class InstrumentationServiceTest : public ::testing::Test {
 };
 
 void InstrumentationServiceTest::SetUp() {
-  yrclient::InstrumentationService::IServiceOptions O{
-      cfg::MAX_CLIENTS, cfg::SERVER_PORT, cfg::SERVER_ADDRESS, true};
+  InstrumentationService::Options O = yrclient::default_options;
 
   std::map<std::string, command::Command::handler_t> cmds;
 
@@ -69,10 +69,11 @@ void InstrumentationServiceTest::SetUp() {
   }
 
   srv = std::make_unique<ra2yrcpp::asio_utils::IOService>();
-  I = std::unique_ptr<yrclient::InstrumentationService>(
-      yrclient::InstrumentationService::create(O, &cmds, nullptr));
+  I = std::unique_ptr<InstrumentationService>(
+      InstrumentationService::create(O, &cmds, nullptr));
 
-  conn = std::make_shared<conn_t>(O.host, std::to_string(O.port), srv.get());
+  conn = std::make_shared<conn_t>(O.server.host, std::to_string(O.server.port),
+                                  srv.get());
   conn->connect();
   client = std::make_unique<InstrumentationClient>(conn);
   init();
@@ -270,7 +271,7 @@ TEST_F(IServiceTest, TestHTTPRequest) {
   for (int i = 0; i < count; i++) {
     ra2yrcpp::asio_utils::AsioSocket A(S0);
 
-    A.connect(I->opts().host, std::to_string(I->opts().port));
+    A.connect(I->opts().server.host, std::to_string(I->opts().server.port));
     auto sz = A.write(msg);
     ASSERT_EQ(sz, msg.size());
 

@@ -5,6 +5,9 @@ on:
       - develop
       - develop-*
 
+permissions:
+  contents: write
+
 env:
   CMAKE_TOOLCHAIN_FILE: toolchains/mingw-w64-i686-docker.cmake
 

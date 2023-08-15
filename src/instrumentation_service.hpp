@@ -113,6 +113,8 @@ class InstrumentationService {
 };
 
 const InstrumentationService::Options default_options{
-    {cfg::SERVER_ADDRESS, cfg::MAX_CLIENTS, cfg::SERVER_PORT}, true};
+    {cfg::SERVER_ADDRESS, cfg::SERVER_PORT, cfg::MAX_CLIENTS,
+     cfg::ALLOWED_HOSTS_REGEX},
+    true};
 
 }  // namespace yrclient

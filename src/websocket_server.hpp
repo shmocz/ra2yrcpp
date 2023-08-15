@@ -42,6 +42,7 @@ class WebsocketServer {
     std::string host;
     unsigned port;
     unsigned max_connections;
+    std::string allowed_hosts_regex;
   };
 
   struct Callbacks {

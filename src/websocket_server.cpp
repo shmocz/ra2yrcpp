@@ -13,6 +13,7 @@
 #include <exception>
 #include <functional>
 #include <memory>
+#include <regex>
 #include <utility>
 #include <vector>
 
@@ -67,6 +68,19 @@ WebsocketServer::WebsocketServer(WebsocketServer::Options o,
   // Set TCP_NODELAY flag
   s.set_socket_init_handler([](auto, auto& socket) {
     socket.set_option(asio::ip::tcp::no_delay(true));
+  });
+
+  s.set_tcp_pre_init_handler([&](connection_hdl h) {
+    auto con = s.get_con_from_hdl(h);
+    std::smatch match;
+    auto remote = con->get_raw_socket().remote_endpoint().address().to_string();
+    if (!std::regex_search(remote, match,
+                           std::regex(opts.allowed_hosts_regex))) {
+      iprintf("reject connection from {}", remote);
+      return;
+    }
+
+    iprintf("connection from {}", remote);
   });
 
   s.set_validate_handler([&](connection_hdl) {

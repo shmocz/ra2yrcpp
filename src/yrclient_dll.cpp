@@ -13,9 +13,12 @@ void yrclient_dll::initialize(const unsigned int max_clients,
                               const bool no_init_hooks) {
   static std::mutex g_lock;
   g_lock.lock();
+  auto* h = std::getenv("RA2YRCPP_ALLOWED_HOSTS_REGEX");
   if (g_context == nullptr) {
     yrclient::InstrumentationService::Options O{
-        {cfg::SERVER_ADDRESS, port, max_clients}, no_init_hooks};
+        {cfg::SERVER_ADDRESS, port, max_clients,
+         (h != nullptr ? h : cfg::ALLOWED_HOSTS_REGEX)},
+        no_init_hooks};
     g_context = is_context::get_context(O);
   }
 

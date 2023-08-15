@@ -53,22 +53,12 @@ class AutoPollClient {
     std::string port;
     duration_t poll_timeout;
     duration_t command_timeout;
-    ra2yrcpp::asio_utils::IOService* io_service;
   };
 
-  /// @param host Destination address/hostname.
-  /// @param port Destination port.
-  /// @param poll_timeout How long the poll thread should wait for results.
-  /// @param command_timeout How long the connection thread should wait for ACK
-  /// from the service.
-  /// @param ctype The type of connection to establish.
-  /// @param io_service Pointer to an external IO service object.
   /// @exception std::exception on failed connection
-  AutoPollClient(const std::string host, const std::string port,
-                 const duration_t poll_timeout = cfg::POLL_RESULTS_TIMEOUT,
-                 const duration_t command_timeout = cfg::COMMAND_ACK_TIMEOUT,
-                 ra2yrcpp::asio_utils::IOService* io_service = nullptr);
-  explicit AutoPollClient(AutoPollClient::Options o);
+  explicit AutoPollClient(
+      std::shared_ptr<ra2yrcpp::asio_utils::IOService> io_service,
+      AutoPollClient::Options o);
   ~AutoPollClient();
 
   /// Establishes connection to InstrumentationService.
@@ -93,11 +83,8 @@ class AutoPollClient {
   u64 get_queue_id(ClientType t) const;
 
  private:
-  std::string host_;
-  std::string port_;
-  const duration_t poll_timeout_;
-  const duration_t command_timeout_;
-  ra2yrcpp::asio_utils::IOService* io_service_;
+  const Options opt_;
+  std::shared_ptr<ra2yrcpp::asio_utils::IOService> io_service_;
   util::AtomicVariable<connection::State, std::recursive_mutex> state_;
   std::atomic_bool poll_thread_active_;
   ResultMap results_;
@@ -110,4 +97,9 @@ class AutoPollClient {
   // is given
   void poll_thread();
 };
+
+const AutoPollClient::Options default_options = {
+    cfg::SERVER_ADDRESS, std::to_string(cfg::SERVER_PORT),
+    cfg::POLL_RESULTS_TIMEOUT, cfg::COMMAND_ACK_TIMEOUT};
+
 }  // namespace multi_client

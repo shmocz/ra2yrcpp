@@ -28,21 +28,13 @@ using connection::State;
 
 namespace connection = ra2yrcpp::connection;
 
-AutoPollClient::AutoPollClient(const std::string host, const std::string port,
-                               const duration_t poll_timeout,
-                               const duration_t command_timeout,
-                               ra2yrcpp::asio_utils::IOService* io_service)
-    : host_(host),
-      port_(port),
-      poll_timeout_(poll_timeout),
-      command_timeout_(command_timeout),
+AutoPollClient::AutoPollClient(
+    std::shared_ptr<ra2yrcpp::asio_utils::IOService> io_service,
+    AutoPollClient::Options o)
+    : opt_(o),
       io_service_(io_service),
       state_(State::NONE),
       poll_thread_active_(false) {}
-
-AutoPollClient::AutoPollClient(AutoPollClient::Options o)
-    : AutoPollClient(o.host, o.port, o.poll_timeout, o.command_timeout,
-                     o.io_service) {}
 
 AutoPollClient::~AutoPollClient() {
   auto [lk, v] = state_.acquire();
@@ -62,8 +54,8 @@ void AutoPollClient::start() {
   }
   for (auto i : t) {
     auto conn = std::make_unique<InstrumentationClient>(
-        std::make_shared<connection::ClientWebsocketConnection>(host_, port_,
-                                                                io_service_));
+        std::make_shared<connection::ClientWebsocketConnection>(
+            opt_.host, opt_.port, io_service_.get()));
     conn->connect();
 
     // send initial "handshake" message
@@ -73,7 +65,7 @@ void AutoPollClient::start() {
     auto r_resp = conn->send_command(cmd_gs, ra2yrproto::CLIENT_COMMAND);
     auto ack = yrclient::from_any<ra2yrproto::RunCommandAck>(r_resp.body());
     queue_ids_[i] = ack.queue_id();
-    conn->poll_blocking(poll_timeout_, queue_ids_[i]);
+    conn->poll_blocking(opt_.poll_timeout, queue_ids_[i]);
     is_clients_.emplace(i, std::move(conn));
   }
   poll_thread_ = std::thread([this]() { poll_thread(); });
@@ -101,13 +93,13 @@ ra2yrproto::Response AutoPollClient::send_command(
   // Wait until item found from polled messages
   try {
     // TODO(shmocz): signal if poll_thread dies
-    auto r = yrclient::make_response(results().get(ack.id(), command_timeout_),
-                                     yrclient::RESPONSE_OK);
+    auto r = yrclient::make_response(
+        results().get(ack.id(), opt_.command_timeout), yrclient::RESPONSE_OK);
     results().erase(ack.id());
     return r;
   } catch (const std::runtime_error& e) {
     throw yrclient::general_error(fmt::format(
-        "timeout after {}ms, key={}", command_timeout_.count(), ack.id()));
+        "timeout after {}ms, key={}", opt_.command_timeout.count(), ack.id()));
   }
 }
 
@@ -122,9 +114,9 @@ void AutoPollClient::poll_thread() {
   while (poll_thread_active_) {
     try {
       // TODO(shmocz): return immediately if signaled to stop
-      auto R =
-          get_client(ClientType::POLL)
-              ->poll_blocking(poll_timeout_, get_queue_id(ClientType::COMMAND));
+      auto R = get_client(ClientType::POLL)
+                   ->poll_blocking(opt_.poll_timeout,
+                                   get_queue_id(ClientType::COMMAND));
       for (auto& r : R.result().results()) {
         results_.put(r.command_id(), r);
       }

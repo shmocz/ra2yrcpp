@@ -1,7 +1,9 @@
 #include "protocol/protocol.hpp"
 
+#include "asio_utils.hpp"
 #include "config.hpp"
 #include "instrumentation_service.hpp"
+#include "multi_client.hpp"
 #include "ra2yrcppcli.hpp"
 
 #include <argparse/argparse.hpp>
@@ -18,7 +20,11 @@ std::unique_ptr<T> uptr(T* o) {
 }
 
 auto get_client(const std::string host, const std::string port) {
-  return uptr(new multi_client::AutoPollClient(host, port, 0.25s, 40s));
+  auto opt = multi_client::default_options;
+  opt.host = host;
+  opt.port = port;
+  return uptr(new multi_client::AutoPollClient(
+      std::make_shared<ra2yrcpp::asio_utils::IOService>(), opt));
 }
 
 std::vector<const google::protobuf::Descriptor*> get_messages(

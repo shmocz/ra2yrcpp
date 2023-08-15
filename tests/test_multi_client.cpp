@@ -35,10 +35,6 @@ class MultiClientTest : public ::testing::Test {
  protected:
   void SetUp() override {
     InstrumentationService::Options opts = yrclient::default_options;
-    AutoPollClient::Options aopts{opts.server.host,
-                                  std::to_string(opts.server.port), 1.0s, 0.25s,
-                                  nullptr};
-
     std::map<std::string, command::Command::handler_t> cmds;
 
     for (auto& [name, fn] : yrclient::commands_builtin::get_commands()) {
@@ -48,7 +44,7 @@ class MultiClientTest : public ::testing::Test {
     I = std::unique_ptr<InstrumentationService>(
         InstrumentationService::create(opts, &cmds, nullptr));
     ctx = std::make_unique<MultiClientTestContext>();
-    ctx->create_client(aopts);
+    ctx->create_client(multi_client::default_options);
   }
 
   void TearDown() override {

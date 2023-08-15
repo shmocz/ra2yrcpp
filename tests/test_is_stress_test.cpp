@@ -2,7 +2,6 @@
 
 #include "commands_builtin.hpp"
 #include "common_multi.hpp"
-#include "config.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
 #include "multi_client.hpp"
@@ -54,16 +53,11 @@ class ISStressTest : public ::testing::Test {
 };
 
 TEST_F(ISStressTest, DISABLED_ManyConnections) {
-  auto& opts = I->opts();
-  AutoPollClient::Options aopts{
-      opts.server.host, std::to_string(opts.server.port),
-      cfg::POLL_RESULTS_TIMEOUT, cfg::COMMAND_ACK_TIMEOUT, nullptr};
-
   ra2yrproto::commands::GetSystemState cmd;
   // TODO: make the failed connections fail more quickly
   for (int i = 0; i < 1; i++) {
     try {
-      ctx->create_client(aopts);
+      ctx->create_client(multi_client::default_options);
       auto& c = ctx->clients.back();
       // TODO: issue the initial command internally
       auto r = c->send_command(cmd);

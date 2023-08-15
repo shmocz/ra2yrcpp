@@ -21,15 +21,10 @@ using namespace multi_client;
 using ra2yrcpp::tests::MultiClientTestContext;
 using yrclient::InstrumentationService;
 
-static void add_builtin_commands(InstrumentationService* I) {
-  for (auto& [name, fn] : yrclient::commands_builtin::get_commands()) {
-    I->add_command(name, fn);
-  }
-}
-
 InstrumentationService* make_is(InstrumentationService::Options O) {
   auto* I = new InstrumentationService(O, nullptr);
-  add_builtin_commands(I);
+  InstrumentationService::create(O, yrclient::commands_builtin::get_commands(),
+                                 nullptr);
   return I;
 }
 

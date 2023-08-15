@@ -62,15 +62,9 @@ class InstrumentationServiceTest : public ::testing::Test {
 void InstrumentationServiceTest::SetUp() {
   InstrumentationService::Options O = yrclient::default_options;
 
-  std::map<std::string, command::Command::handler_t> cmds;
-
-  for (auto& [name, fn] : yrclient::commands_builtin::get_commands()) {
-    cmds[name] = fn;
-  }
-
   srv = std::make_unique<ra2yrcpp::asio_utils::IOService>();
-  I = std::unique_ptr<InstrumentationService>(
-      InstrumentationService::create(O, &cmds, nullptr));
+  I = std::unique_ptr<InstrumentationService>(InstrumentationService::create(
+      O, yrclient::commands_builtin::get_commands(), nullptr));
 
   conn = std::make_shared<conn_t>(O.server.host, std::to_string(O.server.port),
                                   srv.get());

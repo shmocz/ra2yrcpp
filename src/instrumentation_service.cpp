@@ -9,11 +9,10 @@
 
 #include <fmt/core.h>
 
-#include <algorithm>
 #include <exception>
-#include <iterator>
 #include <memory>
 #include <stdexcept>
+#include <tuple>
 #include <utility>
 
 using namespace yrclient;
@@ -94,9 +93,9 @@ ra2yrproto::PollResults InstrumentationService::flush_results(
   return P;
 }
 
-static ra2yrproto::RunCommandAck handle_cmd(InstrumentationService* I,
-                                            const int queue_id,
-                                            ra2yrproto::Command* cmd) {
+std::tuple<std::shared_ptr<command::Command>, ra2yrproto::RunCommandAck>
+yrclient::handle_cmd(InstrumentationService* I, const int queue_id,
+                     ra2yrproto::Command* cmd, const bool discard_result) {
   // TODO: reduce amount of copies we make
   auto client_cmd = cmd->command();
   // schedule command execution
@@ -116,11 +115,12 @@ static ra2yrproto::RunCommandAck handle_cmd(InstrumentationService* I,
           queue_id),
       [](auto* a) { delete a; });
   ack.set_id(c->task_id());
+  c->discard_result().store(discard_result);
   I->cmd_manager().enqueue_command(c);
 
   // write status back
   ack.set_queue_id(queue_id);
-  return ack;
+  return std::make_tuple(c, ack);
 }
 
 // TODO: return just Response body/msg, not the whole Response
@@ -139,7 +139,7 @@ ra2yrproto::Response InstrumentationService::process_request(
   // execute parsed command & write result
   switch (cmd.command_type()) {
     case ra2yrproto::CLIENT_COMMAND: {
-      auto ack = handle_cmd(this, socket_id, &cmd);
+      auto [cptr, ack] = handle_cmd(this, socket_id, &cmd);
       if (cmd.blocking()) {
         const u64 queue_id = (u64)socket_id;
         const auto timeout = cfg::POLL_BLOCKING_TIMEOUT;
@@ -290,14 +290,12 @@ const InstrumentationService::Options& InstrumentationService::opts() const {
 
 yrclient::InstrumentationService* InstrumentationService::create(
     InstrumentationService::Options O,
-    std::map<std::string, command::Command::handler_t>* commands,
+    std::map<std::string, command::Command::handler_t> commands,
     std::function<std::string(yrclient::InstrumentationService*)> on_shutdown,
     std::function<void(InstrumentationService*)> extra_init) {
   auto* I = new yrclient::InstrumentationService(O, on_shutdown, extra_init);
-  if (commands != nullptr) {
-    for (auto& [name, fn] : *commands) {
-      I->add_command(name, fn);
-    }
+  for (auto& [name, fn] : commands) {
+    I->add_command(name, fn);
   }
   return I;
 }

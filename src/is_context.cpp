@@ -120,51 +120,24 @@ void is_context::get_procaddr(Xbyak::CodeGenerator* c, HMODULE m,
   c->ret();
 }
 
-// FIXME: copypaste code
-static void handle_cmd(yrclient::InstrumentationService* I,
-                       ra2yrproto::Command cmd) {
-  // TODO: reduce amount of copies we make
-  auto client_cmd = cmd.command();
-  // schedule command execution
-  auto is_args = new yrclient::ISArgs;
-  is_args->I = I;
-  is_args->M.CopyFrom(client_cmd);
-
-  // Get trailing portion of protobuf type url
-  auto name = yrclient::split_string(client_cmd.type_url(), "/").back();
-
-  auto c = std::shared_ptr<command::Command>(
-      I->cmd_manager().factory().make_command(
-          name,
-          std::unique_ptr<void, void (*)(void*)>(
-              is_args,
-              [](auto d) { delete reinterpret_cast<yrclient::ISArgs*>(d); }),
-          0U),
-      [](auto* a) { delete a; });
-  c->discard_result().store(true);
-  I->cmd_manager().enqueue_command(c);
-  // FIXME: error check
+static void handle_cmd_wait(yrclient::InstrumentationService* I,
+                            const google::protobuf::Message& cmd) {
+  auto CC = yrclient::create_command(cmd);
+  auto [c, a] = yrclient::handle_cmd(I, 0U, &CC, true);
   c->result_code().wait_pred(
       [](auto v) { return v != command::ResultCode::NONE; });
-  // write status back
 }
 
 yrclient::InstrumentationService* is_context::make_is(
     yrclient::InstrumentationService::Options O,
     std::function<std::string(yrclient::InstrumentationService*)> on_shutdown) {
-  // TODO(shmocz): ensure that initialization has been completed before starting
-  // the tcp server
+  auto cmds = yrclient::commands_builtin::get_commands();
+  for (auto& [name, fn] : commands_yr::get_commands()) {
+    cmds[name] = fn;
+  }
   auto* I = yrclient::InstrumentationService::create(
-      O, nullptr, on_shutdown, [&](auto* t) {
-        std::map<std::string, command::Command::handler_t> cmds;
-        for (auto& [name, fn] : commands_yr::get_commands()) {
-          cmds[name] = fn;
-        }
-
-        for (auto& [name, fn] : yrclient::commands_builtin::get_commands()) {
-          cmds[name] = fn;
-        }
-
+      O, std::map<std::string, command::Command::handler_t>(), on_shutdown,
+      [cmds](auto* t) {
         for (auto& [name, fn] : cmds) {
           t->add_command(name, fn);
         }
@@ -181,9 +154,9 @@ yrclient::InstrumentationService* is_context::make_is(
             H->set_code_length(code_size);
           }
 
-          handle_cmd(t, yrclient::create_command(C1));
+          handle_cmd_wait(t, C1);
           ra2yrproto::commands::CreateCallbacks C2;
-          handle_cmd(t, yrclient::create_command(C2));
+          handle_cmd_wait(t, C2);
         } else {
           iprintf("not creating hooks and callbacks");
         }

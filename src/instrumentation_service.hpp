@@ -17,6 +17,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <tuple>
 #include <vector>
 
 namespace ra2yrcpp {
@@ -88,7 +89,7 @@ class InstrumentationService {
   // FIXME: dont expose
   static yrclient::InstrumentationService* create(
       InstrumentationService::Options O,
-      std::map<std::string, command::Command::handler_t>* commands,
+      std::map<std::string, command::Command::handler_t> commands,
       std::function<std::string(yrclient::InstrumentationService*)>
           on_shutdown = nullptr,
       std::function<void(InstrumentationService*)> extra_init = nullptr);
@@ -111,6 +112,10 @@ class InstrumentationService {
  public:
   std::unique_ptr<WebsocketServer> ws_server_;
 };
+
+std::tuple<std::shared_ptr<command::Command>, ra2yrproto::RunCommandAck>
+handle_cmd(InstrumentationService* I, const int queue_id,
+           ra2yrproto::Command* cmd, const bool discard_result = false);
 
 const InstrumentationService::Options default_options{
     {cfg::SERVER_ADDRESS, cfg::SERVER_PORT, cfg::MAX_CLIENTS,

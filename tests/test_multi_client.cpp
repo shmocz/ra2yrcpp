@@ -35,14 +35,9 @@ class MultiClientTest : public ::testing::Test {
  protected:
   void SetUp() override {
     InstrumentationService::Options opts = yrclient::default_options;
-    std::map<std::string, command::Command::handler_t> cmds;
 
-    for (auto& [name, fn] : yrclient::commands_builtin::get_commands()) {
-      cmds[name] = fn;
-    }
-
-    I = std::unique_ptr<InstrumentationService>(
-        InstrumentationService::create(opts, &cmds, nullptr));
+    I = std::unique_ptr<InstrumentationService>(InstrumentationService::create(
+        opts, yrclient::commands_builtin::get_commands(), nullptr));
     ctx = std::make_unique<MultiClientTestContext>();
     ctx->create_client(multi_client::default_options);
   }

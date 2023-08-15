@@ -14,17 +14,12 @@
 using namespace ra2yrcppcli;
 using namespace std::chrono_literals;
 
-template <typename T>
-std::unique_ptr<T> uptr(T* o) {
-  return std::unique_ptr<T>(o);
-}
-
 auto get_client(const std::string host, const std::string port) {
   auto opt = multi_client::default_options;
   opt.host = host;
   opt.port = port;
-  return uptr(new multi_client::AutoPollClient(
-      std::make_shared<ra2yrcpp::asio_utils::IOService>(), opt));
+  return std::make_unique<multi_client::AutoPollClient>(
+      std::make_shared<ra2yrcpp::asio_utils::IOService>(), opt);
 }
 
 std::vector<const google::protobuf::Descriptor*> get_messages(

@@ -4,6 +4,7 @@
 
 #include "client_connection.hpp"
 #include "errors.hpp"
+#include "protocol/helpers.hpp"
 
 #include <fmt/core.h>
 
@@ -27,10 +28,11 @@ ra2yrproto::PollResults InstrumentationClient::poll_blocking(
   auto resp = send_command(C, ra2yrproto::POLL_BLOCKING);
 
   if (resp.code() == yrclient::RESPONSE_ERROR) {
-    auto msg = yrclient::from_any<ra2yrproto::TextResponse>(resp.body());
+    auto msg =
+        ra2yrcpp::protocol::from_any<ra2yrproto::TextResponse>(resp.body());
     throw yrclient::system_error(msg.message());
   }
-  return yrclient::from_any<ra2yrproto::PollResults>(resp.body());
+  return ra2yrcpp::protocol::from_any<ra2yrproto::PollResults>(resp.body());
 }
 
 void InstrumentationClient::send_data(const vecu8& data) {

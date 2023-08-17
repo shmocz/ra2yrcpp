@@ -1,6 +1,9 @@
 #include "is_context.hpp"
 
 #include "protocol/protocol.hpp"
+#include "ra2yrproto/commands_builtin.pb.h"
+#include "ra2yrproto/commands_yr.pb.h"
+#include "ra2yrproto/core.pb.h"
 
 #include "command/command.hpp"
 #include "commands_builtin.hpp"
@@ -17,10 +20,13 @@
 #include "utility/time.hpp"
 #include "x86.hpp"
 
+#include <fmt/core.h>
+
 #include <cstdio>
 
 #include <algorithm>
 #include <chrono>
+#include <climits>
 #include <map>
 #include <memory>
 #include <stdexcept>
@@ -157,10 +163,10 @@ yrclient::InstrumentationService* is_context::make_is(
         if (!t->opts().no_init_hooks) {
           ra2yrproto::commands::CreateHooks C1;
 
-          C1.mutable_args()->set_no_suspend_threads(true);
+          C1.set_no_suspend_threads(true);
           for (const auto& [k, v] : ra2yrcpp::hooks_yr::get_hooks()) {
             auto [p_target, code_size] = hook::get_hook_entry(v);
-            auto* H = C1.mutable_args()->add_hooks();
+            auto* H = C1.add_hooks();
             H->set_address(p_target);
             H->set_name(k);
             H->set_code_length(code_size);

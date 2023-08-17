@@ -121,7 +121,7 @@ class Manager:
     async def update_type_classes(self):
         U = ManagerUtil(self)
         res_istate = await U.read_value(initial_game_state=ra2yr.GameState())
-        state = res_istate.result.data.initial_game_state
+        state = res_istate.data.initial_game_state
         self.type_classes = state.object_types
         self.prerequisite_groups = state.prerequisite_groups
         assert len(self.type_classes) > 0
@@ -157,7 +157,7 @@ class Manager:
         cmd = commands_yr.GetGameState()
         state = await self.client.exec_command(cmd, timeout=5.0)
         state.result.Unpack(cmd)
-        return cmd.result.state
+        return cmd.state
 
     async def run_command(self, c: Any) -> core.CommandResult:
         return await self.client.exec_command(c)
@@ -165,12 +165,12 @@ class Manager:
     async def run(self, c: Any = None, **kwargs) -> Any:
         for k, v in kwargs.items():
             if isinstance(v, list):
-                getattr(c.args, k).extend(v)
+                getattr(c, k).extend(v)
             else:
                 try:
-                    setattr(c.args, k, v)
+                    setattr(c, k, v)
                 except:  # FIXME: more explicit check
-                    getattr(c.args, k).CopyFrom(v)
+                    getattr(c, k).CopyFrom(v)
         res = await self.run_command(c)
         if res.result_code == core.ResponseCode.ERROR:
             lg.error("Failed to run command: %s", res.error_message)
@@ -221,12 +221,12 @@ class CommandBuilder:
             if v is None:
                 continue
             if isinstance(v, list):
-                getattr(c.args, k).extend(v)
+                getattr(c, k).extend(v)
             else:
                 try:
-                    setattr(c.args, k, v)
+                    setattr(c, k, v)
                 except:  # FIXME: more explicit check
-                    getattr(c.args, k).CopyFrom(v)
+                    getattr(c, k).CopyFrom(v)
         return c
 
     @classmethod

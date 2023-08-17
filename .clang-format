@@ -9,7 +9,7 @@ PointerAlignment: Left
 SeparateDefinitionBlocks: Always
 IncludeBlocks: Regroup
 IncludeCategories:
-  - Regex: '^"protocol/protocol.hpp' # must be included before windows includes!
+  - Regex: '^"(protocol/protocol.hpp|ra2yrproto/.+)' # must be included before windows includes!
     Priority: 1
   - Regex: '^".+'
     Priority: 2

@@ -1,10 +1,11 @@
 #pragma once
+#include "ra2yrproto/core.pb.h"
+
 #include "command/command.hpp"
 #include "command/command_manager.hpp"
 #include "config.hpp"
 #include "hook.hpp"
 #include "process.hpp"
-#include "ra2yrproto/core.pb.h"
 #include "types.h"
 #include "utility/sync.hpp"
 #include "websocket_server.hpp"

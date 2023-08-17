@@ -217,7 +217,7 @@ class MyManager(Manager):
             or self._frame_map_data < self.state.current_frame
         ):
             res = await self.M.read_value(map_data_soa=ra2yr.MapDataSoA())
-            map_data = res.result.data.map_data_soa
+            map_data = res.data.map_data_soa
             self._map_data = map_data
             self._frame_map_data = self.state.current_frame
             if not self.map_data_numpy:
@@ -519,8 +519,9 @@ class MyManager(Manager):
                 30,
                 30,
             )
-            res_coords = list(enumerate(res.result.coordinates))
-            if not res_coords:
+            res_coords_l = list(enumerate(res.coordinates))
+
+            if not res_coords_l:
                 lg.error(
                     "no valid place coords for %s",
                     self.ttc_map[o.pointer_technotypeclass].name,
@@ -529,17 +530,16 @@ class MyManager(Manager):
             # get cell furthest away and place
             if self.place_strategy == PlaceStrategy.FARTHEST:
                 dists = [
-                    (i, pdist(coords, coord2tuple(c)))
-                    for i, c in enumerate(res.result.coordinates)
+                    (i, pdist(coords, coord2tuple(c))) for i, c in res_coords_l
                 ]
                 # pick random place location
                 i0, _ = sorted(dists, key=lambda x: x[1], reverse=True)[0]
             else:
-                i0 = random.choice(res_coords)[0]
+                i0 = random.choice(res_coords_l)[0]
 
             await self.M.place_building(
                 heap_id=self.ttc_map[o.pointer_technotypeclass].array_index,
-                location=res.result.coordinates[i0],
+                location=res_coords_l[i0][1],
             )
             self.pending_tasks.append(t)
 

@@ -1,10 +1,11 @@
 #include "commands_builtin.hpp"
 
+#include "ra2yrproto/commands_builtin.pb.h"
+
 #include "asio_utils.hpp"
 #include "hook.hpp"
 #include "instrumentation_service.hpp"
 #include "process.hpp"
-#include "ra2yrproto/commands_builtin.pb.h"
 #include "types.h"
 #include "util_command.hpp"
 #include "util_string.hpp"
@@ -43,14 +44,13 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
   return {
       get_cmd<ra2yrproto::commands::StoreValue>([](auto* Q) {
         // NB: ensure correct radix
-        auto& a = Q->args();
+        auto& a = Q->command_data();
         auto v = new vecu8(a.value().begin(), a.value().end());
         auto [lk, s] = Q->I()->aq_storage();
         Q->I()->store_value(a.key(), v);
-        Q->command_data().mutable_result()->set_result(a.value());
       }),
       get_cmd<ra2yrproto::commands::GetSystemState>([](auto* Q) {
-        auto* state = Q->command_data().mutable_result()->mutable_state();
+        auto* state = Q->command_data().mutable_state();
         auto* srv = Q->I()->ws_server_.get();
         srv->service_->post([state, srv]() {
           for (const auto& [socket_id, c] : srv->ws_conns) {
@@ -70,9 +70,9 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
         // NB: ensure correct radix
         // FIXME: proper locking
         auto [lk, s] = Q->I()->aq_storage();
-        Q->command_data().mutable_result()->set_result(
-            yrclient::to_string(*reinterpret_cast<vecu8*>(
-                Q->I()->get_value(Q->args().key(), false))));
+        auto& c = Q->command_data();
+        c.set_value(yrclient::to_string(
+            *reinterpret_cast<vecu8*>(Q->I()->get_value(c.key(), false))));
       }),
       get_cmd<ra2yrproto::commands::HookableCommand>([](auto* Q) {
         static TestProgram t;
@@ -80,13 +80,13 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
         t_addr(3, 3);
 
         // yrclient::HookableCommand::Result res;
-        auto res = Q->command_data().mutable_result();
-        res->set_address_test_function(reinterpret_cast<u64>(t_addr));
-        res->set_address_test_callback(reinterpret_cast<u64>(&test_cb));
-        res->set_code_size(t.entry_size);
+        auto& res = Q->command_data();
+        res.set_address_test_function(reinterpret_cast<u64>(t_addr));
+        res.set_address_test_callback(reinterpret_cast<u64>(&test_cb));
+        res.set_code_size(t.entry_size);
       }),
       get_cmd<ra2yrproto::commands::AddCallback>([](auto* Q) {
-        auto& a = Q->args();
+        auto& a = Q->command_data();
         Q->I()
             ->hooks()
             .at(reinterpret_cast<u8*>(a.hook_address()))
@@ -100,7 +100,7 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
         auto P = process::get_current_process();
         std::vector<process::thread_id_t> ns(Q->I()->get_connection_threads());
 
-        auto a = Q->args();
+        auto& a = Q->command_data();
 
         // suspend threads?
         if (!a.no_suspend_threads()) {

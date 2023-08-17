@@ -5,72 +5,38 @@ package ra2yrproto.commands;
 import "ra2yrproto/core.proto";
 
 message GetSystemState {
-  message Args {}
-  message Result {
-    ra2yrproto.SystemState state = 1;
-  }
-  Args args = 1;
-  Result result = 2;
+  ra2yrproto.SystemState state = 1;
 }
 
 // Create the given hooks
 message CreateHooks {
-  message Args {
-    // Don't suspend other threads during patching
-    bool no_suspend_threads = 1;
-    repeated HookEntry hooks = 2;
-  }
-  message Result {}
-  Args args = 1;
-  Result result = 2;
+  // Don't suspend other threads during patching
+  bool no_suspend_threads = 1;
+  repeated HookEntry hooks = 2;
 }
 
 // Only used for testing
 message AddCallback {
-  message Args {
-    uint64 hook_address = 1;
-    uint64 callback_address = 2;
-  }
-  message Result {}
-  Args args = 1;
-  Result result = 2;
+  uint64 hook_address = 1;
+  uint64 callback_address = 2;
 }
 
 message StoreValue {
-  message Args {
-    string key = 1;
-    string value = 2;
-  }
-  message Result {
-    string result = 1;
-  }
-  Args args = 1;
-  Result result = 2;
+  string key = 1;
+  string value = 2;
 }
 
 message GetValue {
-  message Args {
-    string key = 1;
-  }
-  message Result {
-    string result = 1;
-  }
-  Args args = 1;
-  Result result = 2;
+  string key = 1;
+  string value = 2;
 }
 
 // Only used for testing
 message HookableCommand {
-  message Args {}
-
-  message Result {
-    // Address of the test function
-    uint64 address_test_function = 1;
-    // The number of bytes required for the hook
-    uint32 code_size = 2;
-    // Address of the callback function
-    uint64 address_test_callback = 3;
-  }
-  Args args = 1;
-  Result result = 2;
+  // Address of the test function
+  uint64 address_test_function = 1;
+  // The number of bytes required for the hook
+  uint32 code_size = 2;
+  // Address of the callback function
+  uint64 address_test_callback = 3;
 }

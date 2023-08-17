@@ -1,10 +1,12 @@
 #pragma once
 
+#include "ra2yrproto/commands_yr.pb.h"
+#include "ra2yrproto/ra2yr.pb.h"
+
 #include "async_queue.hpp"
 #include "command/command.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
-#include "ra2yrproto/commands_yr.pb.h"
 #include "types.h"
 #include "utility/memtools.hpp"
 

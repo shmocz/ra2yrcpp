@@ -26,7 +26,7 @@ async def check_config(U: ManagerUtil = None):
     # Get config
     cmd_1 = await U.inspect_configuration()
     info("cmd_1=%s", cmd_1)
-    cfg1 = cmd_1.result.config
+    cfg1 = cmd_1.config
     cfg_ex = commands_yr.Configuration()
     cfg_ex.CopyFrom(cfg1)
     cfg_ex.debug_log = True
@@ -39,14 +39,14 @@ async def check_config(U: ManagerUtil = None):
     cfg2_ex.CopyFrom(cfg1)
     cfg2_ex.MergeFrom(cfg_diff)
     cmd_2 = await U.inspect_configuration(config=cfg_diff)
-    cfg2 = cmd_2.result.config
+    cfg2 = cmd_2.config
     assert cfg2 == cfg2_ex
 
 
 async def check_record_output_defined(U: ManagerUtil = None):
     # Get config
     cmd_1 = await U.inspect_configuration()
-    cfg1 = cmd_1.result.config
+    cfg1 = cmd_1.config
     assert (
         cfg1.record_filename
     ), f"Record output wasn't set. Make sure RA2YRCPP_RECORD_PATH environment variable is set."
@@ -175,10 +175,10 @@ async def mcv_sell(app=None):
         cur_coords, tc_tesla.pointer_self, p_player, 15, 15
     )
 
+    coords = res.coordinates
     # get cell furthest away and place
     dists = [
-        (i, pdist(cur_coords, coord2tuple(c)))
-        for i, c in enumerate(res.result.coordinates)
+        (i, pdist(cur_coords, coord2tuple(c))) for i, c in enumerate(coords)
     ]
     debug("dists=%s", dists)
     i0, _ = sorted(dists, key=lambda x: x[1], reverse=True)[0]
@@ -187,7 +187,7 @@ async def mcv_sell(app=None):
     await U.place_building(
         heap_id=tc_tesla.array_index,
         is_naval=False,
-        location=res.result.coordinates[i0],
+        location=coords[i0],
     )
 
     # send message
@@ -209,8 +209,8 @@ async def mcv_sell(app=None):
     await M.stop()
     verify_recording(
         os.path.join(
-            unixpath(res_s.result.state.directory),
-            cfg.result.config.record_filename,
+            unixpath(res_s.state.directory),
+            cfg.config.record_filename,
         )
     )
 

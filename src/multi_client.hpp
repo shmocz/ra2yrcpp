@@ -1,9 +1,10 @@
 #pragma once
+#include "ra2yrproto/core.pb.h"
+
 #include "async_map.hpp"
 #include "client_connection.hpp"
 #include "config.hpp"
 #include "instrumentation_client.hpp"
-#include "ra2yrproto/core.pb.h"
 #include "types.h"
 #include "utility/sync.hpp"
 

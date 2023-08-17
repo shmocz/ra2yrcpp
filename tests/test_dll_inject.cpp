@@ -1,3 +1,5 @@
+#include "ra2yrproto/commands_builtin.pb.h"
+
 #include "asio_utils.hpp"
 #include "client_connection.hpp"
 #include "client_utils.hpp"
@@ -7,8 +9,8 @@
 #include "instrumentation_client.hpp"
 #include "is_context.hpp"
 #include "logging.hpp"
-#include "ra2yrproto/commands_builtin.pb.h"
 #include "types.h"
+#include "util_proto.hpp"
 #include "utility/time.hpp"
 #include "websocket_connection.hpp"
 #include "x86.hpp"
@@ -28,6 +30,7 @@
 using instrumentation_client::InstrumentationClient;
 using namespace std::chrono_literals;
 namespace connection = ra2yrcpp::connection;
+using namespace ra2yrcpp::test_util;
 
 class DLLInjectTest : public ::testing::Test {
  protected:
@@ -125,16 +128,9 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
     std::string f1 = "flag1";
     std::string key = "key1";
 
-    ra2yrproto::commands::StoreValue s;
-    s.mutable_args()->set_key(key);
-    s.mutable_args()->set_value(f1);
-    // FIXME: is this dupe code?
-    auto r1 = client_utils::run(s, client.get());
-
-    ra2yrproto::commands::GetValue g;
-    g.mutable_args()->set_key(key);
-    auto r2 = client_utils::run(g, client.get()).result();
-    ASSERT_EQ(r2, f1);
+    (void)client_utils::run(StoreValue::create({key, f1}), client.get());
+    auto r2 = client_utils::run(GetValue::create({key, ""}), client.get());
+    ASSERT_EQ(r2.value(), f1);
   }
 
   client = nullptr;

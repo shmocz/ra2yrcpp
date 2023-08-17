@@ -1,7 +1,8 @@
 #pragma once
 
-#include "protocol/protocol.hpp"
+#include "ra2yrproto/ra2yr.pb.h"
 
+#include "protocol/helpers.hpp"
 #include "types.h"  // for i32, u32
 
 #include <google/protobuf/repeated_ptr_field.h>
@@ -139,7 +140,7 @@ template <typename T, typename U>
 static auto init_arrays(U* dst) {
   auto* D = T::Array.get();
   if (dst->size() != D->Count) {
-    yrclient::fill_repeated_empty(dst, D->Count);
+    ra2yrcpp::protocol::fill_repeated_empty(dst, D->Count);
   }
   return std::make_tuple(D, dst);
 }

@@ -1,10 +1,12 @@
-#include "protocol/protocol.hpp"
+#include "ra2yrproto/core.pb.h"
+#include "ra2yrproto/ra2yr.pb.h"
 
 #include "asio_utils.hpp"
 #include "config.hpp"
 #include "instrumentation_service.hpp"
 #include "is_context.hpp"
 #include "multi_client.hpp"
+#include "protocol/helpers.hpp"
 #include "ra2yrcppcli.hpp"
 #include "utility/time.hpp"
 
@@ -60,7 +62,7 @@ void list_commands() {
 }
 
 void send_and_print(ra2yrproto::Response r) {
-  fmt::print("{}\n", yrclient::to_json(r));
+  fmt::print("{}\n", ra2yrcpp::protocol::to_json(r));
 }
 
 void easy_setup(const std::string path_dll,
@@ -178,9 +180,10 @@ int main(int argc, char* argv[]) {
     const std::string input = record_command.get<std::string>("-i");
     auto mode = record_command.get<std::string>("mode");
     if (mode == "record") {
-      yrclient::dump_messages(input, ra2yrproto::ra2yr::GameState());
+      ra2yrcpp::protocol::dump_messages(input, ra2yrproto::ra2yr::GameState());
     } else if (mode == "traffic") {
-      yrclient::dump_messages(input, ra2yrproto::ra2yr::TunnelPacket());
+      ra2yrcpp::protocol::dump_messages(input,
+                                        ra2yrproto::ra2yr::TunnelPacket());
     }
   }
 

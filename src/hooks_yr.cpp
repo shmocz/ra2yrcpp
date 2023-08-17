@@ -1,11 +1,12 @@
 #include "hooks_yr.hpp"
 
-#include "protocol/protocol.hpp"
+#include "ra2yrproto/commands_yr.pb.h"
 
 #include "auto_thread.hpp"
 #include "config.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
+#include "protocol/helpers.hpp"
 #include "ra2/abi.hpp"
 #include "ra2/state_parser.hpp"
 #include "utility/memtools.hpp"
@@ -173,7 +174,7 @@ struct CBUpdateLoadProgress final : public MyCB<CBUpdateLoadProgress> {
 };
 
 struct CBSaveState final : public MyCB<CBSaveState> {
-  yrclient::MessageOstream out;
+  ra2yrcpp::protocol::MessageOstream out;
   utility::worker_util<std::shared_ptr<ra2yrproto::ra2yr::GameState>> work;
   ra2yrproto::ra2yr::GameState* initial_state;
   std::vector<ra2::Cell> cells;
@@ -274,7 +275,7 @@ struct CBSaveState final : public MyCB<CBSaveState> {
 template <typename D>
 struct CBTunnel : public MyCB<D> {
  public:
-  using writer_t = std::shared_ptr<yrclient::MessageOstream>;
+  using writer_t = std::shared_ptr<ra2yrcpp::protocol::MessageOstream>;
 
   struct packet_buffer {
     void* data;
@@ -375,7 +376,7 @@ void ra2yrcpp::hooks_yr::init_callbacks(yrclient::InstrumentationService* I) {
     const std::string traffic_out = fmt::format("traffic.{}.pb.gz", t);
     iprintf("record traffic to {}", traffic_out);
 
-    auto out = std::make_shared<yrclient::MessageOstream>(
+    auto out = std::make_shared<ra2yrcpp::protocol::MessageOstream>(
         std::make_shared<std::ofstream>(
             traffic_out, std::ios_base::out | std::ios_base::binary),
         true);

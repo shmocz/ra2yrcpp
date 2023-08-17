@@ -1,13 +1,17 @@
 #include "commands_yr.hpp"
 
-#include "protocol/protocol.hpp"
+#include "ra2yrproto/commands_yr.pb.h"
+#include "ra2yrproto/ra2yr.pb.h"
 
 #include "errors.hpp"
 #include "hooks_yr.hpp"
 #include "logging.hpp"
+#include "protocol/helpers.hpp"
 #include "ra2/abi.hpp"
 #include "types.h"
 #include "util_command.hpp"
+
+#include <fmt/format.h>
 
 #include <cstdint>
 
@@ -50,7 +54,7 @@ static void unit_action(const u32 p_object,
 namespace cmd {
 auto click_event() {
   return get_cmd<ra2yrproto::commands::ClickEvent>([](auto* Q) {
-    auto args = Q->args();
+    auto args = Q->command_data();
 
     put_gameloop_command(Q, [args](auto* it) {
       auto C = it->cb;
@@ -69,7 +73,7 @@ auto click_event() {
 
 auto unit_command() {
   return get_cmd<ra2yrproto::commands::UnitCommand>([](auto* Q) {
-    auto args = Q->args();
+    auto args = Q->command_data();
 
     put_gameloop_command(Q, [args](auto* it) {
       auto C = it->cb;
@@ -127,7 +131,7 @@ auto create_callbacks() {
 auto get_game_state() {
   return get_cmd<ra2yrproto::commands::GetGameState>([](auto* Q) {
     auto [mut, s] = Q->I()->aq_storage();
-    Q->command_data().mutable_result()->mutable_state()->CopyFrom(
+    Q->command_data().mutable_state()->CopyFrom(
         get_storage(Q->I())->game_state());
   });
 }
@@ -135,10 +139,10 @@ auto get_game_state() {
 auto inspect_configuration() {
   return get_cmd<ra2yrproto::commands::InspectConfiguration>([](auto* Q) {
     auto [mut, s] = Q->I()->aq_storage();
-    auto res = Q->command_data().mutable_result();
+    auto& res = Q->command_data();
     auto* cfg = ra2yrcpp::hooks_yr::ensure_configuration(Q->I());
-    cfg->MergeFrom(Q->command_data().args().config());
-    res->mutable_config()->CopyFrom(*cfg);
+    cfg->MergeFrom(Q->command_data().config());
+    res.mutable_config()->CopyFrom(*cfg);
   });
 }
 
@@ -146,7 +150,7 @@ auto inspect_configuration() {
 // else?) ClickedMission seems to be used for various other events
 auto mission_clicked() {
   return get_cmd<ra2yrproto::commands::MissionClicked>([](auto* Q) {
-    auto args = Q->args();
+    auto args = Q->command_data();
 
     // TODO(shmocz): Figure out a way to avoid copies. the command protobuf
     // message is already stored in the Command object, but since it's of type
@@ -176,13 +180,11 @@ auto mission_clicked() {
 // TODO(shmocz): add checks for invalid rtti_id's
 auto add_event() {
   return get_cmd<ra2yrproto::commands::AddEvent>([](auto* Q) {
-    auto args = Q->args();
+    auto args = Q->command_data();
     Q->async();
 
     put_gameloop_command(Q, [args](auto* it) {
       const auto frame_delay = args.frame_delay();
-      auto* cmd = it->cmd;
-
       auto frame = Unsorted::CurrentFrame + frame_delay;
       auto house_index = args.spoof() ? args.event().house_index()
                                       : HouseClass::CurrentPlayer->ArrayIndex;
@@ -223,8 +225,8 @@ auto add_event() {
         (void)EventClass::AddEvent(E, ts);
       }
 
-      auto [p, r] = message_result<ra2yrproto::commands::AddEvent>(cmd);
-      auto* ev = r.mutable_result()->mutable_event();
+      auto [p, r] = message_result<ra2yrproto::commands::AddEvent>(it->cmd);
+      auto* ev = r.mutable_event();
       ev->CopyFrom(args.event());
       ev->set_timing(ts);
       p->mutable_result()->PackFrom(r);
@@ -234,7 +236,7 @@ auto add_event() {
 
 auto place_query() {
   return get_cmd<ra2yrproto::commands::PlaceQuery>([](auto* Q) {
-    auto args = Q->args();
+    auto args = Q->command_data();
     Q->async();
 
     put_gameloop_command(Q, [args](auto* it) {
@@ -256,7 +258,9 @@ auto place_query() {
       }
 
       auto [p, r] = message_result<ra2yrproto::commands::PlaceQuery>(cmd);
-      auto* res = r.mutable_result();
+      ra2yrproto::commands::PlaceQuery arg;
+      arg.CopyFrom(r);
+      r.clear_coordinates();
 
       // Call for each cell
       if (B != A.end()) {
@@ -275,7 +279,7 @@ auto place_query() {
                   house->array_index(), cs) &&
               C->abi()->BuildingClass_CanPlaceHere(
                   reinterpret_cast<std::uintptr_t>(*B), cs, house->self())) {
-            auto* cnew = res->add_coordinates();
+            auto* cnew = r.add_coordinates();
             cnew->CopyFrom(c);
           }
         }
@@ -291,7 +295,7 @@ auto place_query() {
 
 auto send_message() {
   return get_cmd<ra2yrproto::commands::AddMessage>([](auto* Q) {
-    auto args = Q->args();
+    auto args = Q->command_data();
 
     put_gameloop_command(Q, [args](auto* it) {
       it->cb->abi()->AddMessage(1, args.message(), args.color(), 0x4046,
@@ -326,23 +330,21 @@ static void convert_map_data(ra2yrproto::ra2yr::MapDataSoA* dst,
 auto read_value() {
   return get_cmd<ra2yrproto::commands::ReadValue>([](auto* Q) {
     auto [mut, s] = Q->I()->aq_storage();
-    auto* D = Q->command_data().mutable_result()->mutable_data();
+    auto& A = Q->command_data();
     // find the first field that's been set
-    auto sf = yrclient::find_set_fields(Q->args().data());
+    auto sf = ra2yrcpp::protocol::find_set_fields(A.data());
     if (sf.empty()) {
       throw std::runtime_error("no field specified");
     }
     auto* fld = sf[0];
+    auto* D = A.mutable_data();
 
     if (fld->name() == "map_data_soa") {
       convert_map_data(D->mutable_map_data_soa(),
                        get_storage(Q->I())->mutable_map_data());
     } else {
-      // TODO: put this stuff to protocol.cpp
-      // copy the data
-      auto* sval = get_storage(Q->I());
-      D->GetReflection()->MutableMessage(D, fld)->CopyFrom(
-          sval->GetReflection()->GetMessage(*sval, fld));
+      // TODO(shmocz): use oneof
+      ra2yrcpp::protocol::copy_field(D, get_storage(Q->I()), fld);
     }
   });
 }

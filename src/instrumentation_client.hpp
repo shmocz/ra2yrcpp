@@ -1,5 +1,6 @@
 #pragma once
 #include "ra2yrproto/core.pb.h"
+
 #include "types.h"
 
 #include <memory>

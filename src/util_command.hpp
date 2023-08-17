@@ -1,5 +1,6 @@
 #pragma once
-#include "protocol/protocol.hpp"
+
+#include "ra2yrproto/core.pb.h"
 
 #include "command/command.hpp"
 #include "instrumentation_service.hpp"
@@ -24,9 +25,6 @@ namespace util_command {
 ///
 template <typename T>
 struct ISCommand {
-  using result_t = decltype(std::declval<T>().result());
-  using message_t = T;
-
   explicit ISCommand(command::Command* c)
       : c(c),
         a_((yrclient::ISArgs*)c->args()),
@@ -42,11 +40,7 @@ struct ISCommand {
 
   ~ISCommand() { save_command_result(); }
 
-  auto& args() { return command_data_.args(); }
-
   auto& command_data() { return command_data_; }
-
-  void set_result(result_t val) { command_data_.set_result(val); }
 
   void save_command_result() {
     // replace result, but only if pending is not set

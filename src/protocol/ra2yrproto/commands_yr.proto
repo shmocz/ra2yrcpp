@@ -13,20 +13,10 @@ enum UnitAction {
   ACTION_SELL = 5;
 }
 
-message CreateCallbacks {
-  message Args {}
-  message Result {}
-  Args args = 1;
-  Result result = 2;
-}
+message CreateCallbacks {}
 
 message GetGameState {
-  message Args {}
-  message Result {
-    ra2yrproto.ra2yr.GameState state = 1;
-  }
-  Args args = 1;
-  Result result = 2;
+  ra2yrproto.ra2yr.GameState state = 1;
 }
 
 message StorageValue {
@@ -39,55 +29,24 @@ message StorageValue {
 }
 
 message ReadValue {
-  message Args {
-    StorageValue data = 1;
-  }
-  message Result {
-    StorageValue data = 1;
-  }
-  Args args = 1;
-  Result result = 2;
-}
-
-message DeployUnits {
-  message Args {
-    repeated uint32 object_addresses = 1;
-  }
-  message Result {}
-  Args args = 1;
-  Result result = 2;
+  StorageValue data = 1;
 }
 
 message UnitCommand {
-  message Args {
-    repeated uint32 object_addresses = 1;
-    UnitAction action = 2;
-  }
-  message Result {}
-  Args args = 1;
-  Result result = 2;
+  repeated uint32 object_addresses = 1;
+  UnitAction action = 2;
 }
 
 message ClickEvent {
-  message Args {
-    repeated uint32 object_addresses = 1;
-    ra2yrproto.ra2yr.NetworkEvent event = 2;
-  }
-  message Result {}
-  Args args = 1;
-  Result result = 2;
+  repeated uint32 object_addresses = 1;
+  ra2yrproto.ra2yr.NetworkEvent event = 2;
 }
 
 message MissionClicked {
-  message Args {
-    repeated uint32 object_addresses = 1;
-    ra2yrproto.ra2yr.Mission event = 2;
-    uint32 target_object = 3;
-    ra2yrproto.ra2yr.Coordinates coordinates = 4;
-  }
-  message Result {}
-  Args args = 1;
-  Result result = 2;
+  repeated uint32 object_addresses = 1;
+  ra2yrproto.ra2yr.Mission event = 2;
+  uint32 target_object = 3;
+  ra2yrproto.ra2yr.Coordinates coordinates = 4;
 }
 
 message Configuration {
@@ -100,50 +59,24 @@ message Configuration {
 }
 
 message InspectConfiguration {
-  message Args {
-    Configuration config = 1;
-  }
-  message Result {
-    Configuration config = 1;
-  }
-  Args args = 1;
-  Result result = 2;
+  Configuration config = 1;
 }
 
 message AddEvent {
-  message Args {
-    ra2yrproto.ra2yr.Event event = 1;
-    uint32 frame_delay = 2;
-    bool spoof = 3;
-  }
-  message Result {
-    ra2yrproto.ra2yr.Event event = 1;
-  }
-  Args args = 1;
-  Result result = 2;
+  ra2yrproto.ra2yr.Event event = 1;
+  uint32 frame_delay = 2;
+  bool spoof = 3;
 }
 
 // Return coordinates where the input building can be placed
 message PlaceQuery {
-  message Args {
-    uint32 type_class = 1;
-    uint32 house_class = 2;  // if empty, assume current player
-    repeated ra2yrproto.ra2yr.Coordinates coordinates = 3;
-  }
-  message Result {
-    repeated ra2yrproto.ra2yr.Coordinates coordinates = 2;
-  }
-  Args args = 1;
-  Result result = 2;
+  uint32 type_class = 1;
+  uint32 house_class = 2;  // if empty, assume current player
+  repeated ra2yrproto.ra2yr.Coordinates coordinates = 3;
 }
 
 message AddMessage {
-  message Args {
-    string message = 1;
-    uint32 duration_frames = 2;
-    ra2yrproto.ra2yr.ColorScheme color = 3;
-  }
-  message Result {}
-  Args args = 1;
-  Result result = 2;
+  string message = 1;
+  uint32 duration_frames = 2;
+  ra2yrproto.ra2yr.ColorScheme color = 3;
 }

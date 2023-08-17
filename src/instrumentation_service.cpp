@@ -5,6 +5,7 @@
 #include "asio_utils.hpp"
 #include "errors.hpp"
 #include "logging.hpp"
+#include "protocol/helpers.hpp"
 #include "util_string.hpp"
 
 #include <fmt/core.h>
@@ -129,7 +130,7 @@ ra2yrproto::Response InstrumentationService::process_request(
   // read command from message
   ra2yrproto::Command cmd;
   if (!cmd.ParseFromArray(bytes->data(), bytes->size())) {
-    if (!yrclient::from_json(*bytes, &cmd)) {
+    if (!ra2yrcpp::protocol::from_json(*bytes, &cmd)) {
       throw std::runtime_error("Message parse error");
     } else {
       *is_json = true;
@@ -183,7 +184,7 @@ static vecu8 on_receive_bytes(InstrumentationService* I, const int socket_id,
     R = yrclient::make_response(text_response(e.what()), RESPONSE_ERROR);
   }
   if (is_json) {
-    return yrclient::to_bytes(yrclient::to_json(R));
+    return yrclient::to_bytes(ra2yrcpp::protocol::to_json(R));
   }
   return to_vecu8(R);
 }

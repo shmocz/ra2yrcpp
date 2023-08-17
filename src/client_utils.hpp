@@ -1,9 +1,10 @@
 #pragma once
 
-#include "protocol/protocol.hpp"
+#include "ra2yrproto/core.pb.h"
 
 #include "instrumentation_client.hpp"
 #include "logging.hpp"
+#include "protocol/helpers.hpp"
 #include "types.h"
 #include "utility/time.hpp"
 
@@ -42,15 +43,13 @@ inline ra2yrproto::PollResults poll_until(
   return P;
 }
 
-// FIXME: this immediately gives broken connection "no such queue" in some cases
-// FIXME: race condition: the result queue may not been established yet if the
-// poll is performed immediately after connecting
-inline auto run_one(const google::protobuf::Message& M,
-                    instrumentation_client::InstrumentationClient* client,
-                    const duration_t poll_timeout = 5.0s) {
+inline ra2yrproto::CommandResult run_one(
+    const google::protobuf::Message& M,
+    instrumentation_client::InstrumentationClient* client,
+    const duration_t poll_timeout = 5.0s) {
   auto r_ack = client->send_command(M, ra2yrproto::CLIENT_COMMAND);
-  if (r_ack.code() == yrclient::RESPONSE_ERROR) {
-    throw std::runtime_error("ACK " + yrclient::to_json(r_ack));
+  if (r_ack.code() == ra2yrproto::ResponseCode::ERROR) {
+    throw std::runtime_error("ACK " + ra2yrcpp::protocol::to_json(r_ack));
   }
   try {
     auto res = poll_until(client, poll_timeout);
@@ -64,20 +63,31 @@ inline auto run_one(const google::protobuf::Message& M,
   }
 }
 
-//
-// Sends a command execution request and reads the command result back.
-// @param cmd The command (protobuf Message) to be executed
-//
 template <typename T>
 inline auto run(const T& cmd,
                 instrumentation_client::InstrumentationClient* client) {
   try {
     auto r = run_one(cmd, client);
-    return yrclient::from_any<T>(r.result()).result();
+    return ra2yrcpp::protocol::from_any<T>(r.result());
   } catch (const std::exception& e) {
     dprintf("failed to run: {}", e.what());
     throw;
   }
 }
+
+struct CommandSender {
+  using fn_t = std::function<ra2yrproto::CommandResult(
+      const google::protobuf::Message&)>;
+
+  explicit CommandSender(fn_t fn) : fn(fn) {}
+
+  template <typename T>
+  auto run(const T& cmd) {
+    auto r = fn(cmd);
+    return ra2yrcpp::protocol::from_any<T>(r.result());
+  }
+
+  fn_t fn;
+};
 
 }  // namespace client_utils

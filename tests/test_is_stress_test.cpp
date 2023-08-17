@@ -1,15 +1,16 @@
+#include "ra2yrproto/commands_builtin.pb.h"
+
 #include "commands_builtin.hpp"
 #include "common_multi.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
 #include "multi_client.hpp"
-#include "ra2yrproto/commands_builtin.pb.h"
+#include "util_proto.hpp"
 
 #include <gtest/gtest.h>
 
 #include <cstdlib>
 #include <exception>
-#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -18,21 +19,14 @@ using namespace multi_client;
 
 using ra2yrcpp::tests::MultiClientTestContext;
 using yrclient::InstrumentationService;
+using namespace ra2yrcpp::test_util;
 
-InstrumentationService* make_is(InstrumentationService::Options O) {
-  auto* I = new InstrumentationService(O, nullptr);
-  InstrumentationService::create(O, yrclient::commands_builtin::get_commands(),
-                                 nullptr);
-  return I;
-}
-
-// FIXME: dedupe code
 class ISStressTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    InstrumentationService::Options opts = yrclient::default_options;
-
-    I = std::unique_ptr<InstrumentationService>(make_is(opts));
+    I = std::unique_ptr<InstrumentationService>(InstrumentationService::create(
+        yrclient::default_options, yrclient::commands_builtin::get_commands(),
+        nullptr));
     ctx = std::make_unique<MultiClientTestContext>();
   }
 
@@ -46,38 +40,21 @@ class ISStressTest : public ::testing::Test {
 };
 
 TEST_F(ISStressTest, DISABLED_ManyConnections) {
-  ra2yrproto::commands::GetSystemState cmd;
-  // TODO: make the failed connections fail more quickly
   for (int i = 0; i < 1; i++) {
     try {
       ctx->create_client(multi_client::default_options);
-      auto& c = ctx->clients.back();
-      // TODO: issue the initial command internally
-      auto r = c->send_command(cmd);
     } catch (const std::exception& e) {
       eprintf("connection failed: {}", e.what());
     }
   }
 
-  auto& c = ctx->clients[0];
-  // spam  storevalue
   size_t total_bytes = 1e9;
   size_t chunk_size = 1e4 * 5;
-  ra2yrproto::commands::StoreValue sv;
+
+  // spam  storevalue
   std::string k1(chunk_size, 'A');
-  sv.mutable_args()->set_value(k1);
-  sv.mutable_args()->set_key("tdata");
-
+  auto sv = StoreValue::create({k1, "tdata"});
   for (size_t chunks = total_bytes / chunk_size; chunks > 0; chunks--) {
-    auto r = c->send_command(sv);
+    auto r = ctx->clients[0]->send_command(sv);
   }
-
-  // remove a client
-#if 0
-  try {
-    ctx->clients.erase(ctx->clients.begin());
-  } catch (const std::exception& e) {
-    eprintf("erase fail");
-  }
-#endif
 }

@@ -1,6 +1,9 @@
 #include "ra2/state_parser.hpp"
 
+#include "ra2yrproto/ra2yr.pb.h"
+
 #include "logging.hpp"
+#include "protocol/helpers.hpp"
 #include "ra2/abi.hpp"
 #include "utility/array_iterator.hpp"
 
@@ -561,7 +564,7 @@ void ra2::parse_HouseClass(ra2yrproto::ra2yr::House* dst,
 void ra2::parse_Factories(RepeatedPtrField<ra2yrproto::ra2yr::Factory>* dst) {
   auto* D = FactoryClass::Array.get();
   if (dst->size() != D->Count) {
-    yrclient::fill_repeated_empty(dst, D->Count);
+    ra2yrcpp::protocol::fill_repeated_empty(dst, D->Count);
   }
 
   for (int i = 0; i < D->Count; i++) {

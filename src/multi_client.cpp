@@ -1,15 +1,15 @@
 #include "multi_client.hpp"
 
 #include "protocol/protocol.hpp"
+#include "ra2yrproto/commands_builtin.pb.h"
 
 #include "client_connection.hpp"
 #include "errors.hpp"
 #include "logging.hpp"
-#include "ra2yrproto/commands_builtin.pb.h"
+#include "protocol/helpers.hpp"
 #include "websocket_connection.hpp"
 
 #include <fmt/core.h>
-#include <google/protobuf/repeated_ptr_field.h>
 
 #include <array>
 #include <exception>
@@ -62,7 +62,8 @@ void AutoPollClient::start() {
     ra2yrproto::commands::GetSystemState cmd_gs;
 
     auto r_resp = conn->send_command(cmd_gs, ra2yrproto::CLIENT_COMMAND);
-    auto ack = yrclient::from_any<ra2yrproto::RunCommandAck>(r_resp.body());
+    auto ack =
+        ra2yrcpp::protocol::from_any<ra2yrproto::RunCommandAck>(r_resp.body());
     queue_ids_[i] = ack.queue_id();
     conn->poll_blocking(opt_.poll_timeout, queue_ids_[i]);
     is_clients_.emplace(i, std::move(conn));
@@ -88,7 +89,8 @@ ra2yrproto::Response AutoPollClient::send_command(
   // Send command
   auto resp = get_client(ClientType::COMMAND)
                   ->send_command(cmd, ra2yrproto::CommandType::CLIENT_COMMAND);
-  auto ack = yrclient::from_any<ra2yrproto::RunCommandAck>(resp.body());
+  auto ack =
+      ra2yrcpp::protocol::from_any<ra2yrproto::RunCommandAck>(resp.body());
   // Wait until item found from polled messages
   try {
     // TODO(shmocz): signal if poll_thread dies

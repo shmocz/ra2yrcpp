@@ -30,8 +30,8 @@ add_custom_command(
     --python_out=${BDIR} --cpp_out=${BDIR} ${PROTO_FILES}
   DEPENDS ${PROTO_FILES})
 
-add_library(protocol_o OBJECT protocol.cpp ${PROTO_SRCS} ../util_string.cpp
-                              ../errors.cpp)
+add_library(protocol_o OBJECT helpers.cpp protocol.cpp ${PROTO_SRCS}
+                              ../util_string.cpp ../errors.cpp)
 add_library(protocol INTERFACE protocol.cpp)
 if(NOT protobuf_PROTOC_EXE)
   add_dependencies(protocol_o compile-protobuf)

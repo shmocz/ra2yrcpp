@@ -1,5 +1,7 @@
 #include "ra2/abi.hpp"
 
+#include <cstring>
+
 using namespace ra2::abi;
 
 ABIGameMD::ABIGameMD() {}

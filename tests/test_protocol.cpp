@@ -4,17 +4,17 @@
 #include "logging.hpp"
 #include "ra2yrproto/ra2yr.pb.h"
 
-#include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/io/gzip_stream.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/message.h>
 #include <google/protobuf/util/message_differencer.h>
 
+#include <cstdio>
+
+#include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <functional>
 #include <memory>
 #include <stdexcept>
+#include <vector>
 
 namespace fs = std::filesystem;
 

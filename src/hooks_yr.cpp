@@ -2,20 +2,30 @@
 
 #include "protocol/protocol.hpp"
 
-#include "errors.hpp"
+#include "auto_thread.hpp"
+#include "config.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
 #include "ra2/abi.hpp"
 #include "ra2/state_parser.hpp"
-#include "util_command.hpp"
 #include "utility/memtools.hpp"
 #include "utility/serialize.hpp"
 
+#include <fmt/core.h>
 #include <google/protobuf/repeated_ptr_field.h>
+
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
 
 #include <YRPP.h>
 #include <algorithm>
+#include <array>
+#include <cstdlib>
+#include <iostream>
+#include <iterator>
 #include <memory>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 

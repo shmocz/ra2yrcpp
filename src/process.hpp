@@ -1,9 +1,9 @@
 #pragma once
 
-#include "errors.hpp"
 #include "types.h"
 
 #include <chrono>
+#include <cstddef>
 #include <functional>
 #include <string>
 #include <vector>
@@ -11,7 +11,6 @@
 namespace process {
 
 using thread_id_t = u32;
-using std::size_t;
 
 namespace {
 using namespace std::chrono_literals;
@@ -45,7 +44,7 @@ struct ThreadData {
   ThreadData();
   ~ThreadData();
   void* data;
-  size_t size;
+  std::size_t size;
 };
 
 #ifndef _WIN32
@@ -101,11 +100,11 @@ class Process {
   unsigned long get_pid() const;
   void* handle() const;
   // Write size bytes from src to dest
-  void write_memory(void* dest, const void* src, const size_t size,
+  void write_memory(void* dest, const void* src, const std::size_t size,
                     const bool local = false);
-  void read_memory(void* dest, const void* src, const size_t size);
+  void read_memory(void* dest, const void* src, const std::size_t size);
   // Allocate memory to process
-  void* allocate_memory(const size_t size, unsigned long alloc_type,
+  void* allocate_memory(const std::size_t size, unsigned long alloc_type,
                         unsigned long alloc_protect);
   void for_each_thread(std::function<void(Thread*, void*)> callback,
                        void* cb_ctx = nullptr) const;

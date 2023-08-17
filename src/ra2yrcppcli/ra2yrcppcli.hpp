@@ -1,23 +1,15 @@
 #pragma once
 
-#include "protocol/protocol.hpp"
+#include "ra2yrproto/core.pb.h"
 
-#include "config.hpp"
-#include "dll_inject.hpp"
-#include "instrumentation_service.hpp"
-#include "is_context.hpp"
-#include "multi_client.hpp"
-#include "process.hpp"
-#include "utility/time.hpp"
-
-#include <argparse/argparse.hpp>
-#include <fmt/core.h>
-
-#include <cstdlib>
+#include <array>
 #include <map>
-#include <memory>
 #include <string>
 #include <vector>
+
+namespace multi_client {
+class AutoPollClient;
+}
 
 namespace ra2yrcppcli {
 

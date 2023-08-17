@@ -2,13 +2,13 @@
 
 #include "asio_utils.hpp"
 #include "client_utils.hpp"
-#include "command/command.hpp"
 #include "commands_builtin.hpp"
 #include "config.hpp"
-#include "errors.hpp"
 #include "instrumentation_client.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
+#include "ra2yrproto/commands_builtin.pb.h"
+#include "ra2yrproto/core.pb.h"
 #include "util_string.hpp"
 #include "websocket_connection.hpp"
 
@@ -20,12 +20,9 @@
 
 #include <chrono>
 #include <cstddef>
-#include <functional>
-#include <map>
 #include <memory>
 #include <regex>
 #include <string>
-#include <vector>
 
 namespace google {
 namespace protobuf {

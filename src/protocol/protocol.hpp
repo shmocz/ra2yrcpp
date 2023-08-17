@@ -1,5 +1,4 @@
 #pragma once
-#include "errors.hpp"
 #include "ra2yrproto/commands_builtin.pb.h"
 #include "ra2yrproto/commands_yr.pb.h"
 #include "ra2yrproto/core.pb.h"
@@ -13,8 +12,11 @@
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/message.h>
 
+#include <cstddef>
 #include <fstream>
+#include <functional>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 

@@ -4,6 +4,9 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
+#include <cstddef>
+#include <functional>
 #include <thread>
 #include <vector>
 

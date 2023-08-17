@@ -1,17 +1,15 @@
-#include "protocol/protocol.hpp"
-
 #include "commands_builtin.hpp"
 #include "common_multi.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
 #include "multi_client.hpp"
+#include "ra2yrproto/commands_builtin.pb.h"
 
 #include <gtest/gtest.h>
 
 #include <cstdlib>
 #include <exception>
 #include <functional>
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>

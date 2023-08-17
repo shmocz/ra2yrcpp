@@ -4,19 +4,25 @@
 #include "config.hpp"
 #include "dll_inject.hpp"
 #include "exprocess.hpp"
-#include "gtest/gtest.h"
 #include "instrumentation_client.hpp"
 #include "is_context.hpp"
+#include "logging.hpp"
+#include "ra2yrproto/commands_builtin.pb.h"
+#include "types.h"
 #include "utility/time.hpp"
 #include "websocket_connection.hpp"
 #include "x86.hpp"
-#include "yrclient_dll.hpp"
 
+#include <gtest/gtest.h>
 #include <xbyak/xbyak.h>
 
-#include <iostream>
+#include <cstring>
+
+#include <chrono>
+#include <exception>
 #include <libloaderapi.h>
-#include <thread>
+#include <memory>
+#include <string>
 #include <vector>
 
 using instrumentation_client::InstrumentationClient;

@@ -1,10 +1,12 @@
 #include "yrclient_dll.hpp"
 
+#include "config.hpp"
 #include "instrumentation_service.hpp"
 #include "is_context.hpp"
 
-#include <memory>
+#include <cstdlib>
 #include <mutex>
+#include <string>
 
 static void* g_context = nullptr;
 

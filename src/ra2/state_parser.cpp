@@ -1,12 +1,31 @@
 #include "ra2/state_parser.hpp"
 
 #include "logging.hpp"
+#include "ra2/abi.hpp"
 #include "utility/array_iterator.hpp"
-#include "utility/serialize.hpp"
+
+#include <cstdint>
+#include <cstring>
+
+#include <YRPP.h>
+#include <algorithm>
+#include <array>
 
 using namespace ra2;
 
 ClassParser::ClassParser(Cookie c, ra2yrproto::ra2yr::Object* T) : c(c), T(T) {}
+
+void Cell::copy_to(ra2yrproto::ra2yr::Cell* dst, const Cell* src) {
+  dst->set_land_type(static_cast<ra2yrproto::ra2yr::LandType>(src->land_type));
+  dst->set_radiation_level(src->radiation_level);
+  dst->set_height(static_cast<i32>(src->height));
+  dst->set_level(static_cast<i32>(src->level));
+  dst->set_overlay_data(src->overlay_data);
+  dst->set_tiberium_value(src->tiberium_value);
+  dst->set_shrouded(src->shrouded);
+  dst->set_passability(src->passability);
+  dst->set_index(src->index);
+}
 
 void ClassParser::Object() {
   auto* P = reinterpret_cast<ObjectClass*>(c.src);

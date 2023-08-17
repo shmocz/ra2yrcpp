@@ -1,10 +1,12 @@
 #pragma once
 
-#include "process.hpp"
 #include "types.h"
 
-#include <stdexcept>
-#include <vector>
+#include <chrono>
+
+namespace process {
+class Process;
+}
 
 namespace dll_inject {
 

@@ -1,5 +1,6 @@
 #include "process.hpp"
 
+#include "errors.hpp"
 #include "logging.hpp"
 #include "utility.h"
 #include "utility/scope_guard.hpp"
@@ -7,10 +8,10 @@
 
 #include <fmt/core.h>
 
+#include <cstddef>
 #include <cstdlib>
 
 using namespace process;
-using yrclient::not_implemented;
 
 #ifdef _WIN32
 #include <io.h>
@@ -32,7 +33,7 @@ struct TData {
   CONTEXT ctx;
 };
 
-constexpr size_t TD_SIZE = sizeof(TData);
+constexpr std::size_t TD_SIZE = sizeof(TData);
 
 CONTEXT* acquire_context(process::Thread* T, const DWORD flags = CONTEXT_FULL) {
   auto& D = T->thread_data();
@@ -294,7 +295,7 @@ static MEMORY_BASIC_INFORMATION get_mem_info(const void* address) {
 #endif
 
 #ifdef _WIN32
-static DWORD vprotect(void* address, const size_t size,
+static DWORD vprotect(void* address, const std::size_t size,
                       const DWORD protection) {
   DWORD prot_old;
   if (!VirtualProtect(address, size, protection, &prot_old)) {
@@ -338,7 +339,7 @@ unsigned long Process::get_pid() const { return process::get_pid(handle()); }
 
 void* Process::handle() const { return handle_; }
 
-void Process::write_memory(void* dest, const void* src, const size_t size,
+void Process::write_memory(void* dest, const void* src, const std::size_t size,
                            const bool local) {
 #ifdef _WIN32
   if (local) {
@@ -360,7 +361,7 @@ void Process::write_memory(void* dest, const void* src, const size_t size,
 }
 
 // cppcheck-suppress unusedFunction
-void Process::read_memory(void* dest, const void* src, const size_t size) {
+void Process::read_memory(void* dest, const void* src, const std::size_t size) {
 #ifdef _WIN32
   if (ReadProcessMemory(handle_, src, dest, size, nullptr) == 0) {
     throw yrclient::system_error(
@@ -373,7 +374,7 @@ void Process::read_memory(void* dest, const void* src, const size_t size) {
 #endif
 }
 
-void* Process::allocate_memory(const size_t size, unsigned long alloc_type,
+void* Process::allocate_memory(const std::size_t size, unsigned long alloc_type,
                                unsigned long alloc_protect) {
 #ifdef _WIN32
   return VirtualAllocEx(handle_, NULL, size, alloc_type, alloc_protect);

@@ -2,7 +2,6 @@
 
 #include "protocol/protocol.hpp"
 
-#include "asio_utils.hpp"
 #include "client_connection.hpp"
 #include "errors.hpp"
 #include "logging.hpp"

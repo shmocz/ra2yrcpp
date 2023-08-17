@@ -3,6 +3,8 @@
 #include "errors.hpp"
 #include "logging.hpp"
 
+#include <cstring>
+
 #include <synchapi.h>
 #include <windows.h>
 

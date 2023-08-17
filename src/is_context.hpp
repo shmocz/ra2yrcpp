@@ -1,13 +1,16 @@
 #pragma once
-#include "protocol/protocol.hpp"
-
 #include "config.hpp"
-#include "context.hpp"
 #include "instrumentation_service.hpp"
+#include "types.h"
 
 #include <xbyak/xbyak.h>
 
+#include <functional>
 #include <string>
+
+namespace context {
+class Context;
+}
 
 namespace is_context {
 using context::Context;

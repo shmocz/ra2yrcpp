@@ -1,6 +1,5 @@
 #pragma once
 
-#include "config.hpp"
 #include "types.h"
 #include "utility/sync.hpp"
 

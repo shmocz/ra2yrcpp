@@ -1,31 +1,20 @@
 #include "protocol/protocol.hpp"
 
-#include "client_utils.hpp"
 #include "commands_builtin.hpp"
 #include "common_multi.hpp"
-#include "config.hpp"
 #include "gtest/gtest.h"
-#include "instrumentation_client.hpp"
 #include "instrumentation_service.hpp"
-#include "logging.hpp"
 #include "multi_client.hpp"
-#include "ra2yrproto/commands_yr.pb.h"
+#include "ra2yrproto/commands_builtin.pb.h"
 #include "ra2yrproto/core.pb.h"
-#include "types.h"
-#include "util_string.hpp"
-#include "utility/time.hpp"
 
 #include <chrono>
-#include <exception>
-#include <future>
 #include <memory>
-#include <regex>
-#include <thread>
+#include <string>
 #include <vector>
 
 using namespace yrclient;
 using namespace std::chrono_literals;
-using instrumentation_client::InstrumentationClient;
 using namespace multi_client;
 
 using ra2yrcpp::tests::MultiClientTestContext;

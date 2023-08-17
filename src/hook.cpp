@@ -1,9 +1,15 @@
 #include "hook.hpp"
 
+#include "errors.hpp"
 #include "logging.hpp"
 #include "utility/serialize.hpp"
 #include "utility/time.hpp"
 #include "x86.hpp"
+
+#include <cstdint>
+
+#include <algorithm>
+#include <chrono>
 
 using namespace hook;
 using namespace std::chrono_literals;

@@ -5,6 +5,7 @@
 #include "logging.hpp"
 
 #include <chrono>
+#include <cstddef>
 #include <exception>
 #include <functional>
 #include <thread>

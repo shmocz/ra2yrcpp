@@ -6,10 +6,15 @@
 #include "hooks_yr.hpp"
 #include "logging.hpp"
 #include "ra2/abi.hpp"
+#include "types.h"
 #include "util_command.hpp"
 
+#include <cstdint>
+
 #include <YRPP.h>
+#include <algorithm>
 #include <map>
+#include <stdexcept>
 
 using util_command::get_cmd;
 using util_command::message_result;

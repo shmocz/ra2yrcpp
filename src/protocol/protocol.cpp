@@ -1,10 +1,11 @@
 #include "protocol/protocol.hpp"
 
+#include "errors.hpp"
 #include "util_string.hpp"
 
 #include <google/protobuf/util/json_util.h>
 
-#include <cstdio>
+#include <cstdint>
 
 using namespace yrclient;
 
@@ -62,7 +63,7 @@ bool yrclient::write_message(const google::protobuf::Message* M,
 
 bool yrclient::read_message(google::protobuf::Message* M,
                             google::protobuf::io::CodedInputStream* is) {
-  uint32_t length;
+  std::uint32_t length;
   if (!is->ReadVarint32(&length)) {
     return false;
   }

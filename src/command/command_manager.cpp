@@ -1,11 +1,16 @@
 #include "command/command_manager.hpp"
 
+#include "command/command.hpp"
 #include "errors.hpp"
 #include "logging.hpp"
 
 #include <fmt/chrono.h>
+#include <fmt/core.h>
 
+#include <algorithm>
+#include <exception>
 #include <stdexcept>
+#include <utility>
 
 using namespace command;
 

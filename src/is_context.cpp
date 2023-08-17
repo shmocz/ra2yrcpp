@@ -1,17 +1,29 @@
 #include "is_context.hpp"
 
+#include "protocol/protocol.hpp"
+
 #include "command/command.hpp"
 #include "commands_builtin.hpp"
 #include "commands_yr.hpp"
+#include "context.hpp"
 #include "dll_inject.hpp"
+#include "hook.hpp"
 #include "hooks_yr.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
-#include "util_string.hpp"
+#include "process.hpp"
+#include "types.h"
+#include "utility/sync.hpp"
+#include "utility/time.hpp"
 #include "x86.hpp"
 
+#include <cstdio>
+
+#include <algorithm>
+#include <chrono>
 #include <map>
 #include <memory>
+#include <stdexcept>
 
 using namespace std::chrono_literals;
 

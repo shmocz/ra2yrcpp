@@ -1,5 +1,13 @@
 #include "x86.hpp"
 
+#include "types.h"
+
+#include <xbyak/xbyak.h>
+
+#include <algorithm>
+#include <utility>
+#include <vector>
+
 using namespace x86;
 
 size_t x86::bytes_to_stack(Xbyak::CodeGenerator* c, const vecu8 bytes) {

@@ -1,10 +1,14 @@
+#include "command/command.hpp"
 #include "command/command_manager.hpp"
 #include "gtest/gtest.h"
-#include "utility.h"
 #include "utility/time.hpp"
 
+#include <cstdint>
+
 #include <chrono>
+#include <cstddef>
 #include <memory>
+#include <string>
 #include <vector>
 
 using namespace std::chrono_literals;

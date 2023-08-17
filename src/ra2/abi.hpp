@@ -1,6 +1,5 @@
 #pragma once
 
-#include "logging.hpp"
 #include "types.h"
 #include "utility/array_iterator.hpp"
 #include "utility/function_traits.hpp"
@@ -10,11 +9,16 @@
 
 #include <xbyak/xbyak.h>
 
+#include <cstdint>
+
 #include <YRPP.h>
+#include <cstddef>
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <utility>
 
 // Forward decl
 class CellClass;
@@ -86,7 +90,8 @@ class ABIGameMD {
 };
 
 struct VirtualCall : Xbyak::CodeGenerator {
-  explicit VirtualCall(const u32 vtable_index, const size_t stack_size = 0u) {
+  explicit VirtualCall(const u32 vtable_index,
+                       const std::size_t stack_size = 0u) {
     mov(ecx, ptr[esp + 0x4]);  // this
 
     // copy stack after this (push args)
@@ -103,7 +108,7 @@ struct VirtualCall : Xbyak::CodeGenerator {
 };
 
 struct ThisCall : Xbyak::CodeGenerator {
-  explicit ThisCall(const u32 p_fn, const size_t stack_size = 0u) {
+  explicit ThisCall(const u32 p_fn, const std::size_t stack_size = 0u) {
     mov(ecx, ptr[esp + 0x4]);  // this
 
     // copy stack after this (push args)

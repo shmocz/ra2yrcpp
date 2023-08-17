@@ -1,12 +1,14 @@
 #pragma once
 
-#include "errors.hpp"
 #include "process.hpp"
 #include "types.h"
 
 #include <xbyak/xbyak.h>
+
+#include <cstddef>
 #undef ERROR
 #undef OK
+#include <functional>
 #include <mutex>
 #include <string>
 #include <tuple>
@@ -24,15 +26,15 @@ using process::thread_id_t;
 struct Detour {
   addr_t src_address;
   addr_t detour_address;
-  size_t code_length;
+  std::size_t code_length;
 };
 
 class Hook;
 
 struct DetourMain : Xbyak::CodeGenerator {
-  DetourMain(const addr_t target, const addr_t hook, const size_t code_length,
-             const addr_t call_hook, unsigned int* count_enter,
-             unsigned int* count_exit);
+  DetourMain(const addr_t target, const addr_t hook,
+             const std::size_t code_length, const addr_t call_hook,
+             unsigned int* count_enter, unsigned int* count_exit);
 
   explicit DetourMain(Hook* h);
 };
@@ -75,7 +77,7 @@ class Hook {
   /// patching (in addition to current thread id)
   /// TODO: move constructor
   ///
-  Hook(addr_t src_address, const size_t code_length,
+  Hook(addr_t src_address, const std::size_t code_length,
        const std::string name = "",
        const std::vector<thread_id_t> no_suspend = {},
        const bool manual = false);
@@ -94,11 +96,12 @@ class Hook {
   void unlock();
   Detour& detour();
   const std::string& name() const;
-  void patch_code(u8* target_address, const u8* code, const size_t code_length);
+  void patch_code(u8* target_address, const u8* code,
+                  const std::size_t code_length);
 
   /// Wait until no thread is in target region, then patch code.
   void patch_code_safe(u8* target_address, const u8* code,
-                       const size_t code_length);
+                       const std::size_t code_length);
   /// Pointer to counter for enters to Hook::call.
   unsigned int* count_enter();
   /// Pointer to counter for exits from Hook::call.

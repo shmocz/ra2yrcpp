@@ -1,19 +1,33 @@
 #pragma once
 
-#include "protocol/protocol.hpp"
-
 #include "async_queue.hpp"
+#include "command/command.hpp"
 #include "instrumentation_service.hpp"
-#include "ra2/abi.hpp"
-#include "util_command.hpp"
+#include "logging.hpp"
+#include "ra2yrproto/commands_yr.pb.h"
+#include "types.h"
 #include "utility/memtools.hpp"
 
 #include <google/protobuf/repeated_ptr_field.h>
 
+#include <chrono>
+#include <exception>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+
+namespace util_command {
+template <typename T>
+struct ISCommand;
+}
+
+namespace ra2 {
+namespace abi {
+class ABIGameMD;
+}
+}  // namespace ra2
 
 namespace ra2yrcpp::hooks_yr {
 

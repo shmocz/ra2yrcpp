@@ -1,7 +1,6 @@
 #pragma once
 #include "multi_client.hpp"
 
-#include <chrono>
 #include <memory>
 #include <vector>
 
@@ -15,7 +14,6 @@ namespace ra2yrcpp {
 namespace tests {
 
 namespace {
-using namespace std::chrono_literals;
 using multi_client::AutoPollClient;
 }  // namespace
 

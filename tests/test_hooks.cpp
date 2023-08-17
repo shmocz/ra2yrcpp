@@ -1,10 +1,13 @@
 #include "gtest/gtest.h"
 #include "hook.hpp"
 #include "process.hpp"
+#include "types.h"
 #include "utility/time.hpp"
 
 #include <xbyak/xbyak.h>
 
+#include <cstddef>
+#include <functional>
 #include <thread>
 #include <vector>
 

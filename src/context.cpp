@@ -1,5 +1,7 @@
 #include "context.hpp"
 
+#include <mutex>
+
 using namespace context;
 
 Context::Context() : data_(nullptr), signaled(false) {

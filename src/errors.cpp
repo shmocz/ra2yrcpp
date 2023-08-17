@@ -1,4 +1,6 @@
 #include "errors.hpp"
+
+#include <stddef.h>
 #ifdef _WIN32
 #include <windows.h>
 #elif __linux__

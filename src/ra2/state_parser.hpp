@@ -2,14 +2,23 @@
 
 #include "protocol/protocol.hpp"
 
-#include "ra2/abi.hpp"
-#include "ra2yrproto/ra2yr.pb.h"
+#include "types.h"  // for i32, u32
 
 #include <google/protobuf/repeated_ptr_field.h>
 
-#include <YRPP.h>
-#include <algorithm>
+#include <cstddef>
+#include <tuple>  // for make_tuple
 #include <vector>
+class CellClass;
+class EventClass;
+class HouseClass;
+class MapClass;
+
+namespace ra2 {
+namespace abi {
+class ABIGameMD;
+}
+}  // namespace ra2
 
 namespace ra2 {
 
@@ -107,18 +116,7 @@ struct Cell {
   char level;
   char pad[1];
 
-  static void copy_to(ra2yrproto::ra2yr::Cell* dst, const Cell* src) {
-    dst->set_land_type(
-        static_cast<ra2yrproto::ra2yr::LandType>(src->land_type));
-    dst->set_radiation_level(src->radiation_level);
-    dst->set_height(static_cast<i32>(src->height));
-    dst->set_level(static_cast<i32>(src->level));
-    dst->set_overlay_data(src->overlay_data);
-    dst->set_tiberium_value(src->tiberium_value);
-    dst->set_shrouded(src->shrouded);
-    dst->set_passability(src->passability);
-    dst->set_index(src->index);
-  }
+  static void copy_to(ra2yrproto::ra2yr::Cell* dst, const Cell* src);
 };
 
 void parse_MapData(ra2yrproto::ra2yr::MapData* dst, MapClass* src,

@@ -1,11 +1,13 @@
 #pragma once
 #include "utility/sync.hpp"
 
+#include <cstdint>
+
 #include <atomic>
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <string>
-#include <vector>
 
 namespace command {
 

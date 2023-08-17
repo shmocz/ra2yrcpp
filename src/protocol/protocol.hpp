@@ -22,7 +22,6 @@
 
 namespace yrclient {
 
-// see issue #1
 constexpr auto RESPONSE_OK = ra2yrproto::ResponseCode::OK;
 constexpr auto RESPONSE_ERROR = ra2yrproto::ResponseCode::ERROR;
 

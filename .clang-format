@@ -17,5 +17,9 @@ IncludeCategories:
     Priority: 3
   - Regex: "<c(stdio|stdint|string|stddef)>"
     Priority: 4
-  - Regex: "<.+>"
+  - Regex: "<(errhandling|handle|libloader|memory|processthreads|ps|synch)api.h>"
     Priority: 5
+  - Regex: "<(direct|malloc|minwindef|tlhelp32|winbase).h>"
+    Priority: 5
+  - Regex: "<.+>"
+    Priority: 6

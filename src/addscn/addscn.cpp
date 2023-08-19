@@ -1,10 +1,11 @@
 // Based on this: https://github.com/hMihaiDavid/addscn
 #include <cstring>
 
+#include <memoryapi.h>
+
 #include <exception>
 #include <iostream>
 #include <memory>
-#include <memoryapi.h>
 #include <string>
 #include <windows.h>
 #include <winnt.h>

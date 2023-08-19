@@ -15,8 +15,6 @@ class Context;
 namespace is_context {
 using context::Context;
 
-u32 get_proc_address(const std::string addr);
-
 struct DLLInjectOptions {
   unsigned delay_pre;
   unsigned delay_post;
@@ -40,7 +38,7 @@ struct ProcAddrs {
 ProcAddrs get_procaddrs();
 vecu8 vecu8cstr(const std::string s);
 
-void get_procaddr(Xbyak::CodeGenerator* c, HMODULE m, const std::string name,
+void get_procaddr(Xbyak::CodeGenerator* c, void* m, const std::string name,
                   const u32 p_GetProcAddress);
 
 struct DLLLoader : Xbyak::CodeGenerator {

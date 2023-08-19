@@ -27,5 +27,17 @@ union X86Regs {
   };
 };
 
+enum class x86Reg : int {
+  eax = 0,
+  ebx = 1,
+  ecx = 2,
+  edx = 3,
+  esi = 4,
+  edi = 5,
+  ebp = 6,
+  esp = 7,
+  eip = 8
+};
+
 using vecu8 = std::vector<unsigned char>;
 using duration_t = std::chrono::duration<double>;

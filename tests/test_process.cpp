@@ -4,14 +4,14 @@
 
 #include <gtest/gtest.h>
 
-#include <atomic>
 #include <cstddef>
+
+#include <atomic>
 #include <functional>
 #include <thread>
 #include <vector>
 
 using namespace process;
-using namespace std;
 
 class ThreadTest : public ::testing::Test {
  protected:
@@ -24,7 +24,7 @@ class ThreadTest : public ::testing::Test {
       }
     };
     for (auto i = 0u; i < num_threads; i++) {
-      threads.emplace_back(thread(f));
+      threads.emplace_back(std::thread(f));
     }
   }
 
@@ -38,7 +38,7 @@ class ThreadTest : public ::testing::Test {
   using pred_t = std::function<bool(Thread*, void*)>;
 
   std::vector<int> index2tid(process::Process* P, pred_t pred = nullptr) {
-    vector<int> I;
+    std::vector<int> I;
     auto cb = [&pred](Thread* T, void* ctx) {
       if (pred == nullptr || pred(T, ctx)) {
         reinterpret_cast<decltype(&I)>(ctx)->push_back(T->id());
@@ -48,14 +48,14 @@ class ThreadTest : public ::testing::Test {
     return I;
   }
 
-  vector<thread> threads;
-  atomic_bool close;
+  std::vector<std::thread> threads;
+  std::atomic_bool close;
 };
 
 TEST_F(ThreadTest, TestProcessThreadIterationWorks) {
   auto P = process::get_current_process();
   auto tid = process::get_current_tid();
-  vector<int> ix2tid = index2tid(&P);
+  std::vector<int> ix2tid = index2tid(&P);
 // Mess around with suspend/resume
 #if 1
   P.suspend_threads(tid);

@@ -96,8 +96,9 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
                 Q->I(), "", 0u);
       }),
       get_cmd<ra2yrproto::commands::CreateHooks>([](auto* Q) {
-        // TODO(shmocz): put these to utility function and share code with
-        // Hook code.
+// TODO(shmocz): put these to utility function and share code with
+// Hook code.
+#ifdef _WIN32
         auto P = process::get_current_process();
         std::vector<process::thread_id_t> ns(Q->I()->get_connection_threads());
 
@@ -117,6 +118,7 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
         if (!a.no_suspend_threads()) {
           P.resume_threads(ns);
         }
+#endif
       })};
 }
 

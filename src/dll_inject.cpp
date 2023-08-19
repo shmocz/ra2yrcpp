@@ -1,15 +1,12 @@
 #include "dll_inject.hpp"
 
 #include "process.hpp"
+#include "types.h"
 #include "utility/time.hpp"
 
-#include <handleapi.h>
 #include <stdexcept>
-#include <tlhelp32.h>
-#include <winnt.h>
 
 using namespace dll_inject;
-using process::x86Reg;
 
 void dll_inject::inject_code(process::Process* P, int thread_id,
                              vecu8 shellcode) {
@@ -20,8 +17,7 @@ void dll_inject::inject_code(process::Process* P, int thread_id,
   esp -= sizeof(esp);
   P->write_memory(reinterpret_cast<void*>(esp), &eip, sizeof(eip));
   // Allocate memory for shellcode
-  auto sc_addr =
-      P->allocate_memory(shellcode.size(), MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+  auto sc_addr = P->allocate_code(shellcode.size());
   // Write shellcode
   P->write_memory(sc_addr, shellcode.data(), shellcode.size());
   // Set ESP

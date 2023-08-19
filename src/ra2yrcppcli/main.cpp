@@ -9,6 +9,7 @@
 #include "protocol/helpers.hpp"
 #include "ra2yrcppcli.hpp"
 #include "utility/time.hpp"
+#include "win32/windows_utils.hpp"
 
 #include <argparse/argparse.hpp>
 #include <fmt/core.h>
@@ -229,12 +230,12 @@ int main(int argc, char* argv[]) {
     if (A.is_used("--address-GetProcAddr")) {
       PA.p_GetProcAddress = A.get<unsigned>("--address-GetProcAddr");
     } else {
-      PA.p_GetProcAddress = is_context::get_proc_address("GetProcAddress");
+      PA.p_GetProcAddress = windows_utils::get_proc_address("GetProcAddress");
     }
     if (A.is_used("--address-LoadLibraryA")) {
       PA.p_LoadLibrary = A.get<unsigned>("--address-LoadLibraryA");
     } else {
-      PA.p_LoadLibrary = is_context::get_proc_address("LoadLibraryA");
+      PA.p_LoadLibrary = windows_utils::get_proc_address("LoadLibraryA");
     }
 
     is_context::DLLLoader L(PA.p_LoadLibrary, PA.p_GetProcAddress,

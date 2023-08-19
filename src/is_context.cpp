@@ -18,6 +18,7 @@
 #include "types.h"
 #include "utility/sync.hpp"
 #include "utility/time.hpp"
+#include "win32/windows_utils.hpp"
 #include "x86.hpp"
 
 #include <fmt/core.h>
@@ -36,16 +37,11 @@ using namespace std::chrono_literals;
 using namespace is_context;
 using x86::bytes_to_stack;
 
-u32 is_context::get_proc_address(const std::string addr) {
-  return reinterpret_cast<u32>(
-      GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), addr.c_str()));
-}
-
 // TODO(shmocz): utilize in tests
 ProcAddrs is_context::get_procaddrs() {
   ProcAddrs A;
-  A.p_LoadLibrary = get_proc_address("LoadLibraryA");
-  A.p_GetProcAddress = get_proc_address("GetProcAddress");
+  A.p_LoadLibrary = windows_utils::get_proc_address("LoadLibraryA");
+  A.p_GetProcAddress = windows_utils::get_proc_address("GetProcAddress");
   return A;
 }
 
@@ -119,7 +115,7 @@ DLLLoader::DLLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress,
   x86::restore_regs(this);
 }
 
-void is_context::get_procaddr(Xbyak::CodeGenerator* c, HMODULE m,
+void is_context::get_procaddr(Xbyak::CodeGenerator* c, void* m,
                               const std::string name,
                               const u32 p_GetProcAddress) {
   using namespace Xbyak::util;

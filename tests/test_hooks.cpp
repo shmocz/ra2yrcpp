@@ -7,11 +7,11 @@
 #include <xbyak/xbyak.h>
 
 #include <cstddef>
+
 #include <functional>
 #include <thread>
 #include <vector>
 
-using namespace process;
 using namespace hook;
 using namespace std;
 
@@ -118,11 +118,11 @@ TEST(HookTest, TestJumpLocationExampleCode) {
   InfiniteLoop C(key);
   auto f = C.getCode<int __cdecl (*)()>();
   auto t = std::thread(f);
-  const int main_tid = get_current_tid();
+  const int main_tid = process::get_current_tid();
   P.suspend_threads(main_tid);
   // Set key to different value
   // NB! this is broken -- no guarantee that thread is within our code
-  P.for_each_thread([&main_tid](Thread* T, void* ctx) {
+  P.for_each_thread([&main_tid](auto* T, void* ctx) {
     (void)ctx;
     if (T->id() != main_tid) {
       T->set_gpr(x86Reg::ecx, 0);

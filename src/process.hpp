@@ -1,10 +1,15 @@
 #pragma once
 
 #include "types.h"
+#ifdef _WIN32
+#include "win32/windows_utils.hpp"
+#endif
+
+#include <cstddef>
 
 #include <chrono>
-#include <cstddef>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -16,43 +21,9 @@ namespace {
 using namespace std::chrono_literals;
 }
 
-enum class x86Reg : int {
-  eax = 0,
-  ebx = 1,
-  ecx = 2,
-  edx = 3,
-  esi = 4,
-  edi = 5,
-  ebp = 6,
-  esp = 7,
-  eip = 8
-};
-
-/// Suspend thread indicated by given handle. Returns 0 on success, nonzero on
-/// error.
-unsigned long suspend_thread(void* handle);
-void* open_thread(unsigned long access, bool inherit_handle,
-                  unsigned long thread_id);
 /// Return current thread id
 int get_current_tid();
 void* get_current_process_handle();
-std::vector<u32> get_process_list();
-std::string get_process_name(const u32 pid);
-
-/// Platform-specific thread data (like CONTEXT on WIN32)
-struct ThreadData {
-  ThreadData();
-  ~ThreadData();
-  void* data;
-  std::size_t size;
-};
-
-#ifndef _WIN32
-constexpr unsigned int TD_SIZE = 1;
-constexpr unsigned int TD_ALIGN = 16;
-#endif
-
-#pragma pack(push, 16)
 
 class Thread {
  public:
@@ -65,26 +36,22 @@ class Thread {
   int* get_pgpr(const x86Reg reg);
   void* handle();
   int id();
-  ThreadData& thread_data();
-  // CONTEXT& acquire_context(const DWORD flags = CONTEXT_FULL);
-  // void save_context();
 
  private:
   int id_;
   void* handle_;
-  // CONTEXT ctx;
-  ThreadData sysdata_;
-  // targetThread = ;
+
+ public:
+#ifdef _WIN32
+  std::unique_ptr<windows_utils::ThreadContext> sysdata_;
+#else
+  std::unique_ptr<int> sysdata_;
+#endif
 };
 
-#pragma pack(pop)
-
 void save_context(Thread* T);
-
 std::string proc_basename(const std::string name);
-
 unsigned long get_pid(void* handle);
-
 /// Get process id by name. If not found, return 0.
 unsigned long get_pid(const std::string name);
 
@@ -106,6 +73,8 @@ class Process {
   // Allocate memory to process
   void* allocate_memory(const std::size_t size, unsigned long alloc_type,
                         unsigned long alloc_protect);
+  // Allocate memory to process
+  void* allocate_code(const std::size_t size);
   void for_each_thread(std::function<void(Thread*, void*)> callback,
                        void* cb_ctx = nullptr) const;
   // Suspend all threads. If main_tid > -1, suspend if thread's id != main_tid

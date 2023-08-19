@@ -32,7 +32,10 @@ if(NOT PROTO_LIB)
 endif()
 target_link_libraries(ra2yrcpp_core PUBLIC fmt::fmt "${PROTO_LIB}" protocol)
 if(WIN32)
-  target_link_libraries(ra2yrcpp_core PUBLIC ${LIB_WSOCK32} ${LIB_WS2_32})
+  add_library(windows_utils STATIC win32/win_message.cpp
+                                   win32/windows_utils.cpp)
+  target_link_libraries(ra2yrcpp_core PUBLIC windows_utils ${LIB_WSOCK32}
+                                             ${LIB_WS2_32})
 endif()
 
 target_compile_options(ra2yrcpp_core PUBLIC ${RA2YRCPP_EXTRA_FLAGS})
@@ -44,7 +47,6 @@ if(RA2YRCPP_BUILD_MAIN_DLL)
     commands_yr.cpp
     context.cpp
     dll_inject.cpp
-    exprocess.cpp
     hooks_yr.cpp
     is_context.cpp
     ra2/abi.cpp
@@ -61,6 +63,8 @@ if(RA2YRCPP_BUILD_MAIN_DLL)
     ZLIB::ZLIB
     fmt::fmt
     YRpp)
+
+  target_link_libraries(yrclient PUBLIC windows_utils)
 
   if(WIN32)
     target_link_libraries(yrclient PUBLIC ${LIB_WSOCK32} ${LIB_WS2_32})

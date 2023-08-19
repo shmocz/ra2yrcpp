@@ -1,8 +1,7 @@
 #include "errors.hpp"
 
-#include <cstddef>
 #ifdef _WIN32
-#include <windows.h>
+#include "win32/win_message.hpp"
 #elif __linux__
 #include <cstring>
 
@@ -13,7 +12,7 @@ using namespace yrclient;
 
 int yrclient::get_last_error() {
 #ifdef _WIN32
-  return GetLastError();
+  return static_cast<int>(windows_utils::get_last_error());
 #elif __linux__
   return errno;
 #else
@@ -39,17 +38,7 @@ std::string yrclient::get_error_message(const int error_code) {
     return std::string();
   }
 #ifdef _WIN32
-  char* buf = nullptr;
-  std::size_t size = FormatMessageA(
-      FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-          FORMAT_MESSAGE_IGNORE_INSERTS,
-      NULL, error_code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&buf,
-      0, NULL);
-
-  std::string message(buf, size);
-  LocalFree(buf);
-  // Remove \r\n
-  return message.substr(0, message.find("\r\n"));
+  return windows_utils::get_error_message(error_code);
 #elif __linux__
   return strerror(error_code);
 #else

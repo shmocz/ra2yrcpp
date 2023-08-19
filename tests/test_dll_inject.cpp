@@ -5,7 +5,6 @@
 #include "client_utils.hpp"
 #include "config.hpp"
 #include "dll_inject.hpp"
-#include "exprocess.hpp"
 #include "instrumentation_client.hpp"
 #include "is_context.hpp"
 #include "logging.hpp"
@@ -13,6 +12,7 @@
 #include "util_proto.hpp"
 #include "utility/time.hpp"
 #include "websocket_connection.hpp"
+#include "win32/windows_utils.hpp"
 #include "x86.hpp"
 
 #include <gtest/gtest.h>
@@ -22,7 +22,6 @@
 
 #include <chrono>
 #include <exception>
-#include <libloaderapi.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -35,8 +34,8 @@ using namespace ra2yrcpp::test_util;
 class DLLInjectTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    p_LoadLibrary = is_context::get_proc_address("LoadLibraryA");
-    p_GetProcAddress = is_context::get_proc_address("GetProcAddress");
+    p_LoadLibrary = windows_utils::get_proc_address("LoadLibraryA");
+    p_GetProcAddress = windows_utils::get_proc_address("GetProcAddress");
   }
 
   std::string path_dll{cfg::DLL_NAME};
@@ -81,16 +80,15 @@ TEST_F(DLLInjectTest, BytesToStackTest) {
 }
 
 TEST_F(DLLInjectTest, BasicLoading) {
-  auto g = LoadLibrary(path_dll.c_str());
-  auto n = name_init.c_str();
+  auto addrs = is_context::get_procaddrs();
+  auto g = windows_utils::load_library(path_dll.c_str());
 
   Xbyak::CodeGenerator C;
-  is_context::get_procaddr(&C, g, name_init,
-                           reinterpret_cast<u32>(&GetProcAddress));
+  is_context::get_procaddr(&C, g, name_init, addrs.p_GetProcAddress);
   auto f = C.getCode<u32 __cdecl (*)()>();
   auto addr2 = f();
+  auto addr1 = windows_utils::get_proc_address(name_init, g);
 
-  auto addr1 = reinterpret_cast<u32>(GetProcAddress(g, n));
   ASSERT_NE(addr1, 0x0);
   ASSERT_EQ(addr1, addr2);
 }
@@ -101,7 +99,7 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
   L.ret();
   auto p = L.getCode<u8*>();
   vecu8 sc(p, p + L.getSize());
-  exprocess::ExProcess P("dummy_program.exe 10 500");
+  windows_utils::ExProcess P("dummy_program.exe 10 500");
 
   dll_inject::suspend_inject_resume(P.handle(), sc);
 

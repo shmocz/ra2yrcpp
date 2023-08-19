@@ -57,7 +57,7 @@ unsigned int num_threads_at_tgt(const process::Process& P, const u8* target,
   P.for_each_thread([&ips, &main_tid](process::Thread* T, void* ctx) {
     (void)ctx;
     if (T->id() != main_tid) {
-      ips.push_back(*T->get_pgpr(process::x86Reg::eip));
+      ips.push_back(*T->get_pgpr(x86Reg::eip));
     }
   });
   unsigned int res = 0;

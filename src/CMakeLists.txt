@@ -49,6 +49,7 @@ if(RA2YRCPP_BUILD_MAIN_DLL)
     is_context.cpp
     ra2/abi.cpp
     ra2/state_parser.cpp
+    ra2/yrpp_export.cpp
     ra2yrcppcli/ra2yrcppcli.cpp)
 
   target_link_libraries(

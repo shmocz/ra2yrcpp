@@ -8,14 +8,14 @@
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
 #include "ra2/abi.hpp"
+#include "ra2/yrpp_export.hpp"
 #include "types.h"
 #include "util_command.hpp"
 
-#include <fmt/format.h>
+#include <fmt/core.h>
 
 #include <cstdint>
 
-#include <YRPP.h>
 #include <algorithm>
 #include <map>
 #include <stdexcept>

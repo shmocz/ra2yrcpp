@@ -5,12 +5,12 @@
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
 #include "ra2/abi.hpp"
+#include "ra2/yrpp_export.hpp"
 #include "utility/array_iterator.hpp"
 
 #include <cstdint>
 #include <cstring>
 
-#include <YRPP.h>
 #include <algorithm>
 #include <array>
 

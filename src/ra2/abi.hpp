@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ra2/yrpp_export.hpp"
 #include "types.h"
 #include "utility/array_iterator.hpp"
 #include "utility/function_traits.hpp"
@@ -11,7 +12,6 @@
 
 #include <cstdint>
 
-#include <YRPP.h>
 #include <cstddef>
 #include <functional>
 #include <map>
@@ -19,10 +19,6 @@
 #include <mutex>
 #include <string>
 #include <utility>
-
-// Forward decl
-class CellClass;
-class BuildingTypeClass;
 
 namespace ra2 {
 namespace abi {

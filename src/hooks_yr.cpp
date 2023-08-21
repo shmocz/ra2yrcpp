@@ -9,6 +9,7 @@
 #include "protocol/helpers.hpp"
 #include "ra2/abi.hpp"
 #include "ra2/state_parser.hpp"
+#include "ra2/yrpp_export.hpp"
 #include "utility/memtools.hpp"
 #include "utility/serialize.hpp"
 
@@ -19,7 +20,6 @@
 #include <cstdio>
 #include <cstring>
 
-#include <YRPP.h>
 #include <algorithm>
 #include <array>
 #include <cstdlib>

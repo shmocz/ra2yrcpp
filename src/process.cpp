@@ -9,7 +9,6 @@
 #include <fmt/core.h>
 
 #include <cstddef>
-#include <cstdlib>
 
 using namespace process;
 

@@ -4,8 +4,9 @@
 #include "config.hpp"
 #include "logging.hpp"
 
-#include <chrono>
 #include <cstddef>
+
+#include <chrono>
 #include <exception>
 #include <functional>
 #include <thread>

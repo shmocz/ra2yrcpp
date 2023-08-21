@@ -10,9 +10,9 @@
 
 #include <xbyak/xbyak.h>
 
+#include <cstddef>
 #include <cstdint>
 
-#include <cstddef>
 #include <functional>
 #include <map>
 #include <memory>

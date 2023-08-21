@@ -3,10 +3,10 @@
 #include "gtest/gtest.h"
 #include "utility/time.hpp"
 
+#include <cstddef>
 #include <cstdint>
 
 #include <chrono>
-#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>

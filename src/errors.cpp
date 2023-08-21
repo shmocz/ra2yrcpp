@@ -1,6 +1,6 @@
 #include "errors.hpp"
 
-#include <stddef.h>
+#include <cstddef>
 #ifdef _WIN32
 #include <windows.h>
 #elif __linux__
@@ -40,7 +40,7 @@ std::string yrclient::get_error_message(const int error_code) {
   }
 #ifdef _WIN32
   char* buf = nullptr;
-  size_t size = FormatMessageA(
+  std::size_t size = FormatMessageA(
       FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
           FORMAT_MESSAGE_IGNORE_INSERTS,
       NULL, error_code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&buf,

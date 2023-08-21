@@ -19,8 +19,9 @@
 #include <websocketpp/common/thread.hpp>
 #include <websocketpp/config/asio_no_tls.hpp>
 
-#include <chrono>
 #include <cstddef>
+
+#include <chrono>
 #include <memory>
 #include <regex>
 #include <string>

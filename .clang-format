@@ -15,7 +15,7 @@ IncludeCategories:
     Priority: 2
   - Regex: "^<(fmt|google|xbyak|argparse|asio|websocketpp|gtest)/.+"
     Priority: 3
-  - Regex: "<c(stdio|stdint|string)>"
+  - Regex: "<c(stdio|stdint|string|stddef)>"
     Priority: 4
   - Regex: "<.+>"
     Priority: 5

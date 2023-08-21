@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+
 #include <vector>
 
 namespace ring_buffer {

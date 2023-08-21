@@ -13,6 +13,7 @@
 #include <google/protobuf/any.pb.h>
 
 #include <cstddef>
+
 #include <functional>
 #include <map>
 #include <memory>
@@ -71,7 +72,7 @@ class InstrumentationService {
   /// useful during hooking to not suspend the connection threads.
   ///
   std::vector<process::thread_id_t> get_connection_threads();
-  void create_hook(std::string name, u8* target, const size_t code_length);
+  void create_hook(std::string name, u8* target, const std::size_t code_length);
   command::CommandManager& cmd_manager();
   std::map<u8*, hook::Hook>& hooks();
   // TODO: separate storage class

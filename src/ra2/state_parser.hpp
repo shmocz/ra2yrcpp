@@ -8,6 +8,7 @@
 #include <google/protobuf/repeated_ptr_field.h>
 
 #include <cstddef>
+
 #include <tuple>  // for make_tuple
 #include <vector>
 class CellClass;

@@ -10,14 +10,14 @@
 
 using namespace x86;
 
-size_t x86::bytes_to_stack(Xbyak::CodeGenerator* c, const vecu8 bytes) {
+std::size_t x86::bytes_to_stack(Xbyak::CodeGenerator* c, const vecu8 bytes) {
   using namespace Xbyak::util;
   int off = sizeof(u32);
-  size_t s = 0u;
+  std::size_t s = 0u;
   auto it = bytes.begin();
 
   std::vector<u32> chunks;
-  for (size_t i = 0; i < bytes.size(); i += off) {
+  for (std::size_t i = 0; i < bytes.size(); i += off) {
     u32 dw{0};
     std::copy(it + i, it + std::min(bytes.size(), i + off),
               reinterpret_cast<u8*>(&dw));

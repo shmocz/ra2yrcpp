@@ -13,6 +13,7 @@
 #include <xbyak/xbyak.h>
 
 #include <cstddef>
+
 #include <utility>
 #include <vector>
 
@@ -29,7 +30,7 @@ struct TestProgram : Xbyak::CodeGenerator {
 
   auto get_code() { return getCode<i32 __cdecl (*)(const i32, const i32)>(); }
 
-  size_t entry_size;
+  std::size_t entry_size;
 };
 
 static void test_cb(hook::Hook*, void* data, X86Regs*) {

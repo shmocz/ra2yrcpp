@@ -15,7 +15,7 @@ using namespace hook;
 using namespace std::chrono_literals;
 
 DetourMain::DetourMain(const addr_t target, const addr_t hook,
-                       const size_t code_length, const addr_t call_hook,
+                       const std::size_t code_length, const addr_t call_hook,
                        unsigned int* count_enter, unsigned int* count_exit) {
   nop(code_length, false);  // placeholder for original instruction(s)
   x86::save_regs(this);
@@ -39,10 +39,10 @@ DetourMain::DetourMain(Hook* h)
 
 // TODO: fail if code is too short
 struct DetourTrampoline : Xbyak::CodeGenerator {
-  DetourTrampoline(const u8* target, const size_t code_length) {
+  DetourTrampoline(const u8* target, const std::size_t code_length) {
     push(reinterpret_cast<std::uintptr_t>(target));
     ret();
-    const size_t pad_length = code_length - getSize();
+    const std::size_t pad_length = code_length - getSize();
     if (pad_length > 0) {
       nop(pad_length, false);
     }
@@ -51,7 +51,7 @@ struct DetourTrampoline : Xbyak::CodeGenerator {
 };
 
 unsigned int num_threads_at_tgt(const process::Process& P, const u8* target,
-                                const size_t length) {
+                                const std::size_t length) {
   auto main_tid = process::get_current_tid();
   std::vector<unsigned int> ips;
   P.for_each_thread([&ips, &main_tid](process::Thread* T, void* ctx) {
@@ -72,8 +72,9 @@ unsigned int num_threads_at_tgt(const process::Process& P, const u8* target,
   return res;
 }
 
-Hook::Hook(addr_t src_address, const size_t code_length, const std::string name,
-           const std::vector<thread_id_t> no_suspend, const bool manual)
+Hook::Hook(addr_t src_address, const std::size_t code_length,
+           const std::string name, const std::vector<thread_id_t> no_suspend,
+           const bool manual)
     : d_{src_address, 0u, code_length},
       name_(name),
       dm_(this),
@@ -167,7 +168,7 @@ Detour& Hook::detour() { return d_; }
 const std::string& Hook::name() const { return name_; }
 
 void Hook::patch_code(u8* target_address, const u8* code,
-                      const size_t code_length) {
+                      const std::size_t code_length) {
   dprintf("address={}, bytes={}", reinterpret_cast<void*>(target_address),
           code_length);
   auto P = process::get_current_process();
@@ -175,7 +176,7 @@ void Hook::patch_code(u8* target_address, const u8* code,
 }
 
 void Hook::patch_code_safe(u8* target_address, const u8* code,
-                           const size_t code_length) {
+                           const std::size_t code_length) {
   auto P = process::get_current_process();
   auto main_tid = process::get_current_tid();
 

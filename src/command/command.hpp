@@ -1,10 +1,10 @@
 #pragma once
 #include "utility/sync.hpp"
 
+#include <cstddef>
 #include <cstdint>
 
 #include <atomic>
-#include <cstddef>
 #include <functional>
 #include <memory>
 #include <string>

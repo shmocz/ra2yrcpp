@@ -10,6 +10,7 @@
 #include <websocketpp/server.hpp>
 
 #include <cstddef>
+
 #include <exception>
 #include <functional>
 #include <memory>
@@ -120,7 +121,7 @@ WebsocketServer::WebsocketServer(WebsocketServer::Options o,
 
   // TODO(shmocz): thread safety
   s.set_interrupt_handler([&](connection_hdl h) {
-    size_t count = 0;
+    std::size_t count = 0;
     if ((count = ws_conns.erase(s.get_socket_id(h))) < 1) {
       wrprintf("got interrupt, but no connections were removed");
     }

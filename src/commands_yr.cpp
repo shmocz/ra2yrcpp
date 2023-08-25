@@ -3,6 +3,7 @@
 #include "ra2yrproto/commands_yr.pb.h"
 #include "ra2yrproto/ra2yr.pb.h"
 
+#include "command/is_command.hpp"
 #include "errors.hpp"
 #include "hooks_yr.hpp"
 #include "logging.hpp"
@@ -10,7 +11,6 @@
 #include "ra2/abi.hpp"
 #include "ra2/yrpp_export.hpp"
 #include "types.h"
-#include "util_command.hpp"
 
 #include <fmt/core.h>
 
@@ -20,8 +20,8 @@
 #include <map>
 #include <stdexcept>
 
-using util_command::get_cmd;
-using util_command::message_result;
+using ra2yrcpp::command::get_cmd;
+using ra2yrcpp::command::message_result;
 
 using ra2yrcpp::hooks_yr::ensure_storage_value;
 using ra2yrcpp::hooks_yr::get_storage;
@@ -225,11 +225,11 @@ auto add_event() {
         (void)EventClass::AddEvent(E, ts);
       }
 
-      auto [p, r] = message_result<ra2yrproto::commands::AddEvent>(it->cmd);
+      auto r = message_result<ra2yrproto::commands::AddEvent>(it->cmd);
       auto* ev = r.mutable_event();
       ev->CopyFrom(args.event());
       ev->set_timing(ts);
-      p->mutable_result()->PackFrom(r);
+      it->cmd->command_data()->M.PackFrom(r);
     });
   });
 }
@@ -257,7 +257,7 @@ auto place_query() {
         });
       }
 
-      auto [p, r] = message_result<ra2yrproto::commands::PlaceQuery>(cmd);
+      auto r = message_result<ra2yrproto::commands::PlaceQuery>(cmd);
       ra2yrproto::commands::PlaceQuery arg;
       arg.CopyFrom(r);
       r.clear_coordinates();
@@ -288,7 +288,7 @@ auto place_query() {
         eprintf("TypeClass {} does not exist", args.type_class());
       }
       // copy results
-      p->mutable_result()->PackFrom(r);
+      cmd->command_data()->M.PackFrom(r);
     });
   });
 }
@@ -351,7 +351,8 @@ auto read_value() {
 
 }  // namespace cmd
 
-std::map<std::string, command::Command::handler_t> commands_yr::get_commands() {
+std::map<std::string, ra2yrcpp::command::iservice_cmd::handler_t>
+commands_yr::get_commands() {
   return {
       cmd::click_event(),            //
       cmd::unit_command(),           //

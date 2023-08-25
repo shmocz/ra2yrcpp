@@ -3,11 +3,11 @@
 #include "ra2yrproto/commands_builtin.pb.h"
 
 #include "asio_utils.hpp"
+#include "command/is_command.hpp"
 #include "hook.hpp"
 #include "instrumentation_service.hpp"
 #include "process.hpp"
 #include "types.h"
-#include "util_command.hpp"
 #include "util_string.hpp"
 
 #include <xbyak/xbyak.h>
@@ -17,7 +17,7 @@
 #include <utility>
 #include <vector>
 
-using util_command::get_cmd;
+using ra2yrcpp::command::get_cmd;
 
 /// Adds two unsigned integers, and returns result in EAX
 struct TestProgram : Xbyak::CodeGenerator {
@@ -41,7 +41,7 @@ static void test_cb(hook::Hook*, void* data, X86Regs*) {
 
 // TODO(shmocz): ditch the old hook/cb test functions to use the common
 // functions
-std::map<std::string, command::Command::handler_t> get_commands_nn() {
+std::map<std::string, yrclient::cmd_t::handler_t> get_commands_nn() {
   return {
       get_cmd<ra2yrproto::commands::StoreValue>([](auto* Q) {
         // NB: ensure correct radix
@@ -122,7 +122,7 @@ std::map<std::string, command::Command::handler_t> get_commands_nn() {
       })};
 }
 
-std::map<std::string, command::Command::handler_t>
+std::map<std::string, ra2yrcpp::command::iservice_cmd::handler_t>
 yrclient::commands_builtin::get_commands() {
   return get_commands_nn();
 }

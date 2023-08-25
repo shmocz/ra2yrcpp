@@ -14,8 +14,8 @@ add_library(
   asio_utils.cpp
   auto_thread.cpp
   client_connection.cpp
-  command/command.cpp
   command/command_manager.cpp
+  command/is_command.cpp
   commands_builtin.cpp
   errors.cpp
   hook.cpp

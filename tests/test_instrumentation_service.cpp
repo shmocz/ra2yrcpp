@@ -3,6 +3,7 @@
 
 #include "asio_utils.hpp"
 #include "client_utils.hpp"
+#include "command/command_manager.hpp"
 #include "commands_builtin.hpp"
 #include "config.hpp"
 #include "instrumentation_client.hpp"
@@ -11,6 +12,7 @@
 #include "protocol/helpers.hpp"
 #include "util_proto.hpp"
 #include "util_string.hpp"
+#include "utility/sync.hpp"
 #include "websocket_connection.hpp"
 
 #include <fmt/core.h>
@@ -21,9 +23,12 @@
 
 #include <cstddef>
 
+#include <atomic>
 #include <chrono>
+#include <future>
 #include <memory>
 #include <regex>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -229,4 +234,126 @@ TEST_F(IServiceTest, TestHTTPRequest) {
     ASSERT_TRUE(ra2yrcpp::protocol::from_json(bbody, &R));
   }
   iprintf("exit test");
+}
+
+namespace command = ra2yrcpp::command;
+
+class CommandTest : public ::testing::Test {
+ protected:
+  void SetUp() {
+    M = std::make_unique<command::CommandManager<cmd_d_t>>();
+    M->add_command("test", [](auto*) { dprintf("this is a test"); });
+    M->start();
+  }
+
+  void TearDown() {
+    M->shutdown();
+    M = nullptr;
+  }
+
+  auto flush(const u64 qid) { return M->flush_results(qid, 5.0s); }
+
+  auto make_cmd(const u64 qid) {
+    return M->enqueue_command(M->make_command("test", cmd_d_t(), qid));
+  }
+
+ public:
+  using cmd_d_t = google::protobuf::Any;
+  std::unique_ptr<command::CommandManager<cmd_d_t>> M;
+};
+
+TEST_F(CommandTest, BasicTest) {
+  const std::string name = "test";
+  constexpr u64 queue_id = 1;
+
+  (void)M->execute_create_queue(queue_id);
+  {
+    (void)make_cmd(queue_id);
+    auto C_res = flush(queue_id);
+    ASSERT_EQ(C_res.size(), 1);
+  }
+
+  (void)M->execute_destroy_queue(queue_id);
+  {
+    for (u64 i = 0; i < 25; i++) {
+      auto C = make_cmd(i);
+      C->result_code().wait_pred(
+          [](command::ResultCode v) { return v != command::ResultCode::NONE; });
+      ASSERT_THROW({ (void)flush(i); }, std::out_of_range);
+    }
+  }
+
+  (void)M->execute_create_queue(queue_id, cfg::RESULT_QUEUE_SIZE);
+  {
+    (void)make_cmd(queue_id);
+    auto C_res = flush(queue_id);
+    ASSERT_EQ(C_res.size(), 1);
+  }
+
+  // Check that result queue size bounds work
+  {
+    for (unsigned i = 0U; i < cfg::RESULT_QUEUE_SIZE + 5U; i++) {
+      auto C = make_cmd(queue_id);
+      C->result_code().wait_pred(
+          [](command::ResultCode v) { return v != command::ResultCode::NONE; });
+    }
+    auto C_res = flush(queue_id);
+    ASSERT_EQ(C_res.size(), cfg::RESULT_QUEUE_SIZE);
+  }
+}
+
+TEST_F(CommandTest, ComplexTest) {
+  std::vector<std::future<void>> tasks;
+  util::AtomicVariable<bool> queues_ready(false);
+  util::AtomicVariable<bool> dupe_tasks_ready(false);
+  std::atomic<int> count = 0;
+  constexpr std::size_t queue_count = 10;
+  constexpr std::size_t dupe_tasks = 20;
+
+  auto main_task = [&](const u64 id) {
+    // Create queue
+    (void)M->execute_create_queue(id);
+    count++;
+    if (count == 10) {
+      queues_ready.store(true);
+    } else {
+      queues_ready.wait(true);
+    }
+
+    dupe_tasks_ready.wait(true);
+
+    const int tasks_per_queue = 5;
+    // Run some tasks
+    for (std::size_t i = 0; i < queue_count; i++) {
+      for (int j = 0; j < tasks_per_queue; j++) {
+        (void)make_cmd(id);
+      }
+
+      for (int j = tasks_per_queue; j > 0;) {
+        auto C_res = flush(id);
+        ASSERT_GT(C_res.size(), 0);
+        j -= static_cast<int>(C_res.size());
+        ASSERT_GE(j, 0);
+      }
+    }
+  };
+
+  auto task_dupe_queue = [&](const u64 id) {
+    queues_ready.wait(true);
+    (void)M->execute_create_queue(id % queue_count);
+  };
+
+  for (std::size_t i = 0; i < queue_count; i++) {
+    tasks.emplace_back(std::async(std::launch::async, main_task, i));
+  }
+
+  for (std::size_t i = 0; i < dupe_tasks; i++) {
+    tasks.emplace_back(std::async(std::launch::async, task_dupe_queue, i));
+  }
+
+  dupe_tasks_ready.store(true);
+
+  for (u64 i = 0; i < tasks.size(); i++) {
+    tasks.at(i).wait();
+  }
 }

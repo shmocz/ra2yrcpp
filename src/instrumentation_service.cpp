@@ -3,12 +3,15 @@
 #include "protocol/protocol.hpp"
 
 #include "asio_utils.hpp"
+#include "command/command_manager.hpp"
+#include "config.hpp"
 #include "errors.hpp"
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
 #include "util_string.hpp"
 
 #include <fmt/core.h>
+#include <google/protobuf/any.pb.h>
 
 #include <exception>
 #include <memory>
@@ -32,8 +35,8 @@ void ISCallback::add_to_hook(hook::Hook* h,
 }
 
 void InstrumentationService::add_command(std::string name,
-                                         command::Command::handler_t fn) {
-  cmd_manager_.factory().add_entry(name, fn);
+                                         cmd_t::handler_t fn) {
+  cmd_manager_.add_command(name, fn);
 }
 
 std::vector<process::thread_id_t>
@@ -58,9 +61,7 @@ void InstrumentationService::create_hook(std::string name, u8* target,
                      name, tids, true);
 }
 
-command::CommandManager& InstrumentationService::cmd_manager() {
-  return cmd_manager_;
-}
+cmd_manager_t& InstrumentationService::cmd_manager() { return cmd_manager_; }
 
 std::map<u8*, hook::Hook>& InstrumentationService::hooks() { return hooks_; }
 
@@ -77,14 +78,12 @@ ra2yrproto::PollResults InstrumentationService::flush_results(
   auto* PR = P.mutable_result();
   while (!results.empty()) {
     auto item = results.back();
-    auto* cmd_result =
-        reinterpret_cast<ra2yrproto::CommandResult*>(item->result());
     auto* res = PR->add_results();
-    res->set_command_id(cmd_result->command_id());
-    res->mutable_result()->CopyFrom(cmd_result->result());
-    if (item->result_code().get() == command::ResultCode::ERROR) {
+    res->set_command_id(item->task_id());
+    res->mutable_result()->CopyFrom(item->command_data()->M);
+    if (item->result_code().get() == ra2yrcpp::command::ResultCode::ERROR) {
       res->set_result_code(yrclient::RESPONSE_ERROR);
-      res->set_error_message(*item->error_message());
+      res->set_error_message(item->error_message());
     } else {
       res->set_result_code(yrclient::RESPONSE_OK);
     }
@@ -94,27 +93,18 @@ ra2yrproto::PollResults InstrumentationService::flush_results(
   return P;
 }
 
-std::tuple<std::shared_ptr<command::Command>, ra2yrproto::RunCommandAck>
-yrclient::handle_cmd(InstrumentationService* I, const int queue_id,
-                     ra2yrproto::Command* cmd, const bool discard_result) {
+std::tuple<command_ptr_t, ra2yrproto::RunCommandAck> yrclient::handle_cmd(
+    InstrumentationService* I, const int queue_id, ra2yrproto::Command* cmd,
+    const bool discard_result) {
   // TODO: reduce amount of copies we make
   auto client_cmd = cmd->command();
-  // schedule command execution
-  auto is_args = new ISArgs;
-  is_args->I = I;
-  is_args->M.CopyFrom(client_cmd);
-
   // Get trailing portion of protobuf type url
   auto name = yrclient::split_string(client_cmd.type_url(), "/").back();
   ra2yrproto::RunCommandAck ack;
 
-  auto c = std::shared_ptr<command::Command>(
-      I->cmd_manager().factory().make_command(
-          name,
-          std::unique_ptr<void, void (*)(void*)>(
-              is_args, [](auto d) { delete reinterpret_cast<ISArgs*>(d); }),
-          queue_id),
-      [](auto* a) { delete a; });
+  auto c = I->cmd_manager().make_command(
+      name, ra2yrcpp::command::ISArg{reinterpret_cast<void*>(I), client_cmd},
+      queue_id);
   ack.set_id(c->task_id());
   c->discard_result().store(discard_result);
   I->cmd_manager().enqueue_command(c);
@@ -191,15 +181,13 @@ static vecu8 on_receive_bytes(InstrumentationService* I, const int socket_id,
 
 static void on_accept(InstrumentationService* I, const int socket_id) {
   // Create result queue
-  // FIXME: can block here
-  I->cmd_manager().enqueue_builtin(
-      command::CommandType::CREATE_QUEUE, socket_id,
-      command::BuiltinArgs{.queue_size = cfg::RESULT_QUEUE_SIZE});
+  // TODO(shmocz): can block here
+  (void)I->cmd_manager().execute_create_queue(socket_id,
+                                              cfg::RESULT_QUEUE_SIZE);
 }
 
 static void on_close(InstrumentationService* I, const int socket_id) {
-  I->cmd_manager().enqueue_builtin(command::CommandType::DESTROY_QUEUE,
-                                   socket_id);
+  (void)I->cmd_manager().execute_destroy_queue(socket_id);
 }
 
 void InstrumentationService::store_value(
@@ -291,7 +279,7 @@ const InstrumentationService::Options& InstrumentationService::opts() const {
 
 yrclient::InstrumentationService* InstrumentationService::create(
     InstrumentationService::Options O,
-    std::map<std::string, command::Command::handler_t> commands,
+    std::map<std::string, cmd_t::handler_t> commands,
     std::function<std::string(yrclient::InstrumentationService*)> on_shutdown,
     std::function<void(InstrumentationService*)> extra_init) {
   auto* I = new yrclient::InstrumentationService(O, on_shutdown, extra_init);

@@ -5,7 +5,6 @@
 #include "ra2yrproto/commands_yr.pb.h"
 #include "ra2yrproto/core.pb.h"
 
-#include "command/command.hpp"
 #include "commands_builtin.hpp"
 #include "commands_yr.hpp"
 #include "context.hpp"
@@ -139,7 +138,7 @@ static void handle_cmd_wait(yrclient::InstrumentationService* I,
   auto CC = yrclient::create_command(cmd);
   auto [c, a] = yrclient::handle_cmd(I, 0U, &CC, true);
   c->result_code().wait_pred(
-      [](auto v) { return v != command::ResultCode::NONE; });
+      [](auto v) { return v != ra2yrcpp::command::ResultCode::NONE; });
 }
 
 yrclient::InstrumentationService* is_context::make_is(
@@ -150,7 +149,7 @@ yrclient::InstrumentationService* is_context::make_is(
     cmds[name] = fn;
   }
   auto* I = yrclient::InstrumentationService::create(
-      O, std::map<std::string, command::Command::handler_t>(), on_shutdown,
+      O, std::map<std::string, yrclient::cmd_t::handler_t>(), on_shutdown,
       [cmds](auto* t) {
         for (auto& [name, fn] : cmds) {
           t->add_command(name, fn);

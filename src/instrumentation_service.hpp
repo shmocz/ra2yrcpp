@@ -1,8 +1,8 @@
 #pragma once
 #include "ra2yrproto/core.pb.h"
 
-#include "command/command.hpp"
 #include "command/command_manager.hpp"
+#include "command/is_command.hpp"
 #include "config.hpp"
 #include "hook.hpp"
 #include "process.hpp"
@@ -10,14 +10,14 @@
 #include "utility/sync.hpp"
 #include "websocket_server.hpp"
 
-#include <google/protobuf/any.pb.h>
-
 #include <cstddef>
 
+#include <exception>
 #include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -43,15 +43,13 @@ struct ISCallback : public hook::Callback {
   yrclient::InstrumentationService* I;
 };
 
-struct ISArgs {
-  yrclient::InstrumentationService* I;
-  google::protobuf::Any M;
-};
-
 using deleter_t = std::function<void(void*)>;
 using storage_val = std::unique_ptr<void, deleter_t>;
 using storage_t = std::map<std::string, storage_val>;
 using ra2yrcpp::websocket_server::WebsocketServer;
+using cmd_t = ra2yrcpp::command::iservice_cmd;
+using cmd_manager_t = ra2yrcpp::command::CommandManager<cmd_t::data_t>;
+using command_ptr_t = cmd_manager_t::command_ptr_t;
 
 class InstrumentationService {
  public:
@@ -65,7 +63,7 @@ class InstrumentationService {
       std::function<std::string(InstrumentationService*)> on_shutdown,
       std::function<void(InstrumentationService*)> extra_init = nullptr);
   ~InstrumentationService();
-  void add_command(std::string name, command::Command::handler_t fn);
+  void add_command(std::string name, cmd_t::handler_t fn);
 
   ///
   /// Returns OS specific thread id's for all active client connections. Mostly
@@ -73,7 +71,7 @@ class InstrumentationService {
   ///
   std::vector<process::thread_id_t> get_connection_threads();
   void create_hook(std::string name, u8* target, const std::size_t code_length);
-  command::CommandManager& cmd_manager();
+  cmd_manager_t& cmd_manager();
   std::map<u8*, hook::Hook>& hooks();
   // TODO: separate storage class
   util::acquire_t<std::map<u8*, hook::Hook>*> aq_hooks();
@@ -91,7 +89,7 @@ class InstrumentationService {
   // FIXME: dont expose
   static yrclient::InstrumentationService* create(
       InstrumentationService::Options O,
-      std::map<std::string, command::Command::handler_t> commands,
+      std::map<std::string, cmd_t::handler_t> commands,
       std::function<std::string(yrclient::InstrumentationService*)>
           on_shutdown = nullptr,
       std::function<void(InstrumentationService*)> extra_init = nullptr);
@@ -103,7 +101,7 @@ class InstrumentationService {
       const u64 queue_id, const duration_t delay = cfg::POLL_RESULTS_TIMEOUT);
 
   Options opts_;
-  command::CommandManager cmd_manager_;
+  cmd_manager_t cmd_manager_;
   std::map<u8*, hook::Hook> hooks_;
   std::mutex mut_hooks_;
   storage_t storage_;
@@ -115,9 +113,9 @@ class InstrumentationService {
   std::unique_ptr<WebsocketServer> ws_server_;
 };
 
-std::tuple<std::shared_ptr<command::Command>, ra2yrproto::RunCommandAck>
-handle_cmd(InstrumentationService* I, const int queue_id,
-           ra2yrproto::Command* cmd, const bool discard_result = false);
+std::tuple<command_ptr_t, ra2yrproto::RunCommandAck> handle_cmd(
+    InstrumentationService* I, const int queue_id, ra2yrproto::Command* cmd,
+    const bool discard_result = false);
 
 const InstrumentationService::Options default_options{
     {cfg::SERVER_ADDRESS, cfg::SERVER_PORT, cfg::MAX_CLIENTS,

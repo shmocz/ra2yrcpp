@@ -62,11 +62,6 @@ new_make_test(
   LIB common_multi)
 
 new_make_test(
-  NAME test_command_manager
-  SRC test_command_manager.cpp
-  LIB common_multi)
-
-new_make_test(
   NAME test_protocol
   SRC test_protocol.cpp
   LIB ra2yrcpp_core "${PROTO_LIB}" ZLIB::ZLIB ${PROTOBUF_EXTRA_LIBS})

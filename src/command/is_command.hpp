@@ -1,15 +1,26 @@
 #pragma once
+#include "command/command_manager.hpp"
+#include "logging.hpp"
 
-#include "ra2yrproto/core.pb.h"
+#include <google/protobuf/any.pb.h>
 
-#include "command/command.hpp"
-#include "instrumentation_service.hpp"
-
-#include <memory>
+#include <functional>
 #include <string>
 #include <utility>
 
-namespace util_command {
+namespace yrclient {
+class InstrumentationService;
+}
+
+namespace ra2yrcpp {
+
+namespace command {
+struct ISArg {
+  void* instrumentation_service;
+  google::protobuf::Any M;
+};
+
+using iservice_cmd = Command<ISArg>;
 
 ///
 /// Wrapper which takes constructs a command function compatible with a supplied
@@ -25,14 +36,8 @@ namespace util_command {
 ///
 template <typename T>
 struct ISCommand {
-  explicit ISCommand(command::Command* c)
-      : c(c),
-        a_((yrclient::ISArgs*)c->args()),
-        result_q_(std::unique_ptr<void, void (*)(void*)>(
-            new ra2yrproto::CommandResult(), [](auto p) {
-              delete reinterpret_cast<ra2yrproto::CommandResult*>(p);
-            })) {
-    a_->M.UnpackTo(&command_data_);
+  explicit ISCommand(iservice_cmd* c) : c(c) {
+    c->command_data()->M.UnpackTo(&command_data_);
   }
 
   ISCommand(const ISCommand&) = delete;
@@ -45,10 +50,8 @@ struct ISCommand {
   void save_command_result() {
     // replace result, but only if pending is not set
     if (!c->pending()) {
-      auto* p = reinterpret_cast<ra2yrproto::CommandResult*>(result_q_.get());
-      p->set_command_id(c->task_id());
-      p->mutable_result()->PackFrom(command_data_);
-      c->set_result(std::move(result_q_));
+      auto& p = c->command_data()->M;
+      p.PackFrom(command_data_);
     }
   }
 
@@ -61,20 +64,21 @@ struct ISCommand {
     c->pending().store(true);
   }
 
-  auto* I() { return a_->I; }
+  auto* I() {
+    return reinterpret_cast<yrclient::InstrumentationService*>(
+        c->command_data()->instrumentation_service);
+  }
 
-  auto* M() { return a_->M; }
+  auto* M() { return c->command_data()->M; }
 
-  command::Command* c;
-  yrclient::ISArgs* a_;
+  iservice_cmd* c;
   T command_data_;
-  std::unique_ptr<void, void (*)(void*)> result_q_;
 };
 
 template <typename MessageT>
-std::pair<std::string, command::Command::handler_t> get_cmd(
+std::pair<std::string, iservice_cmd::handler_t> get_cmd(
     std::function<void(ISCommand<MessageT>*)> fn) {
-  return {MessageT().GetTypeName(), [=](command::Command* c) {
+  return {MessageT().GetTypeName(), [=](iservice_cmd* c) {
             ISCommand<MessageT> Q(c);
             dprintf("exec {} ", MessageT().GetTypeName());
             fn(&Q);
@@ -86,11 +90,11 @@ std::pair<std::string, command::Command::handler_t> get_cmd(
 /// returns pointer to the result and instance of the message.
 ///
 template <typename MessageT>
-auto message_result(command::Command* cmd) {
+auto message_result(iservice_cmd* cmd) {
   MessageT m;
-  auto* p = reinterpret_cast<ra2yrproto::CommandResult*>(cmd->result());
-  p->mutable_result()->UnpackTo(&m);
-  return std::make_tuple(p, m);
+  cmd->command_data()->M.UnpackTo(&m);
+  return m;
 }
 
-}  // namespace util_command
+}  // namespace command
+}  // namespace ra2yrcpp

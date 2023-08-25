@@ -4,7 +4,7 @@
 #include "ra2yrproto/ra2yr.pb.h"
 
 #include "async_queue.hpp"
-#include "command/command.hpp"
+#include "command/is_command.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
 #include "types.h"
@@ -96,7 +96,7 @@ void init_callbacks(yrclient::InstrumentationService* I);
 
 struct work_item {
   CBYR* cb;
-  command::Command* cmd;
+  yrclient::cmd_t* cmd;
   std::function<void(work_item*)> fn;
 };
 
@@ -108,7 +108,7 @@ struct CBExecuteGameLoopCommand final : public MyCB<CBExecuteGameLoopCommand> {
 
   CBExecuteGameLoopCommand() = default;
 
-  void put_work(std::function<void(work_item*)> fn, command::Command* cmd) {
+  void put_work(std::function<void(work_item*)> fn, yrclient::cmd_t* cmd) {
     bool async = cmd->pending();
     work.push({this, cmd, [async, fn](auto* it) {
                  try {
@@ -132,7 +132,7 @@ struct CBExecuteGameLoopCommand final : public MyCB<CBExecuteGameLoopCommand> {
 
 template <typename T>
 void put_gameloop_command(
-    util_command::ISCommand<T>* Q,
+    ra2yrcpp::command::ISCommand<T>* Q,
     std::function<void(ra2yrcpp ::hooks_yr::work_item*)> fn) {
   CBExecuteGameLoopCommand::get(Q->I())->put_work(fn, Q->c);
 }

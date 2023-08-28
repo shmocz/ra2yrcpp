@@ -27,14 +27,11 @@ void dll_inject::inject_code(process::Process* P, int thread_id,
 }
 
 void dll_inject::suspend_inject_resume(handle_t ex_handle, vecu8 shellcode,
-                                       const duration_t delay_post_suspend,
-                                       const duration_t delay_post_inject,
-                                       const duration_t delay_pre_resume) {
+                                       const DLLInjectOptions o) {
   process::Process P(ex_handle);
   P.suspend_threads(-1);
   int tid = -1;
-  P.for_each_thread([&tid](process::Thread* T, void* ctx) {
-    (void)ctx;
+  P.for_each_thread([&tid](process::Thread* T, void*) {
     if (tid == -1) {
       tid = T->id();
     }
@@ -42,9 +39,9 @@ void dll_inject::suspend_inject_resume(handle_t ex_handle, vecu8 shellcode,
   if (tid == -1) {
     throw std::runtime_error("tid -1");
   }
-  util::sleep_ms(delay_post_suspend);
+  util::sleep_ms(o.delay_post_suspend);
   inject_code(&P, tid, shellcode);
-  util::sleep_ms(delay_post_inject);
+  util::sleep_ms(o.delay_post_inject);
   // Resume only the injected thread
   P.for_each_thread([&tid](auto* T, auto* ctx) {
     (void)ctx;
@@ -52,7 +49,7 @@ void dll_inject::suspend_inject_resume(handle_t ex_handle, vecu8 shellcode,
       T->resume();
     }
   });
-  util::sleep_ms(delay_pre_resume);
+  util::sleep_ms(o.delay_pre_resume);
   // Wait a bit, then resume others
   P.resume_threads(tid);
 }

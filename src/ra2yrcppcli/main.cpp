@@ -3,11 +3,13 @@
 
 #include "asio_utils.hpp"
 #include "config.hpp"
+#include "dll_inject.hpp"
 #include "instrumentation_service.hpp"
 #include "is_context.hpp"
 #include "multi_client.hpp"
 #include "protocol/helpers.hpp"
 #include "ra2yrcppcli.hpp"
+#include "types.h"
 #include "utility/time.hpp"
 #include "win32/windows_utils.hpp"
 
@@ -68,8 +70,8 @@ void send_and_print(ra2yrproto::Response r) {
 
 void easy_setup(const std::string path_dll,
                 yrclient::InstrumentationService::Options iservice,
-                is_context::DLLInjectOptions dll) {
-  inject_dll(0u, path_dll, iservice, dll);
+                dll_inject::DLLInjectOptions dll) {
+  is_context::inject_dll(0u, path_dll, iservice, dll);
   int tries = 3;
   auto client =
       get_client(iservice.server.host, std::to_string(iservice.server.port));
@@ -132,19 +134,19 @@ int main(int argc, char* argv[]) {
       .help("target process name")
       .default_value(std::string("gamemd-spawn.exe"));
   A.add_argument("-dl", "--delay-post")
-      .help("delay after suspending threads")
-      .default_value(1000u)
-      .scan<'u', unsigned>();
+      .help("delay after suspending threads (seconds)")
+      .default_value(1.0)
+      .scan<'g', double>();
   A.add_argument("-dp", "--delay-pre")
       .help("delay before resuming suspended threads")
-      .default_value(2000u)
-      .scan<'u', unsigned>();
+      .default_value(1.0)
+      .scan<'g', double>();
   A.add_argument("-w", "--wait")
       .help(
-          "Milliseconds to to wait for gamemd process to show up. If 0 wait "
+          "Seconds to to wait for gamemd process to show up. If 0.0 wait "
           "indefinitely")
-      .default_value(0u)
-      .scan<'u', unsigned>();
+      .default_value(0.0)
+      .scan<'g', double>();
   A.add_argument("-e", "--easy-setup")
       .help("Automatically inject the DLL and run initialization commands")
       .implicit_value(true)
@@ -198,16 +200,19 @@ int main(int argc, char* argv[]) {
   opts.server.port = A.get<unsigned>("--port");
   opts.server.host = A.get("--destination");
 
-  is_context::DLLInjectOptions opts_dll;
-  opts_dll.delay_post = A.get<unsigned>("--delay-post");
-  opts_dll.delay_pre = A.get<unsigned>("--delay-pre");
-  opts_dll.wait_process = A.get<unsigned>("--wait");
+  dll_inject::DLLInjectOptions opts_dll;
+  {
+    auto q = [&](auto& d, double v) { d = duration_t(v); };
+    q(opts_dll.delay_post_suspend, A.get<double>("--delay-post"));
+    q(opts_dll.delay_pre_suspend, A.get<double>("--delay-pre"));
+    q(opts_dll.wait_process, A.get<double>("--wait"));
+  }
   opts_dll.process_name = A.get("--process-name");
   opts_dll.force = A.get<bool>("--force");
 
   if (A.is_used("--game-pid")) {
-    inject_dll(A.get<unsigned>("--game-pid"), A.get("--dll-file"), opts,
-               opts_dll);
+    is_context::inject_dll(A.get<unsigned>("--game-pid"), A.get("--dll-file"),
+                           opts, opts_dll);
     return 0;
   }
 
@@ -238,10 +243,10 @@ int main(int argc, char* argv[]) {
       PA.p_LoadLibrary = windows_utils::get_proc_address("LoadLibraryA");
     }
 
-    is_context::DLLLoader L(PA.p_LoadLibrary, PA.p_GetProcAddress,
-                            cfg::DLL_NAME, cfg::INIT_NAME, cfg::MAX_CLIENTS,
-                            cfg::SERVER_PORT,
-                            A.get<bool>("--no-indirect-address"), false);
+    auto dll_opts = is_context::default_options;
+    dll_opts.PA = PA;
+    dll_opts.indirect = A.get<bool>("--no-indirect-address");
+    is_context::DLLLoader L(dll_opts);
     auto p = L.getCode<void __cdecl (*)(void)>();
     std::ofstream os(A.get("--generate-dll-loader"), std::ios::binary);
     os << std::string(reinterpret_cast<char*>(p), L.getSize());

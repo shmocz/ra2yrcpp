@@ -5,8 +5,14 @@
 
 #include <xbyak/xbyak.h>
 
+#include <cstdint>
+
 #include <functional>
 #include <string>
+
+namespace dll_inject {
+struct DLLInjectOptions;
+}
 
 namespace context {
 class Context;
@@ -15,38 +21,29 @@ class Context;
 namespace is_context {
 using context::Context;
 
-struct DLLInjectOptions {
-  unsigned delay_pre;
-  unsigned delay_post;
-  unsigned wait_process;
-  std::string process_name;
-  bool force;
-
-  DLLInjectOptions()
-      : delay_pre(0u),
-        delay_post(0u),
-        wait_process(0u),
-        process_name(""),
-        force(false) {}
-};
-
 struct ProcAddrs {
-  u32 p_LoadLibrary;
-  u32 p_GetProcAddress;
+  std::uintptr_t p_LoadLibrary;
+  std::uintptr_t p_GetProcAddress;
 };
 
 ProcAddrs get_procaddrs();
 vecu8 vecu8cstr(const std::string s);
 
 void get_procaddr(Xbyak::CodeGenerator* c, void* m, const std::string name,
-                  const u32 p_GetProcAddress);
+                  const std::uintptr_t p_GetProcAddress);
 
 struct DLLLoader : Xbyak::CodeGenerator {
-  DLLLoader(u32 p_LoadLibrary, u32 p_GetProcAddress, const std::string path_dll,
-            const std::string name_init,
-            const unsigned int max_clients = cfg::MAX_CLIENTS,
-            const unsigned int port = cfg::SERVER_PORT,
-            const bool indirect = false, const bool no_init_hooks = false);
+  struct Options {
+    ProcAddrs PA;
+    std::string path_dll;
+    std::string name_init;
+    unsigned int max_clients;
+    unsigned int port;
+    bool indirect;
+    bool no_init_hooks;
+  };
+
+  explicit DLLLoader(const DLLLoader::Options o);
 };
 
 ///
@@ -63,8 +60,12 @@ yrclient::InstrumentationService* make_is(
 ///
 void inject_dll(unsigned pid, const std::string path_dll,
                 yrclient::InstrumentationService::Options o,
-                DLLInjectOptions dll);
+                dll_inject::DLLInjectOptions dll);
 
 void* get_context(const yrclient::InstrumentationService::Options O);
+
+const DLLLoader::Options default_options{
+    {0U, 0U},         cfg::DLL_NAME, cfg::INIT_NAME, cfg::MAX_CLIENTS,
+    cfg::SERVER_PORT, false,         false};
 
 };  // namespace is_context

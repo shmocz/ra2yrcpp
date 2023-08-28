@@ -34,14 +34,11 @@ using namespace ra2yrcpp::test_util;
 class DLLInjectTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    p_LoadLibrary = windows_utils::get_proc_address("LoadLibraryA");
-    p_GetProcAddress = windows_utils::get_proc_address("GetProcAddress");
+    o.PA.p_LoadLibrary = windows_utils::get_proc_address("LoadLibraryA");
+    o.PA.p_GetProcAddress = windows_utils::get_proc_address("GetProcAddress");
   }
 
-  std::string path_dll{cfg::DLL_NAME};
-  std::string name_init{cfg::INIT_NAME};
-  u32 p_LoadLibrary;
-  u32 p_GetProcAddress;
+  is_context::DLLLoader::Options o{is_context::default_options};
 };
 
 struct B2STest : Xbyak::CodeGenerator {
@@ -81,35 +78,37 @@ TEST_F(DLLInjectTest, BytesToStackTest) {
 
 TEST_F(DLLInjectTest, BasicLoading) {
   auto addrs = is_context::get_procaddrs();
-  auto g = windows_utils::load_library(path_dll.c_str());
+  auto g = windows_utils::load_library(o.path_dll.c_str());
 
   Xbyak::CodeGenerator C;
-  is_context::get_procaddr(&C, g, name_init, addrs.p_GetProcAddress);
+  is_context::get_procaddr(&C, g, o.name_init, addrs.p_GetProcAddress);
   auto f = C.getCode<u32 __cdecl (*)()>();
   auto addr2 = f();
-  auto addr1 = windows_utils::get_proc_address(name_init, g);
+  auto addr1 = windows_utils::get_proc_address(o.name_init, g);
 
   ASSERT_NE(addr1, 0x0);
   ASSERT_EQ(addr1, addr2);
 }
 
 TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
-  is_context::DLLLoader L(p_LoadLibrary, p_GetProcAddress, path_dll, name_init,
-                          cfg::MAX_CLIENTS, cfg::SERVER_PORT, false, true);
+  auto opts = o;
+  opts.no_init_hooks = true;
+  is_context::DLLLoader L(opts);
   L.ret();
   auto p = L.getCode<u8*>();
   vecu8 sc(p, p + L.getSize());
   windows_utils::ExProcess P("dummy_program.exe 10 500");
 
-  dll_inject::suspend_inject_resume(P.handle(), sc);
+  dll_inject::suspend_inject_resume(P.handle(), sc,
+                                    dll_inject::DLLInjectOptions());
 
   std::unique_ptr<InstrumentationClient> client;
   ra2yrcpp::asio_utils::IOService srv;
 
-  util::call_until(5.0s, 1.0s, [&client, &srv]() {
+  util::call_until(5.0s, 1.0s, [&]() {
     try {
       auto conn = std::make_shared<connection::ClientWebsocketConnection>(
-          cfg::SERVER_ADDRESS, std::to_string(cfg::SERVER_PORT), &srv);
+          cfg::SERVER_ADDRESS, std::to_string(o.port), &srv);
       conn->connect();
       client = std::make_unique<InstrumentationClient>(conn);
       return false;
@@ -136,16 +135,4 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
   // NB. gotta wait explicitly, cuz WaitFoSingleObject could fail and we cant
   // throw from dtors
   P.join();
-}
-
-/// very basic test for the JIT code itself, mainly to catch major errors like
-/// page faults. no cleanups done and injects to current process, so should be
-/// skipped by default.
-/// TODO: improve this to do proper unloadings or move to separate file
-TEST_F(DLLInjectTest, DLLLoaderCodeTest) {
-  GTEST_SKIP();
-  is_context::DLLLoader L(p_LoadLibrary, p_GetProcAddress, path_dll, name_init);
-  L.ret();
-  auto p = L.getCode<void __cdecl (*)(void)>();
-  p();
 }

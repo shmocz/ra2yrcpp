@@ -4,7 +4,6 @@
 #include "types.h"
 #include "utility/array_iterator.hpp"
 #include "utility/function_traits.hpp"
-#include "utility/memtools.hpp"
 #include "utility/serialize.hpp"
 #include "utility/sync.hpp"
 
@@ -23,8 +22,7 @@
 namespace ra2 {
 namespace abi {
 
-using deleter_t = std::function<void(void*)>;
-using codegen_t = std::map<u32, std::unique_ptr<void, deleter_t>>;
+using codegen_t = std::map<u32, std::unique_ptr<Xbyak::CodeGenerator>>;
 
 class ABIGameMD {
  public:
@@ -56,22 +54,22 @@ class ABIGameMD {
 
   template <typename CodeT, typename... Args>
   void add_entry(const std::uintptr_t address, Args... args) {
-    code_generators_[address] = ::utility::make_uptr<CodeT>(address, args...);
+    code_generators_[address] = std::make_unique<CodeT>(address, args...);
   }
 
   template <typename CodeT, typename... Args>
   void add_virtual(int index, const std::uintptr_t address, Args... args) {
-    code_generators_[address] = ::utility::make_uptr<CodeT>(index, args...);
+    code_generators_[address] = std::make_unique<CodeT>(index, args...);
   }
 
   // FIXME: is this unused?
   template <typename E>
   void add_entry() {
     code_generators_[E::ptr] =
-        ::utility::make_uptr<typename E::gen_t>(E::ptr, E::stack_size);
+        std::make_unique<typename E::gen_t>(E::ptr, E::stack_size);
   }
 
-  std::map<u32, std::unique_ptr<void, deleter_t>>& code_generators();
+  codegen_t& code_generators();
 
   util::acquire_t<codegen_t, std::recursive_mutex> acquire_code_generators();
 
@@ -81,7 +79,7 @@ class ABIGameMD {
   }
 
  private:
-  std::map<u32, std::unique_ptr<void, deleter_t>> code_generators_;
+  std::map<u32, std::unique_ptr<Xbyak::CodeGenerator>> code_generators_;
   std::recursive_mutex mut_code_generators_;
 };
 
@@ -172,11 +170,10 @@ struct Caller {
       }
     }
 
-    return reinterpret_cast<GenT*>(C.at(addr()).get())
-        ->template getCode<CallT>();
+    return C.at(addr())->template getCode<CallT>();
   }
 
-  // TODO: be more explicit of the index param!
+  // TODO(shmocz): be more explicit of the index param!
   template <typename... Args>
   static auto call_virtual(ra2::abi::ABIGameMD* A, FirstArg object,
                            Args... args) {
@@ -185,8 +182,7 @@ struct Caller {
     if (C.find(p_virtual_function) == C.end()) {
       A->add_virtual<VirtualCall>(addr(), p_virtual_function);
     }
-    return reinterpret_cast<GenT*>(C.at(p_virtual_function).get())
-        ->template getCode<CallT>()(object, args...);
+    return C.at(p_virtual_function)->template getCode<CallT>()(object, args...);
   }
 
   template <typename... Args>

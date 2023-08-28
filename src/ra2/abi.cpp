@@ -6,9 +6,7 @@ using namespace ra2::abi;
 
 ABIGameMD::ABIGameMD() {}
 
-std::map<u32, std::unique_ptr<void, deleter_t>>& ABIGameMD::code_generators() {
-  return code_generators_;
-}
+codegen_t& ABIGameMD::code_generators() { return code_generators_; }
 
 util::acquire_t<codegen_t, std::recursive_mutex>
 ABIGameMD::acquire_code_generators() {

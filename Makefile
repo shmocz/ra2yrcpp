@@ -151,6 +151,9 @@ cppcheck:
 check: cmake_format lint format
 	./scripts/check.sh
 
+clean-gamemd:
+	rm -f $(GAMEMD_PATCHED) $(BUILD_DIR)/p_text2.txt $(BUILD_DIR)/.gamemd-spawn.exe
+
 clean:
 	rm -rf $(BUILDDIR); mkdir -p $(BUILDDIR)
 	rm -f test_data/*.status $(GAMEMD_PATCHED)
@@ -159,4 +162,4 @@ clean:
 docker-release:
 	$(compose_build) ./scripts/create-release.sh
 
-.PHONY: build build_cpp doc lint format test docker docker_build check cppcheck clean
+.PHONY: build build_cpp doc lint format test docker docker_build check cppcheck clean clean-gamemd

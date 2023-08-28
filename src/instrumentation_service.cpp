@@ -34,11 +34,6 @@ void ISCallback::add_to_hook(hook::Hook* h,
                   nullptr, name(), 0U);
 }
 
-void InstrumentationService::add_command(std::string name,
-                                         cmd_t::handler_t fn) {
-  cmd_manager_.add_command(name, fn);
-}
-
 std::vector<process::thread_id_t>
 InstrumentationService::get_connection_threads() {
   std::vector<process::thread_id_t> res;
@@ -46,24 +41,23 @@ InstrumentationService::get_connection_threads() {
   return res;
 }
 
-void InstrumentationService::create_hook(std::string name, u8* target,
+void InstrumentationService::create_hook(const std::string& name,
+                                         const std::uintptr_t target,
                                          const std::size_t code_length) {
   std::unique_lock<std::mutex> lk(mut_hooks_);
-  iprintf("name={},target={},size_bytes={}", name,
-          reinterpret_cast<void*>(target), code_length);
+  iprintf("name={},target={:#x},size_bytes={}", name, target, code_length);
   if (hooks_.find(target) != hooks_.end()) {
-    throw yrclient::general_error(
+    throw std::runtime_error(
         fmt::format("Can't overwrite existing hook (name={} address={})", name,
                     reinterpret_cast<void*>(target)));
   }
   auto tids = get_connection_threads();
-  hooks_.try_emplace(target, reinterpret_cast<addr_t>(target), code_length,
-                     name, tids, true);
+  hooks_.try_emplace(target, target, code_length, name, tids, true);
 }
 
 cmd_manager_t& InstrumentationService::cmd_manager() { return cmd_manager_; }
 
-std::map<u8*, hook::Hook>& InstrumentationService::hooks() { return hooks_; }
+hooks_t& InstrumentationService::hooks() { return hooks_; }
 
 static ra2yrproto::TextResponse text_response(const std::string message) {
   ra2yrproto::TextResponse E;
@@ -162,6 +156,13 @@ ra2yrproto::Response InstrumentationService::process_request(
   }
 }
 
+std::string InstrumentationService::on_shutdown() {
+  if (on_shutdown_ != nullptr) {
+    return on_shutdown_(this);
+  }
+  return "";
+}
+
 static vecu8 on_receive_bytes(InstrumentationService* I, const int socket_id,
                               vecu8* bytes) {
   ra2yrproto::Response R;
@@ -190,17 +191,12 @@ static void on_close(InstrumentationService* I, const int socket_id) {
   (void)I->cmd_manager().execute_destroy_queue(socket_id);
 }
 
-void InstrumentationService::store_value(
-    const std::string key, std::unique_ptr<void, void (*)(void*)> d) {
-  storage_[key] = std::move(d);
-}
-
 InstrumentationService::InstrumentationService(
     InstrumentationService::Options opt,
     std::function<std::string(InstrumentationService*)> on_shutdown,
     std::function<void(InstrumentationService*)> extra_init)
-    : on_shutdown_(on_shutdown),
-      opts_(opt),
+    : opts_(opt),
+      on_shutdown_(on_shutdown),
       io_service_tid_(0U),
       ws_server_(nullptr) {
   cmd_manager_.start();
@@ -232,18 +228,6 @@ InstrumentationService::InstrumentationService(
   }
 }
 
-// FIXME: don't use
-void InstrumentationService::store_value(const std::string key, vecu8* data) {
-  store_value(key, reinterpret_cast<void*>(data),
-              [](void* data) { delete reinterpret_cast<vecu8*>(data); });
-}
-
-void InstrumentationService::store_value(const std::string key, void* data,
-                                         deleter_t deleter) {
-  dprintf("key={},val={}", key.c_str(), data);
-  storage_[key] = storage_val(data, deleter);
-}
-
 void* InstrumentationService::get_value(const std::string key,
                                         const bool acquire) {
   if (acquire) {
@@ -255,7 +239,7 @@ void* InstrumentationService::get_value(const std::string key,
 
 storage_t& InstrumentationService::storage() { return storage_; }
 
-util::acquire_t<std::map<u8*, hook::Hook>> InstrumentationService::aq_hooks() {
+util::acquire_t<hooks_t> InstrumentationService::aq_hooks() {
   return util::acquire(&hooks_, &mut_hooks_);
 }
 
@@ -265,9 +249,6 @@ InstrumentationService::aq_storage() {
 }
 
 InstrumentationService::~InstrumentationService() {
-  for (const auto& s : stop_handlers_) {
-    s(nullptr);
-  }
   ws_server_->shutdown();
   cmd_manager_.shutdown();
 }
@@ -283,7 +264,7 @@ yrclient::InstrumentationService* InstrumentationService::create(
     std::function<void(InstrumentationService*)> extra_init) {
   auto* I = new yrclient::InstrumentationService(O, on_shutdown, extra_init);
   for (auto& [name, fn] : commands) {
-    I->add_command(name, fn);
+    I->cmd_manager().add_command(name, fn);
   }
   return I;
 }

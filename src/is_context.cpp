@@ -62,7 +62,7 @@ static void make_is_ctx(Context* c,
   };
   c->set_on_signal([](Context* ctx) {
     auto* II = reinterpret_cast<decltype(I)>(ctx->data());
-    return II->on_shutdown_(II);
+    return II->on_shutdown();
   });
 }
 
@@ -152,7 +152,7 @@ yrclient::InstrumentationService* is_context::make_is(
       O, std::map<std::string, yrclient::cmd_t::handler_t>(), on_shutdown,
       [cmds](auto* t) {
         for (auto& [name, fn] : cmds) {
-          t->add_command(name, fn);
+          t->cmd_manager().add_command(name, fn);
         }
 
         if (!t->opts().no_init_hooks) {

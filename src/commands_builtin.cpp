@@ -36,7 +36,7 @@ struct TestProgram : Xbyak::CodeGenerator {
 static void test_cb(hook::Hook*, void* data, X86Regs*) {
   auto I = static_cast<yrclient::InstrumentationService*>(data);
   std::string s("0xbeefdead");
-  I->store_value("test_key", new vecu8(s.begin(), s.end()));
+  I->store_value<vecu8>("test_key", s.begin(), s.end());
 }
 
 // TODO(shmocz): ditch the old hook/cb test functions to use the common
@@ -46,9 +46,9 @@ std::map<std::string, yrclient::cmd_t::handler_t> get_commands_nn() {
       get_cmd<ra2yrproto::commands::StoreValue>([](auto* Q) {
         // NB: ensure correct radix
         auto& a = Q->command_data();
-        auto v = new vecu8(a.value().begin(), a.value().end());
         auto [lk, s] = Q->I()->aq_storage();
-        Q->I()->store_value(a.key(), v);
+        Q->I()->template store_value<vecu8>(a.key(), a.value().begin(),
+                                            a.value().end());
       }),
       get_cmd<ra2yrproto::commands::GetSystemState>([](auto* Q) {
         auto* state = Q->command_data().mutable_state();
@@ -90,7 +90,7 @@ std::map<std::string, yrclient::cmd_t::handler_t> get_commands_nn() {
         auto& a = Q->command_data();
         Q->I()
             ->hooks()
-            .at(reinterpret_cast<u8*>(a.hook_address()))
+            .at(static_cast<std::uintptr_t>(a.hook_address()))
             .add_callback(
                 reinterpret_cast<hook::Hook::hook_cb_t>(a.callback_address()),
                 Q->I(), "", 0u);
@@ -112,7 +112,8 @@ std::map<std::string, yrclient::cmd_t::handler_t> get_commands_nn() {
 
         // create hooks
         for (auto& h : a.hooks()) {
-          Q->I()->create_hook(h.name(), reinterpret_cast<u8*>(h.address()),
+          Q->I()->create_hook(h.name(),
+                              static_cast<std::uintptr_t>(h.address()),
                               h.code_length());
         }
         if (!a.no_suspend_threads()) {

@@ -10,7 +10,6 @@
 #include "ra2/abi.hpp"
 #include "ra2/state_parser.hpp"
 #include "ra2/yrpp_export.hpp"
-#include "utility/memtools.hpp"
 #include "utility/serialize.hpp"
 
 #include <fmt/core.h>
@@ -363,7 +362,7 @@ ra2yrproto::commands::StorageValue* ra2yrcpp::hooks_yr::get_storage(
 
 // TODO(shmocz): ensure thread safety
 void ra2yrcpp::hooks_yr::init_callbacks(yrclient::InstrumentationService* I) {
-  I->store_value(key_callbacks_yr, utility::make_uptr<cb_map_t>());
+  I->store_value<cb_map_t>(key_callbacks_yr);
 
   auto t = std::to_string(static_cast<std::uint64_t>(
       std::chrono::high_resolution_clock::now().time_since_epoch().count()));

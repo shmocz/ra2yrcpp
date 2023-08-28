@@ -8,7 +8,6 @@
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
 #include "types.h"
-#include "utility/memtools.hpp"
 
 #include <google/protobuf/repeated_ptr_field.h>
 
@@ -80,7 +79,7 @@ template <typename T, typename... ArgsT>
 T* ensure_storage_value(yrclient::InstrumentationService* I,
                         const std::string key, ArgsT... args) {
   if (I->storage().find(key) == I->storage().end()) {
-    I->store_value(key, utility::make_uptr<T>(args...));
+    I->store_value<T>(key, args...);
   }
   return static_cast<T*>(I->storage().at(key).get());
 }

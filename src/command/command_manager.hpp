@@ -32,44 +32,6 @@ namespace ra2yrcpp {
 
 namespace command {
 
-// TODO(shmocz): Replace all uses of util::acquire with this, because it's
-// flawed and can lead to race condition.
-template <typename T, typename MutexT>
-class AcquireData {
- public:
-  using data_t = std::tuple<std::unique_lock<MutexT>, T*>;
-
-  AcquireData(T* data, MutexT* m)
-      : data_(std::make_tuple(std::move(std::unique_lock<MutexT>(*m)), data)) {}
-
-  AcquireData(T* data, MutexT* m, const duration_t timeout)
-      : data_(std::make_tuple(std::move(std::unique_lock<MutexT>(*m, timeout)),
-                              data)) {}
-
-  ~AcquireData() {}
-
-  void unlock() { std::get<0>(data()).unlock(); }
-
-  // Move constructor
-  AcquireData(AcquireData&& other) noexcept : data_(std::move(other.data_)) {}
-
-  // Move assignment operator
-  AcquireData& operator=(AcquireData&& other) noexcept {
-    if (this != &other) {
-      data_ = std::move(other.data_);
-    }
-    return *this;
-  }
-
-  AcquireData(const AcquireData&) = delete;
-  AcquireData& operator=(const AcquireData&) = delete;
-
-  data_t& data() { return data_; }
-
- private:
-  std::tuple<std::unique_lock<MutexT>, T*> data_;
-};
-
 namespace {
 using namespace std::chrono_literals;
 }
@@ -176,10 +138,8 @@ class CommandManager {
 
   auto aq_results_queue() {
     try {
-      return std::make_tuple(
-          std::move(AcquireData(&results_queue_, &mut_results_,
-                                results_acquire_timeout_)),
-          &results_queue_);
+      return util::acquire(&results_queue_, &mut_results_,
+                           results_acquire_timeout_);
     } catch (const std::exception& e) {
       throw std::runtime_error(
           fmt::format("failed to acquire results queue within {}: {}",
@@ -203,6 +163,12 @@ class CommandManager {
     return C;
   }
 
+  /// Create a built-in command (type set to anything else than USER)
+  ///
+  /// @param queue_id Command's queue id
+  /// @param queue_size command queue size for CREATE_QUEUE command
+  /// @param t the command type
+  /// @return the same shared_ptr to Command object
   command_ptr_t make_builtin_command(const u64 queue_id, const u64 queue_size,
                                      CommandType t) {
     typename command_t::BaseData B{"", queue_id, 0U, queue_size, t};
@@ -212,7 +178,9 @@ class CommandManager {
   }
 
   /// Push command message into work queue to be executed
-  /// @return shared_ptr to the command object instance
+  ///
+  /// @param c shared_ptr to the Command object
+  /// @return the same shared_ptr to Command object
   command_ptr_t enqueue_command(command_ptr_t c) {
     std::unique_lock<std::mutex> k(work_queue_mut_);
     // TODO(shmocz): use uptr

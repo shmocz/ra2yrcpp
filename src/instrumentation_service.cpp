@@ -255,14 +255,13 @@ void* InstrumentationService::get_value(const std::string key,
 
 storage_t& InstrumentationService::storage() { return storage_; }
 
-// TODO: remove?
-util::acquire_t<std::map<u8*, hook::Hook>*> InstrumentationService::aq_hooks() {
-  return util::acquire(mut_hooks_, &hooks_);
+util::acquire_t<std::map<u8*, hook::Hook>> InstrumentationService::aq_hooks() {
+  return util::acquire(&hooks_, &mut_hooks_);
 }
 
-util::acquire_t<storage_t*, std::recursive_mutex>
+util::acquire_t<storage_t, std::recursive_mutex>
 InstrumentationService::aq_storage() {
-  return util::acquire(mut_storage_, &storage_);
+  return util::acquire(&storage_, &mut_storage_);
 }
 
 InstrumentationService::~InstrumentationService() {

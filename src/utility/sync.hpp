@@ -13,19 +13,48 @@ namespace {
 using namespace std::chrono_literals;
 }
 
+template <typename T, typename MutexT>
+class AcquireData {
+ public:
+  using data_t = std::tuple<std::unique_lock<MutexT>, T*>;
+
+  AcquireData(T* data, MutexT* m)
+      : data_(std::make_tuple(std::move(std::unique_lock<MutexT>(*m)), data)) {}
+
+  AcquireData(T* data, MutexT* m, const duration_t timeout)
+      : data_(std::make_tuple(std::move(std::unique_lock<MutexT>(*m, timeout)),
+                              data)) {}
+
+  ~AcquireData() {}
+
+  void unlock() { std::get<0>(data()).unlock(); }
+
+  // Move constructor
+  AcquireData(AcquireData&& other) noexcept : data_(std::move(other.data_)) {}
+
+  // Move assignment operator
+  AcquireData& operator=(AcquireData&& other) noexcept {
+    if (this != &other) {
+      data_ = std::move(other.data_);
+    }
+    return *this;
+  }
+
+  AcquireData(const AcquireData&) = delete;
+  AcquireData& operator=(const AcquireData&) = delete;
+
+  data_t& data() { return data_; }
+
+ private:
+  std::tuple<std::unique_lock<MutexT>, T*> data_;
+};
+
 template <typename T, typename MutexT = std::mutex>
-using acquire_t = std::tuple<std::unique_lock<MutexT>, T>;
+using acquire_t = std::tuple<AcquireData<T, MutexT>, T*>;
 
-/// Obtain exclusive access to resource @v guarded by mutex @m
-template <typename T, typename MutexT = std::mutex, typename... MutexArgs>
-inline auto acquire(MutexT& m, T* v, MutexArgs... args) {  // NOLINT
-  return std::make_tuple(std::move(std::unique_lock<MutexT>(m, args...)), v);
-}
-
-template <typename FnT, typename MutexT = std::mutex>
-auto guarded(MutexT& mut, FnT cb) {  // NOLINT
-  std::unique_lock<MutexT> l(mut);
-  return cb();
+template <typename T, typename MutexT, typename... Args>
+static acquire_t<T, MutexT> acquire(T* data, MutexT* mut, Args... args) {
+  return std::make_tuple(std::move(AcquireData(data, mut, args...)), data);
 }
 
 template <typename T, typename MutexT = std::mutex>
@@ -66,7 +95,7 @@ class AtomicVariable {
     return !(lhs == rhs);
   }
 
-  auto acquire() { return util::acquire(m_, &v_); }
+  auto acquire() { return util::acquire(&v_, &m_); }
 
  private:
   T v_;

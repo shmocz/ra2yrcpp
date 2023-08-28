@@ -23,6 +23,7 @@ add_library(
   instrumentation_service.cpp
   multi_client.cpp
   process.cpp
+  utility/sync.cpp
   websocket_connection.cpp
   websocket_server.cpp
   x86.cpp)

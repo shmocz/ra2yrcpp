@@ -10,9 +10,9 @@ std::map<u32, std::unique_ptr<void, deleter_t>>& ABIGameMD::code_generators() {
   return code_generators_;
 }
 
-util::acquire_t<codegen_t*, std::recursive_mutex>
+util::acquire_t<codegen_t, std::recursive_mutex>
 ABIGameMD::acquire_code_generators() {
-  return util::acquire(mut_code_generators_, &code_generators_);
+  return util::acquire(&code_generators_, &mut_code_generators_);
 }
 
 bool ABIGameMD::SelectObject(const u32 address) {

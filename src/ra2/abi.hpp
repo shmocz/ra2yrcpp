@@ -73,7 +73,7 @@ class ABIGameMD {
 
   std::map<u32, std::unique_ptr<void, deleter_t>>& code_generators();
 
-  util::acquire_t<codegen_t*, std::recursive_mutex> acquire_code_generators();
+  util::acquire_t<codegen_t, std::recursive_mutex> acquire_code_generators();
 
   template <typename T, typename... Args>
   auto call(Args... args) {

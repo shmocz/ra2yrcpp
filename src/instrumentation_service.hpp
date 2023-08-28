@@ -73,9 +73,9 @@ class InstrumentationService {
   void create_hook(std::string name, u8* target, const std::size_t code_length);
   cmd_manager_t& cmd_manager();
   std::map<u8*, hook::Hook>& hooks();
+  util::acquire_t<std::map<u8*, hook::Hook>> aq_hooks();
   // TODO: separate storage class
-  util::acquire_t<std::map<u8*, hook::Hook>*> aq_hooks();
-  util::acquire_t<storage_t*, std::recursive_mutex> aq_storage();
+  util::acquire_t<storage_t, std::recursive_mutex> aq_storage();
   void store_value(const std::string key,
                    std::unique_ptr<void, void (*)(void*)> d);
   void store_value(const std::string key, vecu8* data);

@@ -69,7 +69,7 @@ struct ISCommand {
         c->command_data()->instrumentation_service);
   }
 
-  auto* M() { return c->command_data()->M; }
+  auto* M() { return &c->command_data()->M; }
 
   iservice_cmd* c;
   T command_data_;
@@ -80,8 +80,13 @@ std::pair<std::string, iservice_cmd::handler_t> get_cmd(
     std::function<void(ISCommand<MessageT>*)> fn) {
   return {MessageT().GetTypeName(), [=](iservice_cmd* c) {
             ISCommand<MessageT> Q(c);
-            dprintf("exec {} ", MessageT().GetTypeName());
-            fn(&Q);
+            try {
+              dprintf("exec {} ", MessageT().GetTypeName());
+              fn(&Q);
+            } catch (...) {
+              Q.M()->Clear();
+              throw;
+            }
           }};
 }
 

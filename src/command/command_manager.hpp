@@ -229,7 +229,7 @@ class CommandManager {
     try {
       cmd->run();
       cmd->result_code().store(ResultCode::OK);
-    } catch (std::exception& e) {
+    } catch (const std::exception& e) {
       eprintf("fail {}", e.what());
       cmd->error_message().assign(e.what());
       cmd->result_code().store(ResultCode::ERROR);

@@ -559,6 +559,7 @@ void ra2::parse_HouseClass(ra2yrproto::ra2yr::House* dst,
   dst->set_allied_infiltrated(src->Side0TechInfiltrated);
   dst->set_soviet_infiltrated(src->Side1TechInfiltrated);
   dst->set_third_infiltrated(src->Side2TechInfiltrated);
+  dst->set_is_human_player(src->IsHumanPlayer);
 }
 
 void ra2::parse_Factories(RepeatedPtrField<ra2yrproto::ra2yr::Factory>* dst) {
@@ -612,4 +613,18 @@ void ra2::parse_HouseClasses(ra2yrproto::ra2yr::GameState* G) {
   for (int i = 0; i < D->Count; i++) {
     ra2::parse_HouseClass(&H->at(i), D->Items[i]);
   }
+}
+
+ra2yrproto::ra2yr::ObjectTypeClass* ra2::find_type_class(
+    RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* types,
+    ra2yrproto::ra2yr::AbstractType rtti_id, unsigned array_index) {
+  auto e = std::find_if(types->begin(), types->end(), [&](const auto& v) {
+    return v.array_index() == array_index && v.type() == rtti_id;
+  });
+  return e != types->end() ? &(*e) : nullptr;
+}
+
+bool ra2::is_local(const RepeatedPtrField<ra2yrproto::ra2yr::House>& H) {
+  return std::count_if(H.begin(), H.end(),
+                       [](const auto& h) { return h.is_human_player(); }) == 1;
 }

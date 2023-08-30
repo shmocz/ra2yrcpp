@@ -3,13 +3,13 @@
 #include "ra2yrproto/ra2yr.pb.h"
 
 #include "protocol/helpers.hpp"
-#include "types.h"  // for i32, u32
+#include "types.h"
 
 #include <google/protobuf/repeated_ptr_field.h>
 
 #include <cstddef>
 
-#include <tuple>  // for make_tuple
+#include <tuple>
 #include <vector>
 class CellClass;
 class EventClass;
@@ -152,5 +152,12 @@ RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* parse_AbstractTypeClasses(
 
 void parse_Objects(ra2yrproto::ra2yr::GameState* G, ra2::abi::ABIGameMD* abi);
 void parse_HouseClasses(ra2yrproto::ra2yr::GameState* G);
+
+ra2yrproto::ra2yr::ObjectTypeClass* find_type_class(
+    RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* types,
+    ra2yrproto::ra2yr::AbstractType rtti_id, unsigned array_index);
+
+/// Return true if the current player is the only human player in the game.
+bool is_local(const RepeatedPtrField<ra2yrproto::ra2yr::House>& H);
 
 }  // namespace ra2

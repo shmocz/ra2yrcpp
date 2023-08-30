@@ -4,11 +4,13 @@
 #include "ra2yrproto/ra2yr.pb.h"
 
 #include "command/is_command.hpp"
+#include "config.hpp"
 #include "errors.hpp"
 #include "hooks_yr.hpp"
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
 #include "ra2/abi.hpp"
+#include "ra2/state_parser.hpp"
 #include "ra2/yrpp_export.hpp"
 #include "types.h"
 
@@ -27,7 +29,7 @@ using ra2yrcpp::hooks_yr::ensure_storage_value;
 using ra2yrcpp::hooks_yr::get_storage;
 using ra2yrcpp::hooks_yr::put_gameloop_command;
 
-// FIXME: don't allow deploying of already deployed object
+// TODO(shmocz): don't allow deploying of already deployed object
 static void unit_action(const u32 p_object,
                         const ra2yrproto::commands::UnitAction a,
                         ra2::abi::ABIGameMD* abi) {
@@ -40,11 +42,7 @@ static void unit_action(const u32 p_object,
       abi->SellBuilding(p_object);
       break;
     case UnitAction::ACTION_SELECT:
-#ifdef _MSC_VER
-      reinterpret_cast<ObjectClass*>(p_object)->Select();
-#else
       (void)abi->SelectObject(p_object);
-#endif
       break;
     default:
       break;
@@ -61,10 +59,15 @@ auto click_event() {
       auto& O = C->game_state()->objects();
       for (auto k : args.object_addresses()) {
         if (std::find_if(O.begin(), O.end(), [k](auto& v) {
-              return v.pointer_self() == k;
+              return v.pointer_self() == k && !v.in_limbo();
             }) != O.end()) {
-          dprintf("clickevent {} {}", k, static_cast<int>(args.event()));
-          (void)C->abi()->ClickEvent(k, args.event());
+          dprintf("clickevent {} {}", k,
+                  ra2yrproto::ra2yr::NetworkEvent_Name(args.event()));
+          if (!C->abi()->ClickEvent(k, args.event())) {
+            throw std::runtime_error(
+                fmt::format("ClickEvent failed. object={},event={}", k,
+                            static_cast<int>(args.event())));
+          }
         }
       }
     });
@@ -78,6 +81,12 @@ auto unit_command() {
     put_gameloop_command(Q, [args](auto* it) {
       auto C = it->cb;
       auto& O = C->game_state()->objects();
+      if (args.action() != ra2yrproto::commands::UnitAction::ACTION_SELECT &&
+          !ra2::is_local(C->game_state()->houses())) {
+        throw std::runtime_error(
+            fmt::format("invalid local action: {}", args.action()));
+      }
+
       for (auto k : args.object_addresses()) {
         if (std::find_if(O.begin(), O.end(), [k](auto& v) {
               return v.pointer_self() == k;
@@ -169,7 +178,7 @@ auto mission_clicked() {
                   MapClass::Instance.get()->TryGetCellAt(
                       CoordStruct{.X = c.x(), .Y = c.y(), .Z = c.z()}),
                   nullptr)) {
-            eprintf("click mission error");
+            throw std::runtime_error("ClickMission error");
           }
         }
       }
@@ -177,7 +186,6 @@ auto mission_clicked() {
   });
 }
 
-// TODO(shmocz): add checks for invalid rtti_id's
 auto add_event() {
   return get_cmd<ra2yrproto::commands::AddEvent>([](auto* Q) {
     auto args = Q->command_data();
@@ -202,15 +210,20 @@ auto add_event() {
       EventClass E(static_cast<EventType>(args.event().event_type()), false,
                    static_cast<char>(house_index), static_cast<u32>(frame));
 
-      auto ts = it->cb->abi()->timeGetTime();
+      const auto ts = it->cb->abi()->timeGetTime();
       if (args.event().has_production()) {
         auto& ev = args.event().production();
+        if (ra2::find_type_class(
+                it->cb->type_classes(),
+                static_cast<ra2yrproto::ra2yr::AbstractType>(ev.rtti_id()),
+                ev.heap_id()) == nullptr) {
+          throw std::runtime_error(fmt::format("invalid id: RTTI={},heap={}",
+                                               ev.rtti_id(), ev.heap_id()));
+        }
         E.Data.Production = {.RTTI_ID = ev.rtti_id(),
                              .Heap_ID = ev.heap_id(),
                              .IsNaval = ev.is_naval()};
-        if (!EventClass::AddEvent(E, ts)) {
-          throw std::runtime_error("failed to add event");
-        }
+
       } else if (args.event().has_place()) {
         auto& ev = args.event().place();
         auto loc = ev.location();
@@ -219,10 +232,9 @@ auto add_event() {
                         .HeapID = ev.heap_id(),
                         .IsNaval = ev.is_naval(),
                         .Location = CellClass::Coord2Cell(S)};
-        (void)EventClass::AddEvent(E, ts);
-      } else {
-        // generic event
-        (void)EventClass::AddEvent(E, ts);
+      }
+      if (!EventClass::AddEvent(E, ts)) {
+        throw std::runtime_error("failed to add event");
       }
 
       auto r = message_result<ra2yrproto::commands::AddEvent>(it->cmd);
@@ -237,6 +249,13 @@ auto add_event() {
 auto place_query() {
   return get_cmd<ra2yrproto::commands::PlaceQuery>([](auto* Q) {
     auto args = Q->command_data();
+    if (static_cast<unsigned int>(args.coordinates().size()) >
+        cfg::PLACE_QUERY_MAX_LENGTH) {
+      args.mutable_coordinates()->DeleteSubrange(
+          cfg::PLACE_QUERY_MAX_LENGTH,
+          args.coordinates().size() - cfg::PLACE_QUERY_MAX_LENGTH);
+      wrprintf("truncated place query to size {}", args.coordinates().size());
+    }
     Q->async();
 
     put_gameloop_command(Q, [args](auto* it) {
@@ -251,10 +270,15 @@ auto place_query() {
       // TODO(shmocz): make helper method
       auto house = std::find_if(
           H.begin(), H.end(), [](const auto& h) { return h.current_player(); });
-      if (args.house_class()) {
+      if (args.house_class() != 0U) {
         house = std::find_if(H.begin(), H.end(), [args](const auto& h) {
           return h.self() == args.house_class();
         });
+      }
+
+      if (house == H.end()) {
+        throw std::runtime_error(
+            fmt::format("invalid house {}", args.house_class()));
       }
 
       auto r = message_result<ra2yrproto::commands::PlaceQuery>(cmd);
@@ -284,8 +308,8 @@ auto place_query() {
           }
         }
       } else {
-        // TODO(shmocz): send error message back
-        eprintf("TypeClass {} does not exist", args.type_class());
+        throw std::runtime_error(
+            fmt::format("nonexistent TypeClass {}", args.type_class()));
       }
       // copy results
       cmd->command_data()->M.PackFrom(r);

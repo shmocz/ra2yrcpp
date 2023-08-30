@@ -62,7 +62,11 @@ class Manager:
     """Manages connections and state updates for an active game process."""
 
     def __init__(
-        self, address: str = "0.0.0.0", port: int = 14521, poll_frequency=20
+        self,
+        address: str = "0.0.0.0",
+        port: int = 14521,
+        poll_frequency=20,
+        fetch_state_timeout=5.0,
     ):
         """
         Parameters
@@ -73,10 +77,13 @@ class Manager:
             Destination server port, by default 14525
         poll_frequency : int, optional
             Frequency for polling the game state in Hz, by default 20
+        fetch_state_timeout : float, optional
+            Timeout (seconds) for state fetching (default: 5.0)
         """
         self.address = address
         self.port = port
         self.poll_frequency = min(max(1, poll_frequency), 60)
+        self.fetch_state_timeout = fetch_state_timeout
         self.state: ra2yr.GameState = ra2yr.GameState()
         self.type_classes: List[ra2yr.ObjectTypeClass] = []
         self.prerequisite_groups: ra2yr.PrerequisiteGroups = []
@@ -88,6 +95,7 @@ class Manager:
         self.iters = 0
         self.show_stats_every = 30
         self.delta = 0
+        self.M = ManagerUtil(self)
         # default callbacks
 
     def start(self):
@@ -119,8 +127,9 @@ class Manager:
 
     # FIXME: rename
     async def update_type_classes(self):
-        U = ManagerUtil(self)
-        res_istate = await U.read_value(initial_game_state=ra2yr.GameState())
+        res_istate = await self.M.read_value(
+            initial_game_state=ra2yr.GameState()
+        )
         state = res_istate.data.initial_game_state
         self.type_classes = state.object_types
         self.prerequisite_groups = state.prerequisite_groups
@@ -171,9 +180,12 @@ class Manager:
                     setattr(c, k, v)
                 except:  # FIXME: more explicit check
                     getattr(c, k).CopyFrom(v)
+        cmd_name = c.__class__.__name__
         res = await self.run_command(c)
         if res.result_code == core.ResponseCode.ERROR:
-            lg.error("Failed to run command: %s", res.error_message)
+            lg.error(
+                "Failed to run command %s: %s", cmd_name, res.error_message
+            )
         res_o = type(c)()
         res.result.Unpack(res_o)
         return res_o
@@ -322,15 +334,24 @@ class ManagerUtil:
         self.manager = manager
         self.C = CommandBuilder
 
+    # TODO(shmocz): low level stuff put elsewhere
+    async def unit_command(
+        self,
+        object_addresses: List[int] = None,
+        action: commands_yr.UnitAction = None,
+    ):
+        return await self.manager.run(
+            self.C.unit_command(
+                object_addresses=object_addresses, action=action
+            )
+        )
+
     async def select(
         self,
         object_addresses: List[int] = None,
     ):
-        return await self.manager.run(
-            self.C.unit_command(
-                object_addresses=object_addresses,
-                action=commands_yr.ACTION_SELECT,
-            )
+        return await self.unit_command(
+            object_addresses=object_addresses, action=commands_yr.ACTION_SELECT
         )
 
     async def move(self, object_addresses: List[int] = None, coordinates=None):
@@ -391,14 +412,28 @@ class ManagerUtil:
             )
         )
 
-    async def sell_building(self, object_address=None):
+    async def click_event(
+        self, object_addresses=None, event: ra2yr.NetworkEvent = None
+    ):
         return await self.manager.run(
             self.C.make_command(
                 commands_yr.ClickEvent(),
-                object_addresses=[object_address],
+                object_addresses=object_addresses,
+                event=event,
+            )
+        )
+
+    async def sell_buildings(self, object_addresses=None):
+        return await self.manager.run(
+            self.C.make_command(
+                commands_yr.ClickEvent(),
+                object_addresses=object_addresses,
                 event=ra2yr.NETWORK_EVENT_Sell,
             )
         )
+
+    async def sell_building(self, object_address=None):
+        return await self.sell_buildings(object_addresses=[object_address])
 
     async def produce(
         self,

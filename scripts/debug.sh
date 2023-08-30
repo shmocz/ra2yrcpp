@@ -42,8 +42,17 @@ CARGS="-d"
 # non-debug option
 # CARGS="--abort-on-container-exit"
 
+function tmux_send_keys() {
+	: ${TMUX_TARGET="yr:0.1"}
+	tmux send-keys -t "$TMUX_TARGET" "$@"
+}
+
 function debug_integration() {
-	WINE_CMD="wine" $COMPOSE_CMD up --abort-on-container-exit $BUILDER
+	make INTEGRATION_TEST_TARGET="$INTEGRATION_TEST_TARGET" test_integration &
+	sleep 3
+	tmux_send_keys C-c
+	tmux_send_keys "DEBUG_FN=debug_integration_test ./scripts/debug.sh" C-m
+	wait
 }
 
 function debug_testcase() {

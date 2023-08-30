@@ -188,6 +188,7 @@ message House {
   bool allied_infiltrated = 16;
   bool soviet_infiltrated = 17;
   bool third_infiltrated = 18;
+  bool is_human_player = 19;
 }
 
 message Controls {

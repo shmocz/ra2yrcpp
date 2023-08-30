@@ -4,6 +4,7 @@
 #include "ra2yrproto/ra2yr.pb.h"
 
 #include "async_queue.hpp"
+#include "command/command_manager.hpp"
 #include "command/is_command.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
@@ -95,7 +96,7 @@ void init_callbacks(yrclient::InstrumentationService* I);
 
 struct work_item {
   CBYR* cb;
-  yrclient::cmd_t* cmd;
+  command::iservice_cmd* cmd;
   std::function<void(work_item*)> fn;
 };
 
@@ -114,6 +115,10 @@ struct CBExecuteGameLoopCommand final : public MyCB<CBExecuteGameLoopCommand> {
                    fn(it);
                  } catch (const std::exception& e) {
                    eprintf("gameloop command: {}", e.what());
+                   if (async) {
+                     it->cmd->error_message().assign(e.what());
+                     it->cmd->result_code().store(command::ResultCode::ERROR);
+                   }
                  }
                  if (async) {
                    it->cmd->pending().store(false);

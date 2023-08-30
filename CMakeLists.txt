@@ -6,6 +6,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
   cmake_policy(SET CMP0135 NEW)
 endif()
 
+option(RA2YRCPP_BUILD_CLI_TOOL "Build the main CLI tool" ON)
 option(RA2YRCPP_BUILD_MAIN_DLL "Build the main library for Windows targets" ON)
 option(RA2YRCPP_BUILD_TESTS "Build tests" ON)
 option(RA2YRCPP_DEBUG_LOG "Enable debug logs even for non-debug builds" OFF)

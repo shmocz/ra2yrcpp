@@ -94,6 +94,7 @@ class AsyncQueue : public AsyncContainer {
     do {
       if (timeout > 0.0s) {
         if (!a_.get()->cv.wait_for(l, timeout, [&] { return size() > 0; })) {
+          notify_all();
           return res;
         }
       } else if (empty()) {
@@ -115,6 +116,7 @@ class AsyncQueue : public AsyncContainer {
       }
       pred_false.clear();
     } while (res.size() < count);
+    notify_all();
     return res;
   }
 

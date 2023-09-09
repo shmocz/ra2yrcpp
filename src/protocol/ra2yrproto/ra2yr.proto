@@ -167,6 +167,7 @@ message Factory {
   uint32 object = 3;
   repeated uint32 queued_objects = 4;
   bool on_hold = 5;
+  bool completed = 6;
 }
 
 message House {

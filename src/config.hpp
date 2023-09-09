@@ -33,6 +33,7 @@ constexpr duration_t POLL_RESULTS_TIMEOUT = 1.0s;
 constexpr duration_t COMMAND_ACK_TIMEOUT = 0.25s;
 constexpr char ALLOWED_HOSTS_REGEX[] = "0.0.0.0|127.0.0.1";
 constexpr unsigned int PLACE_QUERY_MAX_LENGTH = 1024U;
+constexpr i32 PRODUCTION_STEPS = 54;
 };  // namespace cfg
 
 #if defined(_M_X64) || defined(__amd64__)

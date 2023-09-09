@@ -2,6 +2,7 @@
 
 #include "ra2yrproto/ra2yr.pb.h"
 
+#include "config.hpp"
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
 #include "ra2/abi.hpp"
@@ -575,6 +576,7 @@ void ra2::parse_Factories(RepeatedPtrField<ra2yrproto::ra2yr::Factory>* dst) {
     O.set_owner(reinterpret_cast<u32>(I->Owner));
     O.set_progress_timer(I->Production.Value);
     O.set_on_hold(I->OnHold);
+    O.set_completed(O.progress_timer() == cfg::PRODUCTION_STEPS);
     auto A = ra2::abi::DVCIterator(&I->QueuedObjects);
     O.clear_queued_objects();
     for (auto* p : A) {

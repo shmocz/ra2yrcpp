@@ -23,13 +23,17 @@ struct ISArg {
 using iservice_cmd = Command<ISArg>;
 
 ///
-/// Wrapper which takes constructs a command function compatible with a supplied
+/// Wrapper which takes a command function compatible with a supplied
 /// protobuf message type, and provides access to InstrumentationService.
 ///
 /// NOTE: in async commands, don't access the internal data of the object after
 /// exiting the command (e.g. executing a gameloop callback), because the object
 /// is destroyed. To access the original args, make a copy and pass by value.
 /// See mission_clicked() in commands_yr.cpp for example.
+///
+/// With async commands, the command data is automatically cleared after
+/// command function execution, as it doesn't contain anything meaningful
+/// regarding the eventual results.
 ///
 /// TODO(shmocz): make a mechanism to wrap async commands so that pending flag
 /// is cleared automatically after execution or after exception.
@@ -52,6 +56,8 @@ struct ISCommand {
     if (!c->pending()) {
       auto& p = c->command_data()->M;
       p.PackFrom(command_data_);
+    } else {
+      command_data_.Clear();
     }
   }
 

@@ -1,4 +1,4 @@
-FROM ubuntu:22.10 as mingw
+FROM ubuntu:23.04 as mingw
 
 RUN dpkg --add-architecture i386
 RUN \
@@ -8,7 +8,6 @@ RUN \
 	clang-format \
 	clang-tidy \
 	cmake \
-	cppcheck \
 	g++-mingw-w64-i686-posix \
 	git \
 	make \
@@ -16,16 +15,16 @@ RUN \
 
 RUN \ 
 	apt-get install -y \
-	libz-mingw-w64-dev \
+	gdb \
 	gdb-mingw-w64 \
 	gdb-mingw-w64-target \
-	gdb \
-	python2 \
+	libpcre3-dev \
+	libz-mingw-w64-dev \
 	python3 \
 	python3-pip \
 	wine32
 
-RUN pip install -U \
+RUN pip install -U --break-system-packages \
 	cmake-format==0.6.13 \
 	cpplint==1.6.1 \
 	iced-x86
@@ -60,9 +59,6 @@ RUN cmake \
 RUN cmake --build build/linux64 --parallel $(nproc)
 RUN cd build/linux64 && make install && make clean
 
-# Remove GCC since it's not needed anymore
-RUN apt-get remove -y gcc
-
 # Build protobuf library DLL and protoc (win32)
 # TODO: use our makefile
 RUN cmake --toolchain mingw-w64-i686-docker.cmake \
@@ -81,3 +77,12 @@ RUN cmake --toolchain mingw-w64-i686-docker.cmake \
 	-B build/win32
 RUN cmake --build build/win32 --parallel $(nproc)
 RUN cd build/win32 && make install && make clean
+
+# Build newer cppcheck
+RUN git clone --depth 1 https://github.com/danmar/cppcheck.git /app/cppcheck && \
+	cd /app/cppcheck && mkdir build && cd build && cmake -DUSE_MATCHCOMPILER=ON -DHAVE_RULES=ON .. && cmake --build . --parallel $(nproc) && cmake --build . --target install
+
+# Remove GCC and other stuff since they aren't needed anymore
+RUN apt-get remove -y gcc && \
+	apt-get clean -y && \
+	rm -rf /var/lib/apt/lists/*

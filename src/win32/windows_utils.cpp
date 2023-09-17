@@ -306,8 +306,6 @@ void ExProcess::join() {
   }
 }
 
-unsigned long ExProcess::pid() const { return ctx->pi_.dwProcessId; }
-
 ExProcess::~ExProcess() {
   auto& pi_ = ctx->pi_;
   (void)TerminateProcess(pi_.hProcess, 0);

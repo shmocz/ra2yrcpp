@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 
-int main(int argc, char* argv[]) {
+int main(int argc, const char* argv[]) {
   if (argc < 3) {
     std::cerr << "Usage: " << argv[0] << " count delay" << std::endl;
     return 1;

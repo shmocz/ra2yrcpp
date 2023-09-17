@@ -297,7 +297,8 @@ struct CBTunnel : public MyCB<D> {
     P.set_destination(dest);
     P.mutable_data()->assign(static_cast<const char*>(buf), len);
     if (!out->write(P)) {
-      throw std::runtime_error("write_packet failed");
+      throw std::runtime_error(
+          fmt::format("{} write_packet failed", D::key_name));
     }
   }
 

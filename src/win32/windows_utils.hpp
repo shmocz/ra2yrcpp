@@ -42,7 +42,6 @@ class ExProcess {
                      const std::string directory = "");
   void* handle();
   void join();
-  unsigned long pid() const;
   ~ExProcess();
 };
 

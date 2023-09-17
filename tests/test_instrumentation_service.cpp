@@ -263,7 +263,6 @@ class CommandTest : public ::testing::Test {
 };
 
 TEST_F(CommandTest, BasicTest) {
-  const std::string name = "test";
   constexpr u64 queue_id = 1;
 
   (void)M->execute_create_queue(queue_id);

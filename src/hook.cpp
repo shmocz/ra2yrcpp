@@ -214,7 +214,7 @@ std::tuple<u32, std::size_t> hook::get_hook_entry(const u32 target) {
   // determine detour size by searching for byte pattern 0x68 <addr> 0xc3
   u32 p_target = serialize::read_obj<u32>(target + 1);
   std::size_t code_size = 0U;
-  auto* p = reinterpret_cast<u8*>(p_target);
+  const auto* p = reinterpret_cast<u8*>(p_target);
   constexpr auto pushret_size = 5U;
   for (auto i = 0U; i < DETOUR_MAX_SIZE; i++) {
     if (p[i] == OP_PUSH && p[i + pushret_size] == OP_RET) {  // NOLINT

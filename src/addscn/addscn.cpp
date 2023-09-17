@@ -148,7 +148,7 @@ void add_section(std::string path, std::string section_name,
   F.append_section(section_name, virtual_size, characteristics);
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, const char* argv[]) {
   if (argc < 5) {
     std::cerr
         << "usage: " << argv[0]

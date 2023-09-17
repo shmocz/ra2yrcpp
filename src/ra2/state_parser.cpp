@@ -305,23 +305,6 @@ void EventParser::parse() {
   }
 }
 
-template <typename FnT>
-static void apply_cells(MapClass* src, FnT fn) {
-  auto* M = src;
-  auto L = M->MapCoordBounds;
-
-  for (int j = 0; j <= L.Bottom; j++) {
-    for (int i = 0; i <= L.Right; i++) {
-      CellStruct coords{static_cast<i16>(i), static_cast<i16>(j)};
-      auto* src_cell = M->TryGetCellAt(coords);
-
-      if (src_cell != nullptr) {
-        fn(i, j, src_cell);
-      }
-    }
-  }
-}
-
 template <unsigned N>
 static bool bytes_equal(const void* p1, const void* p2) {
 #if 0

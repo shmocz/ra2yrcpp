@@ -116,8 +116,8 @@ class CommandManager {
     }
   };
 
-  CommandManager(const duration_t results_acquire_timeout =
-                     cfg::COMMAND_RESULTS_ACQUIRE_TIMEOUT)
+  explicit CommandManager(const duration_t results_acquire_timeout =
+                              cfg::COMMAND_RESULTS_ACQUIRE_TIMEOUT)
       : results_acquire_timeout_(results_acquire_timeout),
         command_counter_(0U) {}
 

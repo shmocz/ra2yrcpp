@@ -4,8 +4,12 @@ out="cppcheck.log"
 
 # example override: cppcheck="docker run --user $UID:$UID --rm -v "$(pwd)":/mnt -w /mnt shmocz/cppcheck-action cppcheck"
 : ${CPPCHECK:="cppcheck"}
+: ${CPPCHECK_BUILD_DIR:="cppcheck-work"}
+
+mkdir -p "$CPPCHECK_BUILD_DIR"
 
 $CPPCHECK -q --platform=win32W \
+	--cppcheck-build-dir="$CPPCHECK_BUILD_DIR" \
 	--enable=warning,style,performance,portability,unusedFunction \
 	-I src/ \
 	--template='{file}:{line},{severity},{id},{message}' \
@@ -19,6 +23,8 @@ $CPPCHECK -q --platform=win32W \
 	--suppress=constParameter:src/utility/sync.hpp \
 	src/ tests/ 2>"$out"
 
+status=$?
+
 [ "$(cat "$out" | wc -l)" != 0 ] && { cat "$out" && exit 1; }
 
-exit 0
+exit $status

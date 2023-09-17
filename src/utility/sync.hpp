@@ -87,14 +87,6 @@ class AtomicVariable {
     return v_;
   }
 
-  friend bool operator==(AtomicVariable<T, MutexT>& lhs, T rhs) {  // NOLINT
-    return lhs.get() == rhs;
-  }
-
-  friend bool operator!=(AtomicVariable<T, MutexT>& lhs, T rhs) {  // NOLINT
-    return !(lhs == rhs);
-  }
-
   auto acquire() { return util::acquire(&v_, &m_); }
 
  private:

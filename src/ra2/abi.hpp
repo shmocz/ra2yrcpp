@@ -22,29 +22,28 @@
 namespace ra2 {
 namespace abi {
 
-using codegen_t = std::map<u32, std::unique_ptr<Xbyak::CodeGenerator>>;
+using codegen_store = std::map<u32, std::unique_ptr<Xbyak::CodeGenerator>>;
 
 class ABIGameMD {
  public:
   // JIT the functions here
   ABIGameMD();
 
-  bool SelectObject(const u32 address);
+  bool SelectObject(u32 address);
 
-  void SellBuilding(const u32 address);
+  void SellBuilding(u32 address);
 
-  void DeployObject(const u32 address);
+  void DeployObject(u32 address);
 
-  bool ClickEvent(const u32 address, const u8 event);
+  bool ClickEvent(u32 address, u8 event);
 
-  void sprintf(char** buf, const std::uintptr_t args_start);
+  void sprintf(char** buf, std::uintptr_t args_start);
 
   bool BuildingClass_CanPlaceHere(std::uintptr_t p_this, CellStruct* cell,
                                   std::uintptr_t house_owner);
 
-  void AddMessage(int id, const std::string message, const i32 color,
-                  const i32 style, const u32 duration_frames,
-                  bool single_player);
+  void AddMessage(int id, const std::string message, i32 color, i32 style,
+                  u32 duration_frames, bool single_player);
 
   u32 timeGetTime();
 
@@ -52,14 +51,21 @@ class ABIGameMD {
                                            BuildingTypeClass* p_object,
                                            u32 house_index, CellStruct* cell);
 
-  template <typename CodeT, typename... Args>
-  void add_entry(const std::uintptr_t address, Args... args) {
-    code_generators_[address] = std::make_unique<CodeT>(address, args...);
+  Xbyak::CodeGenerator* add_entry(std::uintptr_t address,
+                                  std::unique_ptr<Xbyak::CodeGenerator> c) {
+    return code_generators_.insert_or_assign(address, std::move(c))
+        .first->second.get();
   }
 
   template <typename CodeT, typename... Args>
-  void add_virtual(int index, const std::uintptr_t address, Args... args) {
-    code_generators_[address] = std::make_unique<CodeT>(index, args...);
+  Xbyak::CodeGenerator* add_entry(std::uintptr_t address, Args... args) {
+    return add_entry(address, std::make_unique<CodeT>(address, args...));
+  }
+
+  template <typename CodeT, typename... Args>
+  Xbyak::CodeGenerator* add_virtual(int index, std::uintptr_t address,
+                                    Args... args) {
+    return add_entry(address, std::make_unique<CodeT>(index, args...));
   }
 
   // FIXME: is this unused?
@@ -69,9 +75,12 @@ class ABIGameMD {
         std::make_unique<typename E::gen_t>(E::ptr, E::stack_size);
   }
 
-  codegen_t& code_generators();
+  Xbyak::CodeGenerator* find_codegen(u32 address);
 
-  util::acquire_t<codegen_t, std::recursive_mutex> acquire_code_generators();
+  codegen_store& code_generators();
+
+  util::acquire_t<codegen_store, std::recursive_mutex>
+  acquire_code_generators();
 
   template <typename T, typename... Args>
   auto call(Args... args) {
@@ -84,8 +93,7 @@ class ABIGameMD {
 };
 
 struct VirtualCall : Xbyak::CodeGenerator {
-  explicit VirtualCall(const u32 vtable_index,
-                       const std::size_t stack_size = 0u) {
+  explicit VirtualCall(u32 vtable_index, std::size_t stack_size = 0u) {
     mov(ecx, ptr[esp + 0x4]);  // this
 
     // copy stack after this (push args)
@@ -102,7 +110,7 @@ struct VirtualCall : Xbyak::CodeGenerator {
 };
 
 struct ThisCall : Xbyak::CodeGenerator {
-  explicit ThisCall(const u32 p_fn, const std::size_t stack_size = 0u) {
+  explicit ThisCall(u32 p_fn, std::size_t stack_size = 0u) {
     mov(ecx, ptr[esp + 0x4]);  // this
 
     // copy stack after this (push args)
@@ -120,7 +128,7 @@ struct ThisCall : Xbyak::CodeGenerator {
 // Call a varargs function such as printf by creating a empty area in the stack
 // and copying original arguments. NB. possibly unsafe.
 struct FastCall : Xbyak::CodeGenerator {
-  explicit FastCall(const u32 p_fn) {  // fn(args_begin, count)
+  explicit FastCall(u32 p_fn) {  // fn(args_begin, count)
     // args_begin
     mov(esi, ptr[esp + 0x4]);
     // number of bytes to copy from args_begin
@@ -161,16 +169,16 @@ struct Caller {
 
   template <typename... Args>
   static auto* get_function(ra2::abi::ABIGameMD* A) {
-    auto& C = A->code_generators();
-    if (C.find(addr()) == C.end()) {
+    auto* CC = A->find_codegen(addr());
+    if (CC == nullptr) {
       if constexpr (IsThisCall) {
-        A->add_entry<GenT>(addr(), stack_size);
+        CC = A->add_entry<GenT>(addr(), stack_size);
       } else {
-        A->add_entry<GenT>(addr());
+        CC = A->add_entry<GenT>(addr());
       }
     }
 
-    return C.at(addr())->template getCode<CallT>();
+    return CC->template getCode<CallT>();
   }
 
   // TODO(shmocz): be more explicit of the index param!
@@ -178,11 +186,11 @@ struct Caller {
   static auto call_virtual(ra2::abi::ABIGameMD* A, FirstArg object,
                            Args... args) {
     auto p_virtual_function = vaddr(object);
-    auto& C = A->code_generators();
-    if (C.find(p_virtual_function) == C.end()) {
-      A->add_virtual<VirtualCall>(addr(), p_virtual_function);
+    auto* C = A->find_codegen(p_virtual_function);
+    if (C == nullptr) {
+      C = A->add_virtual<VirtualCall>(addr(), p_virtual_function);
     }
-    return C.at(p_virtual_function)->template getCode<CallT>()(object, args...);
+    return C->template getCode<CallT>()(object, args...);
   }
 
   template <typename... Args>
@@ -200,7 +208,6 @@ struct Caller {
   }
 };
 
-// xbyak windows includes pollute namespace (clash with SelectObject)
 using ClickMission =
     Caller<0x6FFBE0U, bool __cdecl (*)(std::uintptr_t object, Mission m,
                                        std::uintptr_t target_object,
@@ -237,13 +244,11 @@ using BuildingTypeClass_GetFoundationData =
                           BuildingTypeClass* p_this, bool includeBib)>;
 
 using AddMessage =
-    Caller<0x5D3BA0U, bool __cdecl (*)(const std::uintptr_t, const wchar_t*,
-                                       int, const wchar_t*, const i32,
-                                       const i32, const u32, bool)>;
+    Caller<0x5D3BA0U, bool __cdecl (*)(std::uintptr_t, const wchar_t*, int,
+                                       const wchar_t*, i32, i32, u32, bool)>;
 
-using sprintf =
-    Caller<0x7E14B0U, void __cdecl (*)(const char*, const std::uintptr_t),
-           FastCall, true>;
+using sprintf = Caller<0x7E14B0U, void __cdecl (*)(const char*, std::uintptr_t),
+                       FastCall, true>;
 
 using CellClass_GetContainedTiberiumValue =
     Caller<0x485020U, int __cdecl (*)(std::uintptr_t)>;

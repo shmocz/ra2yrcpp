@@ -16,14 +16,16 @@ using namespace std::chrono_literals;
 template <typename T, typename MutexT>
 class AcquireData {
  public:
-  using data_t = std::tuple<std::unique_lock<MutexT>, T*>;
+  using lock_t = std::unique_lock<MutexT>;
+  using data_t = std::tuple<lock_t, T*>;
 
-  AcquireData(T* data, MutexT* m)
-      : data_(std::make_tuple(std::move(std::unique_lock<MutexT>(*m)), data)) {}
+  AcquireData(lock_t&& l, T* data)
+      : data_(std::make_tuple(std::forward<lock_t>(l), data)) {}
+
+  AcquireData(T* data, MutexT* m) : AcquireData(lock_t(*m), data) {}
 
   AcquireData(T* data, MutexT* m, const duration_t timeout)
-      : data_(std::make_tuple(std::move(std::unique_lock<MutexT>(*m, timeout)),
-                              data)) {}
+      : AcquireData(lock_t(*m, timeout), data) {}
 
   ~AcquireData() {}
 
@@ -46,7 +48,7 @@ class AcquireData {
   data_t& data() { return data_; }
 
  private:
-  std::tuple<std::unique_lock<MutexT>, T*> data_;
+  data_t data_;
 };
 
 template <typename T, typename MutexT = std::mutex>

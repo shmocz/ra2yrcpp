@@ -8,6 +8,7 @@ BASE_DIR="$BUILDDIR/$TC_ID-$CMAKE_BUILD_TYPE"
 BUILD_DIR="$BASE_DIR/build"
 build_log="$BASE_DIR/build.log"
 : ${TAG_NAME:=""}
+export CPPCHECK_BUILD_DIR="$BASE_DIR/cppcheck-work"
 
 if [ ! -z "$TAG_NAME" ]; then
 	TAG_NAME="ok-$(git rev-parse --short HEAD)"

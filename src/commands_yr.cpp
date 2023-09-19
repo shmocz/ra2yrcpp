@@ -22,6 +22,7 @@
 #include <map>
 #include <stdexcept>
 
+using ra2yrcpp::command::get_async_cmd;
 using ra2yrcpp::command::get_cmd;
 using ra2yrcpp::command::message_result;
 
@@ -187,9 +188,8 @@ auto mission_clicked() {
 }
 
 auto add_event() {
-  return get_cmd<ra2yrproto::commands::AddEvent>([](auto* Q) {
+  return get_async_cmd<ra2yrproto::commands::AddEvent>([](auto* Q) {
     auto args = Q->command_data();
-    Q->async();
 
     put_gameloop_command(Q, [args](auto* it) {
       const auto frame_delay = args.frame_delay();
@@ -247,7 +247,7 @@ auto add_event() {
 }
 
 auto place_query() {
-  return get_cmd<ra2yrproto::commands::PlaceQuery>([](auto* Q) {
+  return get_async_cmd<ra2yrproto::commands::PlaceQuery>([](auto* Q) {
     auto args = Q->command_data();
     if (static_cast<unsigned int>(args.coordinates().size()) >
         cfg::PLACE_QUERY_MAX_LENGTH) {
@@ -256,7 +256,6 @@ auto place_query() {
           args.coordinates().size() - cfg::PLACE_QUERY_MAX_LENGTH);
       wrprintf("truncated place query to size {}", args.coordinates().size());
     }
-    Q->async();
 
     put_gameloop_command(Q, [args](auto* it) {
       auto [C, cmd, fn] = *it;

@@ -83,9 +83,12 @@ struct ISCommand {
 
 template <typename MessageT>
 std::pair<std::string, iservice_cmd::handler_t> get_cmd(
-    std::function<void(ISCommand<MessageT>*)> fn) {
+    std::function<void(ISCommand<MessageT>*)> fn, bool async = false) {
   return {MessageT().GetTypeName(), [=](iservice_cmd* c) {
             ISCommand<MessageT> Q(c);
+            if (async) {
+              Q.async();
+            }
             try {
               dprintf("exec {} ", MessageT().GetTypeName());
               fn(&Q);
@@ -94,6 +97,12 @@ std::pair<std::string, iservice_cmd::handler_t> get_cmd(
               throw;
             }
           }};
+}
+
+template <typename MessageT>
+std::pair<std::string, iservice_cmd::handler_t> get_async_cmd(
+    std::function<void(ISCommand<MessageT>*)> fn) {
+  return get_cmd(fn, true);
 }
 
 ///

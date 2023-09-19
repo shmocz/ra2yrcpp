@@ -235,6 +235,7 @@ message ObjectTypeClass {
   bool requires_stolen_soviet_tech = 22;
   bool requires_stolen_third_tech = 23;
   uint32 pointer_cameo = 24;
+  int32 strength = 25;
 }
 
 message Object {

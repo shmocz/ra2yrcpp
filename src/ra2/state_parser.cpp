@@ -164,6 +164,7 @@ void TypeClassParser::TechnoType() {
   T->set_requires_stolen_allied_tech(P->RequiresStolenAlliedTech);
   T->set_requires_stolen_soviet_tech(P->RequiresStolenSovietTech);
   T->set_requires_stolen_third_tech(P->RequiresStolenThirdTech);
+  T->set_strength(P->Strength);
 }
 
 void TypeClassParser::UnitType() {

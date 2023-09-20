@@ -153,13 +153,12 @@ class CommandManager {
 
   command_ptr_t make_command(const std::string name, T&& data,
                              const u64 queue_id) {
-    typename command_t::BaseData B = {name, queue_id, command_counter_, 0U,
-                                      CommandType::USER};
+    typename command_t::BaseData B = {
+        name, queue_id, command_counter_.fetch_add(1U), 0U, CommandType::USER};
     handler_t handler = nullptr;
 
     auto C =
         std::make_shared<command_t>(B, handlers_.at(name), std::move(data));
-    ++command_counter_;
     return C;
   }
 
@@ -173,7 +172,7 @@ class CommandManager {
                                      CommandType t) {
     typename command_t::BaseData B{"", queue_id, 0U, queue_size, t};
     auto C = std::make_shared<command_t>(B, nullptr, T());
-    ++command_counter_;
+    command_counter_.fetch_add(1U);
     return C;
   }
 
@@ -337,7 +336,7 @@ class CommandManager {
  private:
   std::atomic_bool active_{true};
   duration_t results_acquire_timeout_;
-  std::size_t command_counter_;
+  std::atomic<std::size_t> command_counter_;
   std::unique_ptr<std::thread> worker_thread_;
   std::priority_queue<command_ptr_t, std::vector<command_ptr_t>, QueueCompare>
       work_queue_;

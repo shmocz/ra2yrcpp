@@ -276,6 +276,11 @@ using SHPStruct_GetPixels =
     Caller<0x69E740U,
            unsigned char* __cdecl (*)(SHPStruct* p_this, int idxFrame)>;
 
+using HouseClass_CanBuild =
+    Caller<0x4F7870U,
+           CanBuildResult __cdecl (*)(  // NOLINT
+               HouseClass* p_this, TechnoTypeClass const* pItem, bool, bool)>;
+
 int get_tiberium_value(const CellClass& cell);
 int get_tiberium_type(int overlayTypeIndex);
 

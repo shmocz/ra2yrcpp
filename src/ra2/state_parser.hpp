@@ -82,16 +82,14 @@ struct TypeClassParser {
 };
 
 struct EventParser {
-  EventClass* src;
+  const EventClass* src;
   ra2yrproto::ra2yr::Event* T;
   u32 time;
-  EventParser(EventClass* src, ra2yrproto::ra2yr::Event* T, u32 time);
+  EventParser(const EventClass* src, ra2yrproto::ra2yr::Event* T, u32 time);
 
   void Target();
 
   void MegaMission();
-
-  void MegaMission_F();
 
   void Production();
 

@@ -220,46 +220,40 @@ void TypeClassParser::parse() {
   }
 }
 
-EventParser::EventParser(EventClass* src, ra2yrproto::ra2yr::Event* T, u32 time)
+EventParser::EventParser(const EventClass* src, ra2yrproto::ra2yr::Event* T,
+                         u32 time)
     : src(src), T(T), time(time) {}
 
-void EventParser::MegaMission() {
-  auto& x = src->Data.MegaMission;
-  auto* d = T->mutable_mega_mission();
-  auto* w = d->mutable_whom();
-  w->set_m_id(x.Whom.m_ID);
-  w->set_m_rtti(x.Whom.m_RTTI);
-  d->set_mission(x.Mission);
-
-  auto* tt = d->mutable_target();
-  tt->set_m_id(x.Target.m_ID);
-  tt->set_m_rtti(x.Target.m_RTTI);
-  auto* td = d->mutable_destination();
-  td->set_m_id(x.Destination.m_ID);
-  td->set_m_rtti(x.Destination.m_RTTI);
-  auto* tf = d->mutable_follow();
-  tf->set_m_id(x.Follow.m_ID);
-  tf->set_m_rtti(x.Follow.m_RTTI);
-  d->set_is_planning_event(x.IsPlanningEvent);
+static void parse_TargetClass(const TargetClass& s,
+                              ra2yrproto::ra2yr::TargetClass* d) {
+  d->set_m_id(s.m_ID);
+  d->set_m_rtti(s.m_RTTI);
 }
 
-void EventParser::MegaMission_F() {
-  auto& x = src->Data.MegaMission_F;
-  auto* d = T->mutable_mega_mission_f();
-  auto* w = d->mutable_whom();
-  w->set_m_id(x.Whom.m_ID);
-  w->set_m_rtti(x.Whom.m_RTTI);
-  d->set_mission(x.Mission);
+template <typename EventT, typename MessageT>
+static auto parse_MegaMission_common(const EventT& e, MessageT* m) {
+  parse_TargetClass(e.Whom, m->mutable_whom());
+  m->set_mission(static_cast<ra2yrproto::ra2yr::Mission>(e.Mission));
+  parse_TargetClass(e.Target, m->mutable_target());
+  parse_TargetClass(e.Destination, m->mutable_destination());
+  return std::make_tuple(e, m);
+}
 
-  auto* tt = d->mutable_target();
-  tt->set_m_id(x.Target.m_ID);
-  tt->set_m_rtti(x.Target.m_RTTI);
-  auto* td = d->mutable_destination();
-  td->set_m_id(x.Destination.m_ID);
-  td->set_m_rtti(x.Destination.m_RTTI);
-
-  d->set_speed(x.Speed);
-  d->set_max_speed(x.MaxSpeed);
+void EventParser::MegaMission() {
+  if (src->Type == EventType::MEGAMISSION) {
+    auto [x, m] = parse_MegaMission_common(src->Data.MegaMission,
+                                           T->mutable_mega_mission());
+    parse_TargetClass(x.Follow, m->mutable_follow());
+    m->set_is_planning_event(x.IsPlanningEvent);
+  } else if (src->Type == EventType::MEGAMISSION_F) {
+    auto [x, m] = parse_MegaMission_common(src->Data.MegaMission_F,
+                                           T->mutable_mega_mission_f());
+    m->set_speed(x.Speed);
+    m->set_max_speed(x.MaxSpeed);
+  } else {
+    throw std::runtime_error(fmt::format(
+        "invalid event type: {}", static_cast<unsigned char>(src->Type)));
+  }
 }
 
 void EventParser::Production() {
@@ -299,7 +293,7 @@ void EventParser::parse() {
       MegaMission();
       break;
     case EventType::MEGAMISSION_F:
-      MegaMission_F();
+      MegaMission();
       break;
     default:
       break;

@@ -452,7 +452,7 @@ message Event {
 
   message MegaMission {
     TargetClass whom = 1;
-    int32 mission = 2;
+    Mission mission = 2;
     TargetClass target = 3;
     TargetClass destination = 4;
     TargetClass follow = 5;
@@ -461,7 +461,7 @@ message Event {
 
   message MegaMission_F {
     TargetClass whom = 1;
-    int32 mission = 2;
+    Mission mission = 2;
     TargetClass target = 3;
     TargetClass destination = 4;
     int32 speed = 5;

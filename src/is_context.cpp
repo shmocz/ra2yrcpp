@@ -24,6 +24,7 @@
 #include "x86.hpp"
 
 #include <fmt/core.h>
+#include <google/protobuf/message.h>
 
 #include <algorithm>
 #include <chrono>
@@ -35,6 +36,8 @@ using namespace std::chrono_literals;
 
 using namespace is_context;
 using x86::bytes_to_stack;
+
+namespace pb = google::protobuf;
 
 ProcAddrs is_context::get_procaddrs() {
   ProcAddrs A;
@@ -131,7 +134,7 @@ void is_context::get_procaddr(Xbyak::CodeGenerator* c, void* m,
 }
 
 static void handle_cmd_wait(yrclient::InstrumentationService* I,
-                            const google::protobuf::Message& cmd) {
+                            const pb::Message& cmd) {
   auto CC = yrclient::create_command(cmd);
   auto [c, a] = yrclient::handle_cmd(I, 0U, &CC, true);
   c->result_code().wait_pred(

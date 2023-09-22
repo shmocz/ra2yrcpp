@@ -37,6 +37,7 @@ using namespace std::chrono_literals;
 using namespace ra2yrcpp::test_util;
 
 namespace lib = websocketpp::lib;
+namespace pb = google::protobuf;
 
 using instrumentation_client::InstrumentationClient;
 using yrclient::InstrumentationService;
@@ -258,7 +259,7 @@ class CommandTest : public ::testing::Test {
   }
 
  public:
-  using cmd_d_t = google::protobuf::Any;
+  using cmd_d_t = pb::Any;
   std::unique_ptr<command::CommandManager<cmd_d_t>> M;
 };
 

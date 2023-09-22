@@ -29,6 +29,7 @@
 
 using namespace ra2yrcppcli;
 using namespace std::chrono_literals;
+namespace pb = google::protobuf;
 
 auto get_client(const std::string host, const std::string port) {
   auto opt = multi_client::default_options;
@@ -38,9 +39,8 @@ auto get_client(const std::string host, const std::string port) {
       std::make_shared<ra2yrcpp::asio_utils::IOService>(), opt);
 }
 
-std::vector<const google::protobuf::Descriptor*> get_messages(
-    const google::protobuf::FileDescriptor* d) {
-  std::vector<const google::protobuf::Descriptor*> res;
+std::vector<const pb::Descriptor*> get_messages(const pb::FileDescriptor* d) {
+  std::vector<const pb::Descriptor*> res;
   for (int i = 0; i < d->message_type_count(); i++) {
     res.push_back(d->message_type(i));
   }
@@ -50,7 +50,7 @@ std::vector<const google::protobuf::Descriptor*> get_messages(
 void list_commands() {
   const std::vector<std::string> ss = {"ra2yrproto.commands.CreateCallbacks",
                                        "ra2yrproto.commands.GetSystemState"};
-  auto* pool = google::protobuf::DescriptorPool::generated_pool();
+  auto* pool = pb::DescriptorPool::generated_pool();
   for (const auto& s : ss) {
     auto* p = pool->FindMessageTypeByName(s);
     if (p == nullptr) {

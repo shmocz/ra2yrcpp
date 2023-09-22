@@ -24,7 +24,7 @@ class ABIGameMD;
 
 namespace ra2 {
 
-using google::protobuf::RepeatedPtrField;
+namespace pb = google::protobuf;
 
 struct Cookie {
   ra2::abi::ABIGameMD* abi;
@@ -131,11 +131,11 @@ void parse_EventLists(ra2yrproto::ra2yr::GameState* G,
 void parse_prerequisiteGroups(ra2yrproto::ra2yr::PrerequisiteGroups* T);
 
 void parse_map(std::vector<Cell>* previous, MapClass* D,
-               RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference);
+               pb::RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference);
 
 std::vector<CellClass*> get_valid_cells(MapClass* M);
 
-void parse_Factories(RepeatedPtrField<ra2yrproto::ra2yr::Factory>* dst);
+void parse_Factories(pb::RepeatedPtrField<ra2yrproto::ra2yr::Factory>* dst);
 
 template <typename T, typename U>
 static auto init_arrays(U* dst) {
@@ -146,18 +146,19 @@ static auto init_arrays(U* dst) {
   return std::make_tuple(D, dst);
 }
 
-RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* parse_AbstractTypeClasses(
-    RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* T,
+pb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>*
+parse_AbstractTypeClasses(
+    pb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* T,
     ra2::abi::ABIGameMD* abi);
 
 void parse_Objects(ra2yrproto::ra2yr::GameState* G, ra2::abi::ABIGameMD* abi);
 void parse_HouseClasses(ra2yrproto::ra2yr::GameState* G);
 
 ra2yrproto::ra2yr::ObjectTypeClass* find_type_class(
-    RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* types,
+    pb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* types,
     ra2yrproto::ra2yr::AbstractType rtti_id, unsigned array_index);
 
 /// Return true if the current player is the only human player in the game.
-bool is_local(const RepeatedPtrField<ra2yrproto::ra2yr::House>& H);
+bool is_local(const pb::RepeatedPtrField<ra2yrproto::ra2yr::House>& H);
 
 }  // namespace ra2

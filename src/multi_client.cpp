@@ -84,8 +84,7 @@ void AutoPollClient::shutdown() {
   state_.store(State::CLOSED);
 }
 
-ra2yrproto::Response AutoPollClient::send_command(
-    const google::protobuf::Message& cmd) {
+ra2yrproto::Response AutoPollClient::send_command(const pb::Message& cmd) {
   // Send command
   auto resp = get_client(ClientType::COMMAND)
                   ->send_command(cmd, ra2yrproto::CommandType::CLIENT_COMMAND);

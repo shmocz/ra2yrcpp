@@ -22,16 +22,15 @@
 
 using namespace ra2yrcpp::protocol;
 
-bool ra2yrcpp::protocol::write_message(
-    const google::protobuf::Message* M,
-    google::protobuf::io::CodedOutputStream* is) {
+bool ra2yrcpp::protocol::write_message(const pb::Message* M,
+                                       pb::io::CodedOutputStream* is) {
   auto l = M->ByteSizeLong();
   is->WriteVarint32(l);
   return M->SerializeToCodedStream(is) && !is->HadError();
 }
 
-bool ra2yrcpp::protocol::read_message(
-    google::protobuf::Message* M, google::protobuf::io::CodedInputStream* is) {
+bool ra2yrcpp::protocol::read_message(pb::Message* M,
+                                      pb::io::CodedInputStream* is) {
   u32 length;
   if (!is->ReadVarint32(&length)) {
     return false;
@@ -43,7 +42,7 @@ bool ra2yrcpp::protocol::read_message(
 }
 
 MessageBuilder::MessageBuilder(const std::string name) {
-  pool = google::protobuf::DescriptorPool::generated_pool();
+  pool = pb::DescriptorPool::generated_pool();
   desc = pool->FindMessageTypeByName(name);
   if (desc == nullptr) {
     throw std::runtime_error(std::string("no such message ") + name);
@@ -57,10 +56,9 @@ MessageBuilder::MessageBuilder(const std::string name) {
 MessageIstream::MessageIstream(std::shared_ptr<std::istream> is, bool gzip)
     : MessageStream(gzip),
       is(is),
-      s_i(std::make_shared<google::protobuf::io::IstreamInputStream>(
-          is.get())) {
+      s_i(std::make_shared<pb::io::IstreamInputStream>(is.get())) {
   if (gzip) {
-    s_ig = std::make_shared<google::protobuf::io::GzipInputStream>(s_i.get());
+    s_ig = std::make_shared<pb::io::GzipInputStream>(s_i.get());
   }
 }
 
@@ -71,55 +69,55 @@ MessageOstream::MessageOstream(std::shared_ptr<std::ostream> os, bool gzip)
   if (os == nullptr) {
     return;
   }
-  s_o = std::make_shared<google::protobuf::io::OstreamOutputStream>(os.get());
+  s_o = std::make_shared<pb::io::OstreamOutputStream>(os.get());
   if (gzip) {
-    s_g = std::make_shared<google::protobuf::io::GzipOutputStream>(s_o.get());
+    s_g = std::make_shared<pb::io::GzipOutputStream>(s_o.get());
   }
 }
 
-bool MessageOstream::write(const google::protobuf::Message& M) {
+bool MessageOstream::write(const pb::Message& M) {
   if (os == nullptr) {
     return false;
   }
 
   if (gzip) {
-    google::protobuf::io::CodedOutputStream co(s_g.get());
+    pb::io::CodedOutputStream co(s_g.get());
     return write_message(&M, &co);
   } else {
-    google::protobuf::io::CodedOutputStream co(s_o.get());
+    pb::io::CodedOutputStream co(s_o.get());
     return write_message(&M, &co);
   }
   return false;
 }
 
-bool MessageIstream::read(google::protobuf::Message* M) {
+bool MessageIstream::read(pb::Message* M) {
   if (is == nullptr) {
     return false;
   }
 
   if (gzip) {
-    google::protobuf::io::CodedInputStream co(s_ig.get());
+    pb::io::CodedInputStream co(s_ig.get());
     return read_message(M, &co);
   } else {
-    google::protobuf::io::CodedInputStream co(s_i.get());
+    pb::io::CodedInputStream co(s_i.get());
     return read_message(M, &co);
   }
   return false;
 }
 
-google::protobuf::Message* ra2yrcpp::protocol::create_command_message(
+pb::Message* ra2yrcpp::protocol::create_command_message(
     MessageBuilder* B, const std::string args) {
   if (!args.empty()) {
     auto* cmd_args = B->m->GetReflection()->MutableMessage(
         B->m, B->desc->FindFieldByName("args"));
-    google::protobuf::util::JsonStringToMessage(args, cmd_args);
+    pb::util::JsonStringToMessage(args, cmd_args);
   }
   return B->m;
 }
 
-void ra2yrcpp::protocol::dump_messages(
-    const std::string path, const google::protobuf::Message& M,
-    std::function<void(google::protobuf::Message*)> cb) {
+void ra2yrcpp::protocol::dump_messages(const std::string path,
+                                       const pb::Message& M,
+                                       std::function<void(pb::Message*)> cb) {
   bool ok = true;
   auto ii = std::make_shared<std::ifstream>(
       path, std::ios_base::in | std::ios_base::binary);
@@ -138,43 +136,40 @@ void ra2yrcpp::protocol::dump_messages(
   }
 }
 
-std::string ra2yrcpp::protocol::message_type(const google::protobuf::Any& m) {
+std::string ra2yrcpp::protocol::message_type(const pb::Any& m) {
   auto toks = yrclient::split_string(m.type_url(), "/");
   return toks.back();
 }
 
-std::string ra2yrcpp::protocol::message_type(
-    const google::protobuf::Message& m) {
+std::string ra2yrcpp::protocol::message_type(const pb::Message& m) {
   return m.GetTypeName();
 }
 
-bool ra2yrcpp::protocol::from_json(const vecu8& bytes,
-                                   google::protobuf::Message* m) {
+bool ra2yrcpp::protocol::from_json(const vecu8& bytes, pb::Message* m) {
   auto s = yrclient::to_string(bytes);
-  if (google::protobuf::util::JsonStringToMessage(s, m).ok()) {
+  if (pb::util::JsonStringToMessage(s, m).ok()) {
     return true;
   }
 
   return false;
 }
 
-std::string ra2yrcpp::protocol::to_json(const google::protobuf::Message& m) {
+std::string ra2yrcpp::protocol::to_json(const pb::Message& m) {
   std::string res;
-  google::protobuf::util::MessageToJsonString(m, &res);
+  pb::util::MessageToJsonString(m, &res);
   return res;
 }
 
-std::vector<const google::protobuf::FieldDescriptor*>
-ra2yrcpp::protocol::find_set_fields(const google::protobuf::Message& M) {
+std::vector<const pb::FieldDescriptor*> ra2yrcpp::protocol::find_set_fields(
+    const pb::Message& M) {
   auto* rfl = M.GetReflection();
-  std::vector<const google::protobuf::FieldDescriptor*> out;
+  std::vector<const pb::FieldDescriptor*> out;
   rfl->ListFields(M, &out);
   return out;
 }
 
-void ra2yrcpp::protocol::copy_field(
-    google::protobuf::Message* dst, google::protobuf::Message* src,
-    const google::protobuf::FieldDescriptor* f) {
+void ra2yrcpp::protocol::copy_field(pb::Message* dst, pb::Message* src,
+                                    const pb::FieldDescriptor* f) {
   dst->GetReflection()->MutableMessage(dst, f)->CopyFrom(
       src->GetReflection()->GetMessage(*src, f));
 }

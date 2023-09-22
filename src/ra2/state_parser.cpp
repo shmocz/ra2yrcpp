@@ -366,7 +366,7 @@ static void parse_cells(Cell* dest, CellClass** src, const std::size_t c,
 
 static void update_modified_cells(
     const Cell* current, Cell* previous, const std::size_t c,
-    RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference) {
+    pb::RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference) {
   for (std::size_t k = 0; k < c; k++) {
     auto& C = current[k];
     if (!bytes_equal<sizeof(Cell)>(&C, &previous[k])) {
@@ -379,7 +379,7 @@ static void update_modified_cells(
 template <int N>
 static void apply_cell_stride(
     Cell* previous, Cell* cell_buf, CellClass** cells,
-    RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference, MapClass* M) {
+    pb::RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference, MapClass* M) {
   const auto& L = M->MapCoordBounds;
   parse_cells(cell_buf, cells, N, L);
   if (!bytes_equal<sizeof(Cell) * N>(cell_buf, previous)) {
@@ -389,7 +389,7 @@ static void apply_cell_stride(
 
 // TODO(shmocz): objects
 void ra2::parse_map(std::vector<Cell>* previous, MapClass* D,
-                    RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference) {
+                    pb::RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference) {
   static constexpr int chunk = 128;
   static std::vector<CellClass*> valid_cell_objects;
   static std::array<Cell, chunk> cell_buf;
@@ -467,7 +467,8 @@ void ra2::parse_MapData(ra2yrproto::ra2yr::MapData* dst, MapClass* src,
 }
 
 template <typename T>
-void parse_EventList(RepeatedPtrField<ra2yrproto::ra2yr::Event>* dst, T* list) {
+void parse_EventList(pb::RepeatedPtrField<ra2yrproto::ra2yr::Event>* dst,
+                     T* list) {
   if (dst->size() != list->Count) {
     dst->Clear();
 
@@ -546,7 +547,8 @@ void ra2::parse_HouseClass(ra2yrproto::ra2yr::House* dst,
   dst->set_is_human_player(src->IsHumanPlayer);
 }
 
-void ra2::parse_Factories(RepeatedPtrField<ra2yrproto::ra2yr::Factory>* dst) {
+void ra2::parse_Factories(
+    pb::RepeatedPtrField<ra2yrproto::ra2yr::Factory>* dst) {
   auto* D = FactoryClass::Array.get();
   if (dst->size() != D->Count) {
     ra2yrcpp::protocol::fill_repeated_empty(dst, D->Count);
@@ -568,9 +570,9 @@ void ra2::parse_Factories(RepeatedPtrField<ra2yrproto::ra2yr::Factory>* dst) {
   }
 }
 
-RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>*
+pb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>*
 ra2::parse_AbstractTypeClasses(
-    RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* T,
+    pb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* T,
     ra2::abi::ABIGameMD* abi) {
   auto [D, T_] = init_arrays<AbstractTypeClass>(T);
 
@@ -601,7 +603,7 @@ void ra2::parse_HouseClasses(ra2yrproto::ra2yr::GameState* G) {
 }
 
 ra2yrproto::ra2yr::ObjectTypeClass* ra2::find_type_class(
-    RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* types,
+    pb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* types,
     ra2yrproto::ra2yr::AbstractType rtti_id, unsigned array_index) {
   auto e = std::find_if(types->begin(), types->end(), [&](const auto& v) {
     return v.array_index() == array_index && v.type() == rtti_id;
@@ -609,7 +611,7 @@ ra2yrproto::ra2yr::ObjectTypeClass* ra2::find_type_class(
   return e != types->end() ? &(*e) : nullptr;
 }
 
-bool ra2::is_local(const RepeatedPtrField<ra2yrproto::ra2yr::House>& H) {
+bool ra2::is_local(const pb::RepeatedPtrField<ra2yrproto::ra2yr::House>& H) {
   return std::count_if(H.begin(), H.end(),
                        [](const auto& h) { return h.is_human_player(); }) == 1;
 }

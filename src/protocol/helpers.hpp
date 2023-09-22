@@ -22,12 +22,14 @@
 
 namespace ra2yrcpp::protocol {
 
+namespace pb = google::protobuf;
+
 struct MessageBuilder {
-  google::protobuf::DynamicMessageFactory F;
-  const google::protobuf::DescriptorPool* pool;
-  const google::protobuf::Descriptor* desc;
-  google::protobuf::Message* m;
-  const google::protobuf::Reflection* refl;
+  pb::DynamicMessageFactory F;
+  const pb::DescriptorPool* pool;
+  const pb::Descriptor* desc;
+  pb::Message* m;
+  const pb::Reflection* refl;
   explicit MessageBuilder(const std::string name);
 };
 
@@ -38,31 +40,28 @@ struct MessageStream {
 
 struct MessageIstream : public MessageStream {
   MessageIstream(std::shared_ptr<std::istream> is, bool gzip);
-  bool read(google::protobuf::Message* M);
+  bool read(pb::Message* M);
 
   std::shared_ptr<std::istream> is;
-  std::shared_ptr<google::protobuf::io::ZeroCopyInputStream> s_i;
-  std::shared_ptr<google::protobuf::io::GzipInputStream> s_ig;
+  std::shared_ptr<pb::io::ZeroCopyInputStream> s_i;
+  std::shared_ptr<pb::io::GzipInputStream> s_ig;
 };
 
 struct MessageOstream : public MessageStream {
   MessageOstream(std::shared_ptr<std::ostream> os, bool gzip);
-  bool write(const google::protobuf::Message& M);
+  bool write(const pb::Message& M);
 
   std::shared_ptr<std::ostream> os;
-  std::shared_ptr<google::protobuf::io::ZeroCopyOutputStream> s_o;
-  std::shared_ptr<google::protobuf::io::GzipOutputStream> s_g;
+  std::shared_ptr<pb::io::ZeroCopyOutputStream> s_o;
+  std::shared_ptr<pb::io::GzipOutputStream> s_g;
 };
 
-bool write_message(const google::protobuf::Message* M,
-                   google::protobuf::io::CodedOutputStream* os);
-bool read_message(google::protobuf::Message* M,
-                  google::protobuf::io::CodedInputStream* os);
+bool write_message(const pb::Message* M, pb::io::CodedOutputStream* os);
+bool read_message(pb::Message* M, pb::io::CodedInputStream* os);
 
 /// Dynamically set the field "args" of B's Message by parsing the JSON string
 /// in args. If args is empty, field is not set.
-google::protobuf::Message* create_command_message(MessageBuilder* B,
-                                                  const std::string args);
+pb::Message* create_command_message(MessageBuilder* B, const std::string args);
 
 /// Process stream of serialized protobuf messages of same type.
 ///
@@ -70,18 +69,17 @@ google::protobuf::Message* create_command_message(MessageBuilder* B,
 /// @param M Message type to be read
 /// @param cb Callback to invoke for each processed message. If unspecified,
 /// dumps messages as JSON to stdout
-void dump_messages(
-    const std::string path, const google::protobuf::Message& M,
-    std::function<void(google::protobuf::Message*)> cb = nullptr);
+void dump_messages(const std::string path, const pb::Message& M,
+                   std::function<void(pb::Message*)> cb = nullptr);
 
-std::string message_type(const google::protobuf::Any& m);
-std::string message_type(const google::protobuf::Message& m);
+std::string message_type(const pb::Any& m);
+std::string message_type(const pb::Message& m);
 
-bool from_json(const vecu8& bytes, google::protobuf::Message* m);
-std::string to_json(const google::protobuf::Message& m);
+bool from_json(const vecu8& bytes, pb::Message* m);
+std::string to_json(const pb::Message& m);
 
 template <typename T>
-T from_any(const google::protobuf::Any& a) {
+T from_any(const pb::Any& a) {
   T res;
   if (!a.UnpackTo(&res)) {
     throw std::runtime_error(
@@ -91,22 +89,20 @@ T from_any(const google::protobuf::Any& a) {
   return res;
 }
 
-std::vector<const google::protobuf::FieldDescriptor*> find_set_fields(
-    const google::protobuf::Message& M);
+std::vector<const pb::FieldDescriptor*> find_set_fields(const pb::Message& M);
 
 ///
 /// Clears the RepeatedPtField and fills it with n copies of given type.
 ///
 template <typename T>
-void fill_repeated_empty(google::protobuf::RepeatedPtrField<T>* dst,
-                         const std::size_t n) {
+void fill_repeated_empty(pb::RepeatedPtrField<T>* dst, const std::size_t n) {
   dst->Clear();
   for (auto i = 0U; i < n; i++) {
     dst->Add();
   }
 }
 
-void copy_field(google::protobuf::Message* dst, google::protobuf::Message* src,
-                const google::protobuf::FieldDescriptor* f);
+void copy_field(pb::Message* dst, pb::Message* src,
+                const pb::FieldDescriptor* f);
 
 }  // namespace ra2yrcpp::protocol

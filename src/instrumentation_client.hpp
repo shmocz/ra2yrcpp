@@ -17,6 +17,8 @@ class Message;
 
 namespace instrumentation_client {
 
+namespace pb = google::protobuf;
+
 class InstrumentationClient {
  public:
   explicit InstrumentationClient(
@@ -35,7 +37,7 @@ class InstrumentationClient {
   ///
   ra2yrproto::Response send_message(const vecu8& data);
   /// Convert message to bytes and send it to server.
-  ra2yrproto::Response send_message(const google::protobuf::Message& M);
+  ra2yrproto::Response send_message(const pb::Message& M);
 
   ///
   /// Send a command of given type to server and read response. This can block
@@ -43,7 +45,7 @@ class InstrumentationClient {
   ///
   /// @exception std::runtime_error on read/write failure.
   ///
-  ra2yrproto::Response send_command(const google::protobuf::Message& cmd,
+  ra2yrproto::Response send_command(const pb::Message& cmd,
                                     ra2yrproto::CommandType type);
   /// @exception std::system_error for internal server error
   ra2yrproto::PollResults poll_blocking(const duration_t timeout,

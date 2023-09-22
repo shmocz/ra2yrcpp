@@ -19,7 +19,7 @@
 
 using namespace yrclient;
 
-vecu8 yrclient::to_vecu8(const google::protobuf::Message& msg) {
+vecu8 yrclient::to_vecu8(const pb::Message& msg) {
   vecu8 res;
   res.resize(msg.ByteSizeLong());
   if (!msg.SerializeToArray(res.data(), res.size())) {
@@ -30,8 +30,7 @@ vecu8 yrclient::to_vecu8(const google::protobuf::Message& msg) {
 }
 
 ra2yrproto::Response yrclient::make_response(
-    const google::protobuf::Message&& body,
-    const ra2yrproto::ResponseCode code) {
+    const pb::Message&& body, const ra2yrproto::ResponseCode code) {
   ra2yrproto::Response r;
   r.set_code(code);
   if (!r.mutable_body()->PackFrom(body)) {
@@ -40,8 +39,8 @@ ra2yrproto::Response yrclient::make_response(
   return r;
 }
 
-ra2yrproto::Command yrclient::create_command(
-    const google::protobuf::Message& cmd, ra2yrproto::CommandType type) {
+ra2yrproto::Command yrclient::create_command(const pb::Message& cmd,
+                                             ra2yrproto::CommandType type) {
   ra2yrproto::Command C;
   C.set_command_type(type);
   if (!C.mutable_command()->PackFrom(cmd)) {

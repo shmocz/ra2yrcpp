@@ -79,13 +79,13 @@ const EventEntry StateContext::add_event(const ra2yrproto::ra2yr::Event& ev,
                          .IsNaval = e.is_naval()};
 
   } else if (ev.has_place()) {
-    auto& e = ev.place();
-    auto loc = e.location();
-    auto S = CoordStruct{.X = loc.x(), .Y = loc.y(), .Z = loc.z()};
+    const auto& e = ev.place();
     E.Data.Place = {.RTTIType = static_cast<AbstractType>(e.rtti_type()),
                     .HeapID = e.heap_id(),
                     .IsNaval = e.is_naval(),
-                    .Location = CellClass::Coord2Cell(S)};
+                    .Location = ra2::coord_to_cell(e.location())};
+  } else if (ev.has_sell_cell()) {
+    E.Data.SellCell = {.Cell = ra2::coord_to_cell(ev.sell_cell().cell())};
   }
   if (!EventClass::AddEvent(E, static_cast<int>(ts))) {
     throw std::runtime_error("failed to add event");
@@ -173,6 +173,11 @@ const std::tuple<EventEntry, std::string> StateContext::find_event(
     const ra2yrproto::ra2yr::Event& query) {
   EventClass E(static_cast<EventType>(query.event_type()), false,
                static_cast<char>(query.house_index()), query.frame());
+  if (query.event_type() ==
+      ra2yrproto::ra2yr::NetworkEvent::NETWORK_EVENT_SellCell) {
+    E.Type = EventType::SELLCELL;
+    E.Data.SellCell.Cell = ra2::coord_to_cell(query.sell_cell().cell());
+  }
 
   EventEntry r{};
   r = EventListUtil::find(EventListType::OUT_LIST, E);
@@ -205,5 +210,6 @@ bool StateContext::can_place(const ra2yrproto::ra2yr::House& H,
               p_DisplayClass,
               reinterpret_cast<BuildingTypeClass*>(T.pointer_self()),
               current_player()->array_index(), &cell_s) &&
-          abi_->BuildingTypeClass_CanPlaceHere(T.pointer_self(), &cell_s, H.self()));
+          abi_->BuildingTypeClass_CanPlaceHere(T.pointer_self(), &cell_s,
+                                               H.self()));
 }

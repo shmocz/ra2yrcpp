@@ -4,17 +4,14 @@
 #include "ra2yrproto/ra2yr.pb.h"
 
 #include "async_queue.hpp"
-#include "command/command_manager.hpp"
 #include "command/is_command.hpp"
 #include "instrumentation_service.hpp"
-#include "logging.hpp"
 #include "ra2/state_context.hpp"
 #include "types.h"
 
 #include <google/protobuf/repeated_ptr_field.h>
 
 #include <chrono>
-#include <exception>
 #include <functional>
 #include <map>
 #include <memory>
@@ -103,39 +100,6 @@ struct work_item {
   std::function<void(work_item*)> fn;
 };
 
-struct CBExecuteGameLoopCommand final : public MyCB<CBExecuteGameLoopCommand> {
-  static constexpr char key_name[] = "cb_execute_gameloop_command";
-  static constexpr char key_target[] = "on_frame_update";
-
-  async_queue::AsyncQueue<work_item> work;
-
-  CBExecuteGameLoopCommand() = default;
-
-  void put_work(std::function<void(work_item*)> fn, ra2yrcpp::cmd_t* cmd) {
-    bool async = cmd->pending().get();
-    work.push({this, cmd, [async, fn](auto* it) {
-                 try {
-                   fn(it);
-                 } catch (const std::exception& e) {
-                   eprintf("gameloop command: {}", e.what());
-                   if (async) {
-                     it->cmd->set_error(e.what());
-                   }
-                 }
-                 if (async) {
-                   it->cmd->pending().store(false);
-                 }
-               }});
-  }
-
-  void exec() override {
-    auto items = work.pop(0, 0.0s);
-    for (auto& it : items) {
-      it.fn(&it);
-    }
-  }
-};
-
 struct CBGameCommand final : public MyCB<CBGameCommand> {
   static constexpr char key_name[] = "cb_game_command";
   static constexpr char key_target[] = "on_frame_update";
@@ -154,13 +118,6 @@ struct CBGameCommand final : public MyCB<CBGameCommand> {
     }
   }
 };
-
-template <typename T>
-void put_gameloop_command(
-    ra2yrcpp::command::ISCommand<T>* Q,
-    std::function<void(ra2yrcpp ::hooks_yr::work_item*)> fn) {
-  CBExecuteGameLoopCommand::get(Q->I())->put_work(fn, Q->c);
-}
 
 template <typename T>
 void get_gameloop_command(ra2yrcpp::command::ISCommand<T>* Q,

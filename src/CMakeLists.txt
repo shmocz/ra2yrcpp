@@ -45,6 +45,7 @@ target_link_options(ra2yrcpp_core PUBLIC ${RA2YRCPP_EXTRA_FLAGS})
 if(RA2YRCPP_BUILD_MAIN_DLL)
   add_library(
     yrclient STATIC
+    commands_game.cpp
     commands_yr.cpp
     context.cpp
     dll_inject.cpp

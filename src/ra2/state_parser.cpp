@@ -40,6 +40,8 @@ void Cell::copy_to(ra2yrproto::ra2yr::Cell* dst, const Cell* src) {
     dst->mutable_objects()->Clear();
     dst->add_objects()->set_pointer_self(src->first_object);
   }
+  dst->set_wall_owner_index(src->wall_owner_index);
+  dst->set_overlay_type_index(src->overlay_type_index);
 }
 
 void ClassParser::Object() {
@@ -47,7 +49,9 @@ void ClassParser::Object() {
   T->set_health(P->Health);
   T->set_selected(P->IsSelected);
   T->set_in_limbo(P->InLimbo);
-  if (P->IsOnMap) {
+  T->set_on_map(P->IsOnMap);
+  if (P->IsOnMap ||
+      T->object_type() == ra2yrproto::ra2yr::ABSTRACT_TYPE_OVERLAY) {
     auto* q = T->mutable_coordinates();
     auto L = P->Location;
     q->set_x(L.X);
@@ -214,6 +218,15 @@ void TypeClassParser::BuildingType() {
       static_cast<ra2yrproto::ra2yr::BuildCategory>(P->BuildCat));
 }
 
+void TypeClassParser::OverlayType() {
+  ObjectType();
+  auto* P = reinterpret_cast<OverlayTypeClass*>(c.src);
+  T->set_array_index(P->ArrayIndex);
+  T->set_wall(P->Wall);
+  T->set_strength(P->Strength);
+  T->set_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_OVERLAYTYPE);
+}
+
 void TypeClassParser::parse() {
   T->set_pointer_self(reinterpret_cast<u32>(c.src));
   auto t = ra2::abi::AbstractClass_WhatAmI::call(
@@ -227,6 +240,8 @@ void TypeClassParser::parse() {
     InfantryType();
   } else if (t == UnitTypeClass::AbsID) {
     UnitType();
+  } else if (t == OverlayTypeClass::AbsID) {
+    OverlayType();
   } else {
     eprintf("unknown TypeClass: {}", static_cast<int>(t));
   }
@@ -328,6 +343,8 @@ static void parse_Cell(Cell* C, const int ix, const CellClass& cc) {
     C->tiberium_value = ra2::abi::get_tiberium_value(cc);
   }
   C->first_object = reinterpret_cast<std::uintptr_t>(cc.FirstObject);
+  C->wall_owner_index = cc.WallOwnerIndex;
+  C->overlay_type_index = cc.OverlayTypeIndex;
 }
 
 std::vector<CellClass*> ra2::get_valid_cells(MapClass* M) {
@@ -455,6 +472,8 @@ void ra2::parse_MapData(ra2yrproto::ra2yr::MapData* dst, MapClass* src,
         }
         c.set_shrouded(ra2::abi::CellClass_IsShrouded::call(abi, src_cell));
         c.set_passability(src_cell->Passability);
+        c.set_wall_owner_index(src_cell->WallOwnerIndex);
+        c.set_overlay_type_index(src_cell->OverlayTypeIndex);
       }
     }
   }

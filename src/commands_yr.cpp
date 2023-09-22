@@ -10,13 +10,12 @@
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
 #include "ra2/abi.hpp"
+#include "ra2/common.hpp"
 #include "ra2/state_parser.hpp"
 #include "ra2/yrpp_export.hpp"
 #include "types.h"
 
 #include <fmt/core.h>
-
-#include <cstdint>
 
 #include <algorithm>
 #include <map>
@@ -27,22 +26,22 @@ using ra2yrcpp::command::get_cmd;
 using ra2yrcpp::command::message_result;
 
 using ra2yrcpp::hooks_yr::ensure_storage_value;
+using ra2yrcpp::hooks_yr::get_gameloop_command;
 using ra2yrcpp::hooks_yr::get_storage;
-using ra2yrcpp::hooks_yr::put_gameloop_command;
 
 // TODO(shmocz): don't allow deploying of already deployed object
 static void unit_action(const u32 p_object,
-                        const ra2yrproto::commands::UnitAction a,
+                        const ra2yrproto::ra2yr::UnitAction a,
                         ra2::abi::ABIGameMD* abi) {
-  using ra2yrproto::commands::UnitAction;
+  using ra2yrproto::ra2yr::UnitAction;
   switch (a) {
-    case UnitAction::ACTION_DEPLOY:
+    case UnitAction::UNIT_ACTION_DEPLOY:
       abi->DeployObject(p_object);  // NB. doesn't work online
       break;
-    case UnitAction::ACTION_SELL:
+    case UnitAction::UNIT_ACTION_SELL:
       abi->SellBuilding(p_object);
       break;
-    case UnitAction::ACTION_SELECT:
+    case UnitAction::UNIT_ACTION_SELECT:
       (void)abi->SelectObject(p_object);
       break;
     default:
@@ -55,20 +54,21 @@ auto click_event() {
   return get_cmd<ra2yrproto::commands::ClickEvent>([](auto* Q) {
     auto args = Q->command_data();
 
-    put_gameloop_command(Q, [args](auto* it) {
-      auto C = it->cb;
-      auto& O = C->game_state()->objects();
+    get_gameloop_command(Q, [args](auto* cb) {
       for (auto k : args.object_addresses()) {
-        if (std::find_if(O.begin(), O.end(), [k](auto& v) {
-              return v.pointer_self() == k && !v.in_limbo();
-            }) != O.end()) {
-          dprintf("clickevent {} {}", k,
-                  ra2yrproto::ra2yr::NetworkEvent_Name(args.event()));
-          if (!C->abi()->ClickEvent(k, args.event())) {
-            throw std::runtime_error(
-                fmt::format("ClickEvent failed. object={},event={}", k,
-                            static_cast<int>(args.event())));
-          }
+        auto* OE = cb->get_state_context()->get_object([&](const auto& v) {
+          return v.pointer_self() == k && !v.in_limbo();
+        });
+        if (OE == nullptr) {
+          continue;
+        }
+
+        dprintf("clickevent {} {}", k,
+                ra2yrproto::ra2yr::NetworkEvent_Name(args.event()));
+        if (!cb->abi()->ClickEvent(k, args.event())) {
+          throw std::runtime_error(
+              fmt::format("ClickEvent failed. object={},event={}", k,
+                          static_cast<int>(args.event())));
         }
       }
     });
@@ -79,20 +79,18 @@ auto unit_command() {
   return get_cmd<ra2yrproto::commands::UnitCommand>([](auto* Q) {
     auto args = Q->command_data();
 
-    put_gameloop_command(Q, [args](auto* it) {
-      auto C = it->cb;
-      auto& O = C->game_state()->objects();
-      if (args.action() != ra2yrproto::commands::UnitAction::ACTION_SELECT &&
-          !ra2::is_local(C->game_state()->houses())) {
+    get_gameloop_command(Q, [args](auto* cb) {
+      if (args.action() != ra2yrproto::ra2yr::UnitAction::UNIT_ACTION_SELECT &&
+          !ra2::is_local(cb->game_state()->houses())) {
         throw std::runtime_error(
             fmt::format("invalid local action: {}", args.action()));
       }
 
       for (auto k : args.object_addresses()) {
-        if (std::find_if(O.begin(), O.end(), [k](auto& v) {
-              return v.pointer_self() == k;
-            }) != O.end()) {
-          unit_action(k, args.action(), C->abi());
+        if (cb->get_state_context()->get_object([&](const auto& v) {
+              return v.pointer_self() == k && !v.in_limbo();
+            }) != nullptr) {
+          unit_action(k, args.action(), cb->abi());
         }
       }
     });
@@ -166,21 +164,20 @@ auto mission_clicked() {
     // message is already stored in the Command object, but since it's of type
     // `Any`, a message object with appropriate type needs to be allocated for
     // unpacking.
-    put_gameloop_command(Q, [args](auto* it) {
-      auto& O = it->cb->game_state()->objects();
+    get_gameloop_command(Q, [args](auto* cb) {
       for (const auto k : args.object_addresses()) {
-        if (std::find_if(O.begin(), O.end(), [k](auto& v) {
-              return v.pointer_self() == k && !v.in_limbo();
-            }) != O.end()) {
-          auto c = args.coordinates();
-          if (!ra2::abi::ClickMission::call(
-                  it->cb->abi(), k, static_cast<Mission>(args.event()),
-                  args.target_object(),
-                  MapClass::Instance.get()->TryGetCellAt(
-                      CoordStruct{.X = c.x(), .Y = c.y(), .Z = c.z()}),
-                  nullptr)) {
-            throw std::runtime_error("ClickMission error");
-          }
+        auto* OE = cb->get_state_context()->get_object([&](const auto& v) {
+          return v.pointer_self() == k && !v.in_limbo();
+        });
+        if (OE == nullptr) {
+          continue;
+        }
+
+        auto c = args.coordinates();
+        if (!ra2::abi::ClickMission::call(
+                cb->abi(), k, static_cast<Mission>(args.event()),
+                args.target_object(), ra2::get_map_cell(c), nullptr)) {
+          throw std::runtime_error("ClickMission error");
         }
       }
     });
@@ -190,58 +187,18 @@ auto mission_clicked() {
 auto add_event() {
   return get_async_cmd<ra2yrproto::commands::AddEvent>([](auto* Q) {
     auto args = Q->command_data();
+    auto* cmd = Q->c;
 
-    put_gameloop_command(Q, [args](auto* it) {
-      const auto frame_delay = args.frame_delay();
-      auto frame = Unsorted::CurrentFrame + frame_delay;
-      auto house_index = args.spoof() ? args.event().house_index()
-                                      : HouseClass::CurrentPlayer->ArrayIndex;
-      // This is how the frame is computed for protocol zero.
-      if (frame_delay == 0) {
-        const auto& fsr = Game::Network::FrameSendRate;
-        frame = (((fsr + Unsorted::CurrentFrame - 1 + Game::Network::MaxAhead) /
-                  fsr) *
-                 fsr);
-      }
-      // Set the frame to negative value to indicate that house index and
-      // frame number should be spoofed
-      frame = frame * (args.spoof() ? -1 : 1);
+    get_gameloop_command(Q, [args, cmd](auto* it) {
+      auto E = it->get_state_context()->add_event(
+          args.event(), args.frame_delay(), args.spoof(), false);
 
-      EventClass E(static_cast<EventType>(args.event().event_type()), false,
-                   static_cast<char>(house_index), static_cast<u32>(frame));
-
-      const auto ts = it->cb->abi()->timeGetTime();
-      if (args.event().has_production()) {
-        auto& ev = args.event().production();
-        if (ra2::find_type_class(
-                it->cb->type_classes(),
-                static_cast<ra2yrproto::ra2yr::AbstractType>(ev.rtti_id()),
-                ev.heap_id()) == nullptr) {
-          throw std::runtime_error(fmt::format("invalid id: RTTI={},heap={}",
-                                               ev.rtti_id(), ev.heap_id()));
-        }
-        E.Data.Production = {.RTTI_ID = ev.rtti_id(),
-                             .Heap_ID = ev.heap_id(),
-                             .IsNaval = ev.is_naval()};
-
-      } else if (args.event().has_place()) {
-        auto& ev = args.event().place();
-        auto loc = ev.location();
-        auto S = CoordStruct{.X = loc.x(), .Y = loc.y(), .Z = loc.z()};
-        E.Data.Place = {.RTTIType = static_cast<AbstractType>(ev.rtti_type()),
-                        .HeapID = ev.heap_id(),
-                        .IsNaval = ev.is_naval(),
-                        .Location = CellClass::Coord2Cell(S)};
-      }
-      if (!EventClass::AddEvent(E, ts)) {
-        throw std::runtime_error("failed to add event");
-      }
-
-      auto r = message_result<ra2yrproto::commands::AddEvent>(it->cmd);
+      auto r = message_result<ra2yrproto::commands::AddEvent>(cmd);
       auto* ev = r.mutable_event();
       ev->CopyFrom(args.event());
-      ev->set_timing(ts);
-      it->cmd->command_data()->M.PackFrom(r);
+      // FIXME(shmocz): properly get the timing
+      ev->set_timing(E.timing);
+      cmd->command_data()->M.PackFrom(r);
     });
   });
 }
@@ -249,65 +206,49 @@ auto add_event() {
 auto place_query() {
   return get_async_cmd<ra2yrproto::commands::PlaceQuery>([](auto* Q) {
     auto args = Q->command_data();
+    auto* C = Q->c;
     if (ra2yrcpp::protocol::truncate(args.mutable_coordinates(),
                                      cfg::PLACE_QUERY_MAX_LENGTH)) {
       wrprintf("truncated place query to size {}", args.coordinates().size());
     }
 
-    put_gameloop_command(Q, [args](auto* it) {
-      auto [C, cmd, fn] = *it;
-      auto A = ra2::abi::DVCIterator(TechnoTypeClass::Array.get());
-      auto B = std::find_if(A.begin(), A.end(), [args](auto* p) {
-        return reinterpret_cast<u32>(p) == args.type_class();
-      });
-      // Get HouseClass
-      auto& H = C->game_state()->houses();
-
-      // TODO(shmocz): make helper method
-      auto house = std::find_if(
-          H.begin(), H.end(), [](const auto& h) { return h.current_player(); });
-      if (args.house_class() != 0U) {
-        house = std::find_if(H.begin(), H.end(), [args](const auto& h) {
-          return h.self() == args.house_class();
-        });
-      }
-
-      if (house == H.end()) {
+    get_gameloop_command(Q, [args, C](auto* cb) {
+      auto* SC = cb->get_state_context();
+      auto* B = SC->get_type_class(args.type_class());
+      auto* house = SC->get_house(args.house_class());
+      if (house == nullptr) {
         throw std::runtime_error(
             fmt::format("invalid house {}", args.house_class()));
       }
 
-      auto r = message_result<ra2yrproto::commands::PlaceQuery>(cmd);
+      auto r = message_result<ra2yrproto::commands::PlaceQuery>(C);
       ra2yrproto::commands::PlaceQuery arg;
       arg.CopyFrom(r);
       r.clear_coordinates();
 
       // Call for each cell
-      if (B != A.end()) {
+      if (B != nullptr) {
         for (auto& c : args.coordinates()) {
-          auto coords = CoordStruct{.X = c.x(), .Y = c.y(), .Z = c.z()};
-          auto cell_s = CellClass::Coord2Cell(coords);
+          auto cell_s = ra2::coord_to_cell(c);
           if (cell_s.X < 0 || cell_s.Y < 0) {
             continue;
           }
           auto* cs = reinterpret_cast<CellStruct*>(&cell_s);
 
           auto p_DisplayClass = 0x87F7E8u;
-          if (C->abi()->DisplayClass_Passes_Proximity_Check(
-                  p_DisplayClass, reinterpret_cast<BuildingTypeClass*>(*B),
+          if (cb->abi()->DisplayClass_Passes_Proximity_Check(
+                  p_DisplayClass,
+                  reinterpret_cast<BuildingTypeClass*>(B->pointer_self()),
                   house->array_index(), cs) &&
-              C->abi()->BuildingTypeClass_CanPlaceHere(
-                  reinterpret_cast<std::uintptr_t>(*B), cs, house->self())) {
+              cb->abi()->BuildingTypeClass_CanPlaceHere(B->pointer_self(), cs,
+                                                        house->self())) {
             auto* cnew = r.add_coordinates();
             cnew->CopyFrom(c);
           }
         }
-      } else {
-        throw std::runtime_error(
-            fmt::format("nonexistent TypeClass {}", args.type_class()));
       }
       // copy results
-      cmd->command_data()->M.PackFrom(r);
+      C->command_data()->M.PackFrom(r);
     });
   });
 }
@@ -316,9 +257,9 @@ auto send_message() {
   return get_cmd<ra2yrproto::commands::AddMessage>([](auto* Q) {
     auto args = Q->command_data();
 
-    put_gameloop_command(Q, [args](auto* it) {
-      it->cb->abi()->AddMessage(1, args.message(), args.color(), 0x4046,
-                                args.duration_frames(), false);
+    get_gameloop_command(Q, [args](auto* cb) {
+      cb->abi()->AddMessage(1, args.message(), args.color(), 0x4046,
+                            args.duration_frames(), false);
     });
   });
 }

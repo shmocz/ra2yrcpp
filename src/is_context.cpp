@@ -5,9 +5,9 @@
 #include "ra2yrproto/commands_yr.pb.h"
 #include "ra2yrproto/core.pb.h"
 
-#include "command/command_manager.hpp"
 #include "command/is_command.hpp"
 #include "commands_builtin.hpp"
+#include "commands_game.hpp"
 #include "commands_yr.hpp"
 #include "config.hpp"
 #include "context.hpp"
@@ -29,7 +29,6 @@
 #include <algorithm>
 #include <chrono>
 #include <map>
-#include <memory>
 #include <stdexcept>
 
 using namespace std::chrono_literals;
@@ -147,6 +146,9 @@ ra2yrcpp::InstrumentationService* is_context::make_is(
     std::function<std::string(ra2yrcpp::InstrumentationService*)> on_shutdown) {
   auto cmds = ra2yrcpp::commands_builtin::get_commands();
   for (auto& [name, fn] : commands_yr::get_commands()) {
+    cmds[name] = fn;
+  }
+  for (auto& [name, fn] : ra2yrcpp::commands_game::get_commands()) {
     cmds[name] = fn;
   }
   auto* I = ra2yrcpp::InstrumentationService::create(

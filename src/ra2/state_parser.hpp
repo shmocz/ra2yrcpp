@@ -82,6 +82,8 @@ struct TypeClassParser {
 
   void BuildingType();
 
+  void OverlayType();
+
   void parse();
 };
 
@@ -120,6 +122,8 @@ struct Cell {
   char level;
   char pad[1];
   std::uintptr_t first_object;
+  i32 wall_owner_index;
+  i32 overlay_type_index;
 
   static void copy_to(ra2yrproto::ra2yr::Cell* dst, const Cell* src);
 };

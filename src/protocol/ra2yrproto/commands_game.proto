@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package ra2yrproto.commands;
+
+import "ra2yrproto/ra2yr.proto";
+
+message UnitOrder {
+  repeated uint32 object_addresses = 1;
+  ra2yrproto.ra2yr.UnitAction action = 2;
+  uint32 target_object = 3;
+  ra2yrproto.ra2yr.Coordinates coordinates = 4;
+}
+
+message ProduceOrder {
+  ra2yrproto.ra2yr.ObjectTypeClass object_type = 1;
+  ra2yrproto.ra2yr.ProduceAction action = 2;
+}
+
+message PlaceBuilding {
+  ra2yrproto.ra2yr.Object building = 1;
+  ra2yrproto.ra2yr.Coordinates coordinates = 2;
+}

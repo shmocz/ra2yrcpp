@@ -4,15 +4,6 @@ package ra2yrproto.commands;
 
 import "ra2yrproto/ra2yr.proto";
 
-enum UnitAction {
-  ACTION_NONE = 0;
-  ACTION_DEPLOY = 1;
-  ACTION_SELECT = 2;
-  ACTION_UNSELECT = 3;
-  ACTION_TRY_TO_DEPLOY = 4;
-  ACTION_SELL = 5;
-}
-
 message CreateCallbacks {}
 
 message GetGameState {
@@ -25,7 +16,7 @@ message ReadValue {
 
 message UnitCommand {
   repeated uint32 object_addresses = 1;
-  UnitAction action = 2;
+  ra2yrproto.ra2yr.UnitAction action = 2;
 }
 
 message ClickEvent {

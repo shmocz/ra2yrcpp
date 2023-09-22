@@ -1,7 +1,7 @@
 set(PROTO_FILES
     ra2yrproto/core.proto ra2yrproto/ra2yr.proto
-    ra2yrproto/commands_builtin.proto ra2yrproto/commands_yr.proto
-    ra2yrproto/game.proto)
+    ra2yrproto/commands_builtin.proto ra2yrproto/commands_game.proto
+    ra2yrproto/commands_yr.proto ra2yrproto/game.proto)
 
 # set protobuf file paths
 set(PROTO_HDRS "")

@@ -4,6 +4,7 @@
 
 #include "auto_thread.hpp"
 #include "config.hpp"
+#include "hook.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
@@ -23,6 +24,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdlib>
+#include <exception>
 #include <iostream>
 #include <iterator>
 #include <memory>
@@ -392,7 +394,6 @@ void ra2yrcpp::hooks_yr::init_callbacks(ra2yrcpp::InstrumentationService* I) {
     f(std::make_unique<CBTunnelSendTo>(out));
   }
   f(std::make_unique<CBExitGameLoop>());
-  f(std::make_unique<CBExecuteGameLoopCommand>());
   f(std::make_unique<CBGameCommand>());
 
   std::shared_ptr<std::ofstream> record_out = nullptr;
@@ -410,11 +411,11 @@ void ra2yrcpp::hooks_yr::init_callbacks(ra2yrcpp::InstrumentationService* I) {
 }
 
 constexpr std::array<YRHook, 6> gg_hooks = {{
-    {CBExecuteGameLoopCommand::key_target, 0x55de4f},  //
-    {CBExitGameLoop::key_target, 0x72dfb0},            //
-    {CBTunnelSendTo::key_target, 0x7b3d6f},            //
-    {CBTunnelRecvFrom::key_target, 0x7b3f15},          //
-    {CBUpdateLoadProgress::key_target, 0x643c62},      //
+    {CBGameCommand::key_target, 0x55de4f},         //
+    {CBExitGameLoop::key_target, 0x72dfb0},        //
+    {CBTunnelSendTo::key_target, 0x7b3d6f},        //
+    {CBTunnelRecvFrom::key_target, 0x7b3f15},      //
+    {CBUpdateLoadProgress::key_target, 0x643c62},  //
     {CBDebugPrint::key_target, 0x4068e0},
 }};
 

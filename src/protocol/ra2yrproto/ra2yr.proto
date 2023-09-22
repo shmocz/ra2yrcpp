@@ -258,6 +258,7 @@ message Object {
   Coordinates destination = 17;
   Mission current_mission = 18;
   bool in_limbo = 19;
+  bool on_map = 20;
 }
 
 enum LoadStage {
@@ -287,6 +288,8 @@ message Cell {
   int32 visibility = 11;
   int32 shroud_state = 12;
   int32 index = 13;
+  int32 wall_owner_index = 14;
+  int32 overlay_type_index = 15;
 };
 
 message MapData {
@@ -504,6 +507,10 @@ message Event {
     int32 id = 2;
   }
 
+  message SellCell {
+    Coordinates cell = 1;
+  }
+
   bool is_executed = 1;
   int32 house_index = 2;
   uint32 frame = 3;
@@ -520,8 +527,9 @@ message Event {
     Place place = 13;
     SpecialPlace special_place = 14;
     Specific specific = 15;
+    SellCell sell_cell = 16;
   }
-  uint32 timing = 16;
+  uint32 timing = 17;
 }
 
 message EventLists {
@@ -563,4 +571,26 @@ message StorageValue {
   EventListsSnapshot event_buffer = 4;
   MapDataSoA map_data_soa = 5;
   GameState load_state = 6;
+}
+
+enum UnitAction {
+  UNIT_ACTION_NONE = 0;
+  UNIT_ACTION_DEPLOY = 1;
+  UNIT_ACTION_SELECT = 2;
+  UNIT_ACTION_UNSELECT = 3;
+  UNIT_ACTION_TRY_TO_DEPLOY = 4;
+  UNIT_ACTION_SELL = 5;
+  UNIT_ACTION_MOVE = 6;
+  UNIT_ACTION_CAPTURE = 7;
+  UNIT_ACTION_ATTACK = 8;
+  UNIT_ACTION_REPAIR = 9;
+  UNIT_ACTION_STOP = 10;
+  UNIT_ACTION_SELL_CELL = 11;
+}
+
+enum ProduceAction {
+  PRODUCE_ACTION_NONE = 0;
+  PRODUCE_ACTION_BEGIN = 1;
+  PRODUCE_ACTION_HOLD = 2;
+  PRODUCE_ACTION_CANCEL = 3;
 }

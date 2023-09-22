@@ -17,6 +17,7 @@
 
 namespace fs = std::filesystem;
 namespace pb = google::protobuf;
+using namespace ra2yrcpp;
 
 class TemporaryDirectoryTest : public ::testing::Test {
  protected:
@@ -54,7 +55,7 @@ TEST_F(TemporaryDirectoryTest, ProtocolTest) {
         record_path.string(), std::ios_base::out | std::ios_base::binary);
 
     const bool use_gzip = true;
-    ra2yrcpp::protocol::MessageOstream MS(record_out, use_gzip);
+    protocol::MessageOstream MS(record_out, use_gzip);
 
     if (std::any_of(messages.begin(), messages.end(),
                     [&MS](const auto& G) { return !MS.write(G); })) {
@@ -63,13 +64,12 @@ TEST_F(TemporaryDirectoryTest, ProtocolTest) {
   }
 
   ASSERT_TRUE(fs::is_regular_file(record_path));
-  ra2yrcpp::protocol::dump_messages(record_path.string(),
-                                    ra2yrproto::ra2yr::GameState(),
-                                    [&messages_out](auto* M) {
-                                      ra2yrproto::ra2yr::GameState G;
-                                      G.CopyFrom(*M);
-                                      messages_out.push_back(G);
-                                    });
+  protocol::dump_messages(record_path.string(), ra2yrproto::ra2yr::GameState(),
+                          [&messages_out](auto* M) {
+                            ra2yrproto::ra2yr::GameState G;
+                            G.CopyFrom(*M);
+                            messages_out.push_back(G);
+                          });
 
   pb::util::MessageDifferencer D;
   for (std::size_t i = 0; i < messages.size(); i++) {

@@ -28,8 +28,8 @@
 
 using instrumentation_client::InstrumentationClient;
 using namespace std::chrono_literals;
-namespace connection = ra2yrcpp::connection;
 using namespace ra2yrcpp::test_util;
+using namespace ra2yrcpp;
 
 class DLLInjectTest : public ::testing::Test {
  protected:
@@ -103,7 +103,7 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
                                     dll_inject::DLLInjectOptions());
 
   std::unique_ptr<InstrumentationClient> client;
-  ra2yrcpp::asio_utils::IOService srv;
+  asio_utils::IOService srv;
 
   util::call_until(5.0s, 1.0s, [&]() {
     try {
@@ -126,10 +126,8 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
     std::string key = "key1";
 
     // TODO(shmocz): don't ignore return value
-    (void)ra2yrcpp::client_utils::run(StoreValue::create({key, f1}),
-                                      client.get());
-    auto r2 =
-        ra2yrcpp::client_utils::run(GetValue::create({key, ""}), client.get());
+    (void)client_utils::run(StoreValue::create({key, f1}), client.get());
+    auto r2 = client_utils::run(GetValue::create({key, ""}), client.get());
     ASSERT_EQ(r2.value(), f1);
   }
 

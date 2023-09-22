@@ -38,20 +38,18 @@ using namespace ra2yrcpp::test_util;
 
 namespace lib = websocketpp::lib;
 namespace pb = google::protobuf;
-namespace client_utils = ra2yrcpp::client_utils;
 
 using instrumentation_client::InstrumentationClient;
-using ra2yrcpp::InstrumentationService;
 
 class InstrumentationServiceTest : public ::testing::Test {
-  using conn_t = ra2yrcpp::connection::ClientWebsocketConnection;
+  using conn_t = connection::ClientWebsocketConnection;
 
  protected:
   void SetUp() override;
   void TearDown() override;
 
   virtual void init() = 0;
-  std::unique_ptr<ra2yrcpp::asio_utils::IOService> srv;
+  std::unique_ptr<asio_utils::IOService> srv;
   std::shared_ptr<conn_t> conn;
   std::unique_ptr<InstrumentationService> I;
   std::unique_ptr<InstrumentationClient> client;
@@ -59,11 +57,11 @@ class InstrumentationServiceTest : public ::testing::Test {
 };
 
 void InstrumentationServiceTest::SetUp() {
-  InstrumentationService::Options O = ra2yrcpp::default_options;
+  InstrumentationService::Options O = default_options;
 
-  srv = std::make_unique<ra2yrcpp::asio_utils::IOService>();
+  srv = std::make_unique<asio_utils::IOService>();
   I = std::unique_ptr<InstrumentationService>(InstrumentationService::create(
-      O, ra2yrcpp::commands_builtin::get_commands(), nullptr));
+      O, commands_builtin::get_commands(), nullptr));
 
   conn = std::make_shared<conn_t>(O.server.host, std::to_string(O.server.port),
                                   srv.get());
@@ -189,11 +187,11 @@ TEST_F(IServiceTest, TestHTTPRequest) {
 #if 0
   B("ra2yrproto.commands.GetSystemState");
   Use these commands to re - generate the string message.auto* mm =
-      ra2yrcpp::create_command_message(&B, "");
+      create_command_message(&B, "");
   auto cc =
-      ra2yrcpp::create_command(*mm, ra2yrproto::CommandType::CLIENT_COMMAND);
+      create_command(*mm, ra2yrproto::CommandType::CLIENT_COMMAND);
   cc.set_blocking(true);
-  auto cmd_json = ra2yrcpp::protocol::to_json(cc);
+  auto cmd_json = protocol::to_json(cc);
 #endif
   // FIXME(shmocz): adding this delay fixes the unpack error. Race condition?
   std::string cmd_json2 =
@@ -209,11 +207,11 @@ TEST_F(IServiceTest, TestHTTPRequest) {
       "{}\r\n\r\n{}",
       cmd_json2.size(), cmd_json2);
 
-  auto S0 = std::make_shared<ra2yrcpp::asio_utils::IOService>();
+  auto S0 = std::make_shared<asio_utils::IOService>();
 
   const int count = 32;
   for (int i = 0; i < count; i++) {
-    ra2yrcpp::asio_utils::AsioSocket A(S0);
+    asio_utils::AsioSocket A(S0);
 
     A.connect(I->opts().server.host, std::to_string(I->opts().server.port));
     auto sz = A.write(msg);
@@ -231,14 +229,12 @@ TEST_F(IServiceTest, TestHTTPRequest) {
 
     ASSERT_TRUE(std::regex_search(rsp, match, re));
     ASSERT_GT(match.size(), 1);
-    auto bbody = ra2yrcpp::to_bytes(rsp.substr(rsp.find("\r\n\r\n") + 4));
+    auto bbody = to_bytes(rsp.substr(rsp.find("\r\n\r\n") + 4));
     ra2yrproto::Response R;
-    ASSERT_TRUE(ra2yrcpp::protocol::from_json(bbody, &R));
+    ASSERT_TRUE(protocol::from_json(bbody, &R));
   }
   iprintf("exit test");
 }
-
-namespace command = ra2yrcpp::command;
 
 class CommandTest : public ::testing::Test {
  protected:

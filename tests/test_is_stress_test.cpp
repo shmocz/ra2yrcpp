@@ -15,19 +15,15 @@
 #include <string>
 #include <vector>
 
-using namespace multi_client;
-
-using ra2yrcpp::InstrumentationService;
-using ra2yrcpp::tests::MultiClientTestContext;
+using namespace ra2yrcpp;
 using namespace ra2yrcpp::test_util;
 
 class ISStressTest : public ::testing::Test {
  protected:
   void SetUp() override {
     I = std::unique_ptr<InstrumentationService>(InstrumentationService::create(
-        ra2yrcpp::default_options, ra2yrcpp::commands_builtin::get_commands(),
-        nullptr));
-    ctx = std::make_unique<MultiClientTestContext>();
+        default_options, commands_builtin::get_commands(), nullptr));
+    ctx = std::make_unique<tests::MultiClientTestContext>();
   }
 
   void TearDown() override {
@@ -36,7 +32,7 @@ class ISStressTest : public ::testing::Test {
   }
 
   std::unique_ptr<InstrumentationService> I;
-  std::unique_ptr<MultiClientTestContext> ctx;
+  std::unique_ptr<tests::MultiClientTestContext> ctx;
 };
 
 TEST_F(ISStressTest, DISABLED_ManyConnections) {

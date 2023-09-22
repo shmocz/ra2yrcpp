@@ -73,5 +73,5 @@ TEST_F(ThreadTest, TestProcessThreadIterationFilterWorks) {
   });
 
   ASSERT_EQ(ix2tid.size(), threads.size());
-  ASSERT_FALSE(yrclient::contains(ix2tid, main_tid));
+  ASSERT_FALSE(ra2yrcpp::contains(ix2tid, main_tid));
 }

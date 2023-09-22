@@ -16,7 +16,7 @@ using namespace process;
 
 void process::save_context(process::Thread* T) {
   if (T->sysdata_->save() == 0) {
-    throw yrclient::system_error("SetThreadContext");
+    throw ra2yrcpp::system_error("SetThreadContext");
   }
 }
 #endif
@@ -30,7 +30,7 @@ Thread::Thread(int thread_id)
 #ifdef _WIN32
   handle_ = windows_utils::open_thread(0U, false, thread_id);
   if (handle_ == nullptr) {
-    throw yrclient::system_error("open_thread");
+    throw ra2yrcpp::system_error("open_thread");
   }
   sysdata_ = std::make_unique<windows_utils::ThreadContext>(handle_);
 #elif __linux__
@@ -82,7 +82,7 @@ void Thread::suspend() {
 #ifdef _WIN32
   dprintf("tid,handle={},{}", id(), handle());
   if (suspend_thread(handle()) == (unsigned long)-1) {
-    throw yrclient::system_error("suspend_thread");
+    throw ra2yrcpp::system_error("suspend_thread");
   }
 #elif __linux__
   return;
@@ -133,7 +133,7 @@ Process::Process(const u32 pid, const u32 perm) : Process(nullptr) {
   u32 p = perm;
   handle_ = windows_utils::open_process(p, false, pid);
   if (handle_ == nullptr) {
-    throw yrclient::system_error("OpenProcess");
+    throw ra2yrcpp::system_error("OpenProcess");
   }
 #elif __linux__
   return;
@@ -191,7 +191,7 @@ void Process::write_memory(void* dest, const void* src, const std::size_t size,
     windows_utils::write_memory_local(dest, src, size);
   } else {
     if (windows_utils::write_memory(handle_, dest, src, size) == 0) {
-      throw yrclient::system_error("WriteProcesMemory");
+      throw ra2yrcpp::system_error("WriteProcesMemory");
     }
   }
 #elif __linux__
@@ -205,7 +205,7 @@ void Process::write_memory(void* dest, const void* src, const std::size_t size,
 void Process::read_memory(void* dest, const void* src, const std::size_t size) {
 #ifdef _WIN32
   if (windows_utils::read_memory(handle_, dest, src, size) == 0) {
-    throw yrclient::system_error(
+    throw ra2yrcpp::system_error(
         fmt::format("ReadProcessMemory src={},count={}", src, size));
   }
 #elif __linux__
@@ -272,7 +272,7 @@ void Process::suspend_threads(const std::vector<thread_id_t> no_suspend,
   util::sleep_ms(delay);
   for_each_thread([&no_suspend](Thread* T, void* ctx) {
     (void)ctx;
-    if (!yrclient::contains(no_suspend, T->id())) {
+    if (!ra2yrcpp::contains(no_suspend, T->id())) {
       T->suspend();
     } else {
       dprintf("not suspending masked thread {}", T->id());
@@ -300,7 +300,7 @@ void Process::resume_threads(const std::vector<thread_id_t> no_resume) const {
 #ifdef _WIN32
   for_each_thread([&no_resume](Thread* T, void* ctx) {
     (void)ctx;
-    if (!yrclient::contains(no_resume, T->id())) {
+    if (!ra2yrcpp::contains(no_resume, T->id())) {
       T->resume();
     }
   });

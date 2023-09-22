@@ -125,8 +125,11 @@ TEST_F(DLLInjectTest, IServiceDLLInjectTest) {
     std::string f1 = "flag1";
     std::string key = "key1";
 
-    (void)client_utils::run(StoreValue::create({key, f1}), client.get());
-    auto r2 = client_utils::run(GetValue::create({key, ""}), client.get());
+    // TODO(shmocz): don't ignore return value
+    (void)ra2yrcpp::client_utils::run(StoreValue::create({key, f1}),
+                                      client.get());
+    auto r2 =
+        ra2yrcpp::client_utils::run(GetValue::create({key, ""}), client.get());
     ASSERT_EQ(r2.value(), f1);
   }
 

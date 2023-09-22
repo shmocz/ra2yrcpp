@@ -93,12 +93,12 @@ ra2yrproto::Response AutoPollClient::send_command(const pb::Message& cmd) {
   // Wait until item found from polled messages
   try {
     // TODO(shmocz): signal if poll_thread dies
-    auto r = yrclient::make_response(
-        results().get(ack.id(), opt_.command_timeout), yrclient::RESPONSE_OK);
+    auto r = ra2yrcpp::make_response(
+        results().get(ack.id(), opt_.command_timeout), ra2yrcpp::RESPONSE_OK);
     results().erase(ack.id());
     return r;
   } catch (const std::runtime_error& e) {
-    throw yrclient::general_error(fmt::format(
+    throw ra2yrcpp::general_error(fmt::format(
         "timeout after {}ms, key={}", opt_.command_timeout.count(), ack.id()));
   }
 }
@@ -120,8 +120,8 @@ void AutoPollClient::poll_thread() {
       for (auto& r : R.result().results()) {
         results_.put(r.command_id(), r);
       }
-    } catch (const yrclient::timeout& e) {
-    } catch (const yrclient::system_error& e) {
+    } catch (const ra2yrcpp::timeout& e) {
+    } catch (const ra2yrcpp::system_error& e) {
       eprintf("internal error, likely cmd connection exit: {}", e.what());
     } catch (const std::exception& e) {
       eprintf("fatal error: {}", e.what());

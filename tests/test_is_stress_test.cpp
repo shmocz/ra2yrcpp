@@ -17,15 +17,15 @@
 
 using namespace multi_client;
 
+using ra2yrcpp::InstrumentationService;
 using ra2yrcpp::tests::MultiClientTestContext;
-using yrclient::InstrumentationService;
 using namespace ra2yrcpp::test_util;
 
 class ISStressTest : public ::testing::Test {
  protected:
   void SetUp() override {
     I = std::unique_ptr<InstrumentationService>(InstrumentationService::create(
-        yrclient::default_options, yrclient::commands_builtin::get_commands(),
+        ra2yrcpp::default_options, ra2yrcpp::commands_builtin::get_commands(),
         nullptr));
     ctx = std::make_unique<MultiClientTestContext>();
   }

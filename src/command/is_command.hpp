@@ -8,7 +8,7 @@
 #include <string>
 #include <utility>
 
-namespace yrclient {
+namespace ra2yrcpp {
 class InstrumentationService;
 }
 
@@ -73,7 +73,7 @@ struct ISCommand {
   }
 
   auto* I() {
-    return reinterpret_cast<yrclient::InstrumentationService*>(
+    return reinterpret_cast<ra2yrcpp::InstrumentationService*>(
         c->command_data()->instrumentation_service);
   }
 

@@ -1,7 +1,7 @@
 #pragma once
 #include <map>
 
-namespace yrclient {
+namespace ra2yrcpp {
 /// Returns true if @value is in @container. Otherwise false.
 template <typename T, typename V>
 inline bool contains(const T& container, const V& value) {
@@ -19,4 +19,4 @@ auto band(const T& t, const U& u) {
   return ((C)t) & ((C)u);
 }
 
-}  // namespace yrclient
+}  // namespace ra2yrcpp

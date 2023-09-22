@@ -41,12 +41,12 @@ using namespace std::chrono_literals;
 }
 
 using pb::RepeatedPtrField;
-using cb_map_t = std::map<std::string, std::unique_ptr<yrclient::ISCallback>>;
+using cb_map_t = std::map<std::string, std::unique_ptr<ra2yrcpp::ISCallback>>;
 
-struct CBYR : public yrclient::ISCallback {
+struct CBYR : public ra2yrcpp::ISCallback {
   using tc_t = RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>;
 
-  yrclient::storage_t* storage{nullptr};
+  ra2yrcpp::storage_t* storage{nullptr};
   ra2::abi::ABIGameMD* abi_{nullptr};
   ra2yrproto::commands::Configuration* config_{nullptr};
 
@@ -61,7 +61,7 @@ struct CBYR : public yrclient::ISCallback {
 };
 
 /// Get all currently active callback objects.
-cb_map_t* get_callbacks(yrclient::InstrumentationService* I,
+cb_map_t* get_callbacks(ra2yrcpp::InstrumentationService* I,
                         const bool acquire = false);
 
 template <typename D, typename B = CBYR>
@@ -70,14 +70,14 @@ struct MyCB : public B {
 
   std::string target() override { return D::key_target; }
 
-  static D* get(yrclient::InstrumentationService* I) {
+  static D* get(ra2yrcpp::InstrumentationService* I) {
     return reinterpret_cast<D*>(get_callbacks(I)->at(D::key_name).get());
   }
 };
 
 // TODO(shmocz): reduce calls to this
 template <typename T, typename... ArgsT>
-T* ensure_storage_value(yrclient::InstrumentationService* I,
+T* ensure_storage_value(ra2yrcpp::InstrumentationService* I,
                         const std::string key, ArgsT... args) {
   if (I->storage().find(key) == I->storage().end()) {
     I->store_value<T>(key, args...);
@@ -87,12 +87,12 @@ T* ensure_storage_value(yrclient::InstrumentationService* I,
 
 // TODO(shmocz): try to pick a name to avoid confusion with IService's storage
 ra2yrproto::commands::StorageValue* get_storage(
-    yrclient::InstrumentationService* I);
+    ra2yrcpp::InstrumentationService* I);
 
 ra2yrproto::commands::Configuration* ensure_configuration(
-    yrclient::InstrumentationService* I);
+    ra2yrcpp::InstrumentationService* I);
 
-void init_callbacks(yrclient::InstrumentationService* I);
+void init_callbacks(ra2yrcpp::InstrumentationService* I);
 
 struct work_item {
   CBYR* cb;
@@ -108,7 +108,7 @@ struct CBExecuteGameLoopCommand final : public MyCB<CBExecuteGameLoopCommand> {
 
   CBExecuteGameLoopCommand() = default;
 
-  void put_work(std::function<void(work_item*)> fn, yrclient::cmd_t* cmd) {
+  void put_work(std::function<void(work_item*)> fn, ra2yrcpp::cmd_t* cmd) {
     bool async = cmd->pending();
     work.push({this, cmd, [async, fn](auto* it) {
                  try {

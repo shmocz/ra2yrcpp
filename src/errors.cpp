@@ -8,9 +8,9 @@
 #include <cerrno>
 #endif
 
-using namespace yrclient;
+using namespace ra2yrcpp;
 
-int yrclient::get_last_error() {
+int ra2yrcpp::get_last_error() {
 #ifdef _WIN32
   return static_cast<int>(windows_utils::get_last_error());
 #elif __linux__
@@ -33,7 +33,7 @@ general_error::general_error(const std::string message)
   message_ = prefix_ + ": " + message_;
 }
 
-std::string yrclient::get_error_message(const int error_code) {
+std::string ra2yrcpp::get_error_message(const int error_code) {
   if (error_code == 0) {
     return std::string();
   }

@@ -13,7 +13,7 @@
 #include <chrono>
 #include <exception>
 
-namespace client_utils {
+namespace ra2yrcpp::client_utils {
 
 namespace pb = google::protobuf;
 
@@ -90,4 +90,4 @@ struct CommandSender {
   fn_t fn;
 };
 
-}  // namespace client_utils
+}  // namespace ra2yrcpp::client_utils

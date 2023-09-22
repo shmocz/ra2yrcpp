@@ -29,7 +29,7 @@ class IOService;
 }
 }  // namespace ra2yrcpp
 
-namespace yrclient {
+namespace ra2yrcpp {
 
 // Forward declaration
 class InstrumentationService;
@@ -39,9 +39,9 @@ struct ISCallback : public hook::Callback {
   ISCallback();
   ~ISCallback() override;
   /// Add this callback to the given hook and assigns pointer to IService.
-  void add_to_hook(hook::Hook* h, yrclient::InstrumentationService* I);
+  void add_to_hook(hook::Hook* h, ra2yrcpp::InstrumentationService* I);
 
-  yrclient::InstrumentationService* I;
+  ra2yrcpp::InstrumentationService* I;
 };
 
 using storage_t =
@@ -103,10 +103,10 @@ class InstrumentationService {
   void* get_value(const std::string key, const bool acquire = true);
   storage_t& storage();
   const InstrumentationService::Options& opts() const;
-  static yrclient::InstrumentationService* create(
+  static ra2yrcpp::InstrumentationService* create(
       InstrumentationService::Options O,
       std::map<std::string, cmd_t::handler_t> commands,
-      std::function<std::string(yrclient::InstrumentationService*)>
+      std::function<std::string(ra2yrcpp::InstrumentationService*)>
           on_shutdown = nullptr,
       std::function<void(InstrumentationService*)> extra_init = nullptr);
   ra2yrproto::Response process_request(const int socket_id, vecu8* bytes,
@@ -140,4 +140,4 @@ const InstrumentationService::Options default_options{
      cfg::ALLOWED_HOSTS_REGEX},
     true};
 
-}  // namespace yrclient
+}  // namespace ra2yrcpp

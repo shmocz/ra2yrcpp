@@ -27,10 +27,10 @@ ra2yrproto::PollResults InstrumentationClient::poll_blocking(
 
   auto resp = send_command(C, ra2yrproto::POLL_BLOCKING);
 
-  if (resp.code() == yrclient::RESPONSE_ERROR) {
+  if (resp.code() == ra2yrcpp::RESPONSE_ERROR) {
     auto msg =
         ra2yrcpp::protocol::from_any<ra2yrproto::TextResponse>(resp.body());
-    throw yrclient::system_error(msg.message());
+    throw ra2yrcpp::system_error(msg.message());
   }
   return ra2yrcpp::protocol::from_any<ra2yrproto::PollResults>(resp.body());
 }
@@ -56,13 +56,13 @@ ra2yrproto::Response InstrumentationClient::send_message(const vecu8& data) {
 }
 
 ra2yrproto::Response InstrumentationClient::send_message(const pb::Message& M) {
-  auto data = yrclient::to_vecu8(M);
+  auto data = ra2yrcpp::to_vecu8(M);
   return send_message(data);
 }
 
 ra2yrproto::Response InstrumentationClient::send_command(
     const pb::Message& cmd, ra2yrproto::CommandType type) {
-  auto C = yrclient::create_command(cmd, type);
+  auto C = ra2yrcpp::create_command(cmd, type);
   return send_message(C);
 }
 

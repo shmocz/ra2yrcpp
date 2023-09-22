@@ -2,7 +2,7 @@
 #include <exception>
 #include <string>
 
-namespace yrclient {
+namespace ra2yrcpp {
 
 int get_last_error();
 std::string get_error_message(const int error_code);
@@ -56,4 +56,4 @@ class protocol_error : public ra2yrcpp_exception_base {
   explicit protocol_error(const std::string message = "");
 };
 
-}  // namespace yrclient
+}  // namespace ra2yrcpp

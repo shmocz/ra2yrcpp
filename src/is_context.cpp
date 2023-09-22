@@ -53,7 +53,7 @@ vecu8 is_context::vecu8cstr(const std::string s) {
 }
 
 static Context* make_is_ctx(Context* c,
-                            const yrclient::InstrumentationService::Options O) {
+                            const ra2yrcpp::InstrumentationService::Options O) {
   auto* I = is_context::make_is(O, [c](auto* X) {
     (void)X;
     return c->on_signal();
@@ -133,23 +133,23 @@ void is_context::get_procaddr(Xbyak::CodeGenerator* c, void* m,
   c->ret();
 }
 
-static void handle_cmd_wait(yrclient::InstrumentationService* I,
+static void handle_cmd_wait(ra2yrcpp::InstrumentationService* I,
                             const pb::Message& cmd) {
-  auto CC = yrclient::create_command(cmd);
-  auto [c, a] = yrclient::handle_cmd(I, 0U, &CC, true);
+  auto CC = ra2yrcpp::create_command(cmd);
+  auto [c, a] = ra2yrcpp::handle_cmd(I, 0U, &CC, true);
   c->result_code().wait_pred(
       [](auto v) { return v != ra2yrcpp::command::ResultCode::NONE; });
 }
 
-yrclient::InstrumentationService* is_context::make_is(
-    yrclient::InstrumentationService::Options O,
-    std::function<std::string(yrclient::InstrumentationService*)> on_shutdown) {
-  auto cmds = yrclient::commands_builtin::get_commands();
+ra2yrcpp::InstrumentationService* is_context::make_is(
+    ra2yrcpp::InstrumentationService::Options O,
+    std::function<std::string(ra2yrcpp::InstrumentationService*)> on_shutdown) {
+  auto cmds = ra2yrcpp::commands_builtin::get_commands();
   for (auto& [name, fn] : commands_yr::get_commands()) {
     cmds[name] = fn;
   }
-  auto* I = yrclient::InstrumentationService::create(
-      O, std::map<std::string, yrclient::cmd_t::handler_t>(), on_shutdown,
+  auto* I = ra2yrcpp::InstrumentationService::create(
+      O, std::map<std::string, ra2yrcpp::cmd_t::handler_t>(), on_shutdown,
       [cmds](auto* t) {
         for (auto& [name, fn] : cmds) {
           t->cmd_manager().add_command(name, fn);
@@ -179,7 +179,7 @@ yrclient::InstrumentationService* is_context::make_is(
 }
 
 void is_context::inject_dll(unsigned pid, const std::string path_dll,
-                            yrclient::InstrumentationService::Options o,
+                            ra2yrcpp::InstrumentationService::Options o,
                             dll_inject::DLLInjectOptions dll) {
   using namespace std::chrono_literals;
   if (pid == 0u) {
@@ -218,6 +218,6 @@ void is_context::inject_dll(unsigned pid, const std::string path_dll,
 }
 
 void* is_context::get_context(
-    const yrclient::InstrumentationService::Options O) {
+    const ra2yrcpp::InstrumentationService::Options O) {
   return make_is_ctx(new is_context::Context(), O);
 }

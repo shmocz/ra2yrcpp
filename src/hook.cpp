@@ -205,7 +205,7 @@ void Hook::remove_callback(const std::string name) {
   auto it = std::find_if(callbacks_.begin(), callbacks_.end(),
                          [&name](const auto& j) { return j.name == name; });
   if (it == callbacks_.end()) {
-    throw yrclient::general_error("remove_callback");
+    throw ra2yrcpp::general_error("remove_callback");
   }
   callbacks_.erase(it);
 }

@@ -19,14 +19,14 @@
 #include <tuple>
 #include <utility>
 
-using namespace yrclient;
+using namespace ra2yrcpp;
 
 ISCallback::ISCallback() : I(nullptr) {}
 
 ISCallback::~ISCallback() {}
 
 void ISCallback::add_to_hook(hook::Hook* h,
-                             yrclient::InstrumentationService* I) {
+                             ra2yrcpp::InstrumentationService* I) {
   this->I = I;
   // TODO(shmocz): avoid using wrapper
   h->add_callback([this](hook::Hook* h, void* user_data,
@@ -76,10 +76,10 @@ ra2yrproto::PollResults InstrumentationService::flush_results(
     res->set_command_id(item->task_id());
     res->mutable_result()->CopyFrom(item->command_data()->M);
     if (item->result_code().get() == ra2yrcpp::command::ResultCode::ERROR) {
-      res->set_result_code(yrclient::RESPONSE_ERROR);
+      res->set_result_code(ra2yrcpp::RESPONSE_ERROR);
       res->set_error_message(item->error_message());
     } else {
-      res->set_result_code(yrclient::RESPONSE_OK);
+      res->set_result_code(ra2yrcpp::RESPONSE_OK);
     }
     results.pop_back();
   }
@@ -87,13 +87,13 @@ ra2yrproto::PollResults InstrumentationService::flush_results(
   return P;
 }
 
-std::tuple<command_ptr_t, ra2yrproto::RunCommandAck> yrclient::handle_cmd(
+std::tuple<command_ptr_t, ra2yrproto::RunCommandAck> ra2yrcpp::handle_cmd(
     InstrumentationService* I, const int queue_id, ra2yrproto::Command* cmd,
     const bool discard_result) {
   // TODO: reduce amount of copies we make
   auto client_cmd = cmd->command();
   // Get trailing portion of protobuf type url
-  auto name = yrclient::split_string(client_cmd.type_url(), "/").back();
+  auto name = ra2yrcpp::split_string(client_cmd.type_url(), "/").back();
   ra2yrproto::RunCommandAck ack;
 
   auto c = I->cmd_manager().make_command(
@@ -128,12 +128,12 @@ ra2yrproto::Response InstrumentationService::process_request(
       if (cmd.blocking()) {
         const u64 queue_id = (u64)socket_id;
         const auto timeout = cfg::POLL_BLOCKING_TIMEOUT;
-        return yrclient::make_response(flush_results(queue_id, timeout));
+        return ra2yrcpp::make_response(flush_results(queue_id, timeout));
       }
-      return yrclient::make_response(ra2yrproto::RunCommandAck(ack));
+      return ra2yrcpp::make_response(ra2yrproto::RunCommandAck(ack));
     }
     case ra2yrproto::POLL: {
-      return yrclient::make_response(flush_results(socket_id));
+      return ra2yrcpp::make_response(flush_results(socket_id));
     }
     case ra2yrproto::POLL_BLOCKING: {
       ra2yrproto::PollResults R;
@@ -146,7 +146,7 @@ ra2yrproto::Response InstrumentationService::process_request(
               ? duration_t(static_cast<double>((u32)R.args().timeout()) /
                            1000.0)
               : cfg::POLL_BLOCKING_TIMEOUT;
-      return yrclient::make_response(flush_results(queue_id, timeout));
+      return ra2yrcpp::make_response(flush_results(queue_id, timeout));
     }
     case ra2yrproto::SHUTDOWN:
       return make_response(text_response(on_shutdown_(this)));
@@ -172,10 +172,10 @@ static vecu8 on_receive_bytes(InstrumentationService* I, const int socket_id,
     R.set_code(RESPONSE_OK);
   } catch (const std::exception& e) {
     eprintf("{}", e.what());
-    R = yrclient::make_response(text_response(e.what()), RESPONSE_ERROR);
+    R = ra2yrcpp::make_response(text_response(e.what()), RESPONSE_ERROR);
   }
   if (is_json) {
-    return yrclient::to_bytes(ra2yrcpp::protocol::to_json(R));
+    return ra2yrcpp::to_bytes(ra2yrcpp::protocol::to_json(R));
   }
   return to_vecu8(R);
 }
@@ -257,12 +257,12 @@ const InstrumentationService::Options& InstrumentationService::opts() const {
   return opts_;
 }
 
-yrclient::InstrumentationService* InstrumentationService::create(
+ra2yrcpp::InstrumentationService* InstrumentationService::create(
     InstrumentationService::Options O,
     std::map<std::string, cmd_t::handler_t> commands,
-    std::function<std::string(yrclient::InstrumentationService*)> on_shutdown,
+    std::function<std::string(ra2yrcpp::InstrumentationService*)> on_shutdown,
     std::function<void(InstrumentationService*)> extra_init) {
-  auto* I = new yrclient::InstrumentationService(O, on_shutdown, extra_init);
+  auto* I = new ra2yrcpp::InstrumentationService(O, on_shutdown, extra_init);
   for (auto& [name, fn] : commands) {
     I->cmd_manager().add_command(name, fn);
   }

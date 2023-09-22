@@ -19,16 +19,17 @@ using namespace std::chrono_literals;
 using namespace multi_client;
 using namespace ra2yrcpp::test_util;
 
+using ra2yrcpp::InstrumentationService;
 using ra2yrcpp::tests::MultiClientTestContext;
-using yrclient::InstrumentationService;
+namespace client_utils = ra2yrcpp::client_utils;
 
 class MultiClientTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    InstrumentationService::Options opts = yrclient::default_options;
+    InstrumentationService::Options opts = ra2yrcpp::default_options;
 
     I = std::unique_ptr<InstrumentationService>(InstrumentationService::create(
-        opts, yrclient::commands_builtin::get_commands(), nullptr));
+        opts, ra2yrcpp::commands_builtin::get_commands(), nullptr));
     ctx = std::make_unique<MultiClientTestContext>();
     ctx->create_client(multi_client::default_options);
     cs = std::make_unique<client_utils::CommandSender>([&](auto& msg) {

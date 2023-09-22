@@ -34,14 +34,14 @@ struct TestProgram : Xbyak::CodeGenerator {
 };
 
 static void test_cb(hook::Hook*, void* data, X86Regs*) {
-  auto I = static_cast<yrclient::InstrumentationService*>(data);
+  auto I = static_cast<ra2yrcpp::InstrumentationService*>(data);
   std::string s("0xbeefdead");
   I->store_value<vecu8>("test_key", s.begin(), s.end());
 }
 
 // TODO(shmocz): ditch the old hook/cb test functions to use the common
 // functions
-std::map<std::string, yrclient::cmd_t::handler_t> get_commands_nn() {
+std::map<std::string, ra2yrcpp::cmd_t::handler_t> get_commands_nn() {
   return {
       get_cmd<ra2yrproto::commands::StoreValue>([](auto* Q) {
         // NB: ensure correct radix
@@ -72,7 +72,7 @@ std::map<std::string, yrclient::cmd_t::handler_t> get_commands_nn() {
         // FIXME: proper locking
         auto [lk, s] = Q->I()->aq_storage();
         auto& c = Q->command_data();
-        c.set_value(yrclient::to_string(
+        c.set_value(ra2yrcpp::to_string(
             *reinterpret_cast<vecu8*>(Q->I()->get_value(c.key(), false))));
       }),
       get_cmd<ra2yrproto::commands::HookableCommand>([](auto* Q) {
@@ -80,7 +80,6 @@ std::map<std::string, yrclient::cmd_t::handler_t> get_commands_nn() {
         auto t_addr = t.get_code();
         t_addr(3, 3);
 
-        // yrclient::HookableCommand::Result res;
         auto& res = Q->command_data();
         res.set_address_test_function(reinterpret_cast<u64>(t_addr));
         res.set_address_test_callback(reinterpret_cast<u64>(&test_cb));
@@ -124,6 +123,6 @@ std::map<std::string, yrclient::cmd_t::handler_t> get_commands_nn() {
 }
 
 std::map<std::string, ra2yrcpp::command::iservice_cmd::handler_t>
-yrclient::commands_builtin::get_commands() {
+ra2yrcpp::commands_builtin::get_commands() {
   return get_commands_nn();
 }

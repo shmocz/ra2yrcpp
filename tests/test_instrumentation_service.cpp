@@ -32,15 +32,16 @@
 #include <string>
 #include <vector>
 
-using namespace yrclient;
+using namespace ra2yrcpp;
 using namespace std::chrono_literals;
 using namespace ra2yrcpp::test_util;
 
 namespace lib = websocketpp::lib;
 namespace pb = google::protobuf;
+namespace client_utils = ra2yrcpp::client_utils;
 
 using instrumentation_client::InstrumentationClient;
-using yrclient::InstrumentationService;
+using ra2yrcpp::InstrumentationService;
 
 class InstrumentationServiceTest : public ::testing::Test {
   using conn_t = ra2yrcpp::connection::ClientWebsocketConnection;
@@ -58,11 +59,11 @@ class InstrumentationServiceTest : public ::testing::Test {
 };
 
 void InstrumentationServiceTest::SetUp() {
-  InstrumentationService::Options O = yrclient::default_options;
+  InstrumentationService::Options O = ra2yrcpp::default_options;
 
   srv = std::make_unique<ra2yrcpp::asio_utils::IOService>();
   I = std::unique_ptr<InstrumentationService>(InstrumentationService::create(
-      O, yrclient::commands_builtin::get_commands(), nullptr));
+      O, ra2yrcpp::commands_builtin::get_commands(), nullptr));
 
   conn = std::make_shared<conn_t>(O.server.host, std::to_string(O.server.port),
                                   srv.get());
@@ -188,9 +189,9 @@ TEST_F(IServiceTest, TestHTTPRequest) {
 #if 0
   B("ra2yrproto.commands.GetSystemState");
   Use these commands to re - generate the string message.auto* mm =
-      yrclient::create_command_message(&B, "");
+      ra2yrcpp::create_command_message(&B, "");
   auto cc =
-      yrclient::create_command(*mm, ra2yrproto::CommandType::CLIENT_COMMAND);
+      ra2yrcpp::create_command(*mm, ra2yrproto::CommandType::CLIENT_COMMAND);
   cc.set_blocking(true);
   auto cmd_json = ra2yrcpp::protocol::to_json(cc);
 #endif
@@ -230,7 +231,7 @@ TEST_F(IServiceTest, TestHTTPRequest) {
 
     ASSERT_TRUE(std::regex_search(rsp, match, re));
     ASSERT_GT(match.size(), 1);
-    auto bbody = yrclient::to_bytes(rsp.substr(rsp.find("\r\n\r\n") + 4));
+    auto bbody = ra2yrcpp::to_bytes(rsp.substr(rsp.find("\r\n\r\n") + 4));
     ra2yrproto::Response R;
     ASSERT_TRUE(ra2yrcpp::protocol::from_json(bbody, &R));
   }

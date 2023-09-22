@@ -28,7 +28,7 @@ class ClientConnection {
   /// send_data must've occurred, or no data will be available to read.
   ///
   /// @exception std::runtime_error on read failure
-  /// @exception yrclient::protocol_error
+  /// @exception ra2yrcpp::protocol_error
   virtual vecu8 read_data() = 0;
   virtual void stop();
   util::AtomicVariable<ra2yrcpp::connection::State>& state();

@@ -69,7 +69,7 @@ void send_and_print(ra2yrproto::Response r) {
 }
 
 void easy_setup(const std::string path_dll,
-                yrclient::InstrumentationService::Options iservice,
+                ra2yrcpp::InstrumentationService::Options iservice,
                 dll_inject::DLLInjectOptions dll) {
   is_context::inject_dll(0u, path_dll, iservice, dll);
   int tries = 3;
@@ -195,7 +195,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  yrclient::InstrumentationService::Options opts{};
+  ra2yrcpp::InstrumentationService::Options opts{};
   opts.server.max_connections = A.get<unsigned>("--max-clients");
   opts.server.port = A.get<unsigned>("--port");
   opts.server.host = A.get("--destination");

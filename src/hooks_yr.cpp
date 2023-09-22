@@ -40,7 +40,7 @@ static auto default_configuration() {
 }
 
 ra2yrproto::commands::Configuration* ra2yrcpp::hooks_yr::ensure_configuration(
-    yrclient::InstrumentationService* I) {
+    ra2yrcpp::InstrumentationService* I) {
   auto& s = I->storage();
   if (s.find(key_configuration) == s.end()) {
     (void)ensure_storage_value<ra2yrproto::commands::Configuration>(
@@ -50,7 +50,7 @@ ra2yrproto::commands::Configuration* ra2yrcpp::hooks_yr::ensure_configuration(
       I, key_configuration);
 }
 
-cb_map_t* ra2yrcpp::hooks_yr::get_callbacks(yrclient::InstrumentationService* I,
+cb_map_t* ra2yrcpp::hooks_yr::get_callbacks(ra2yrcpp::InstrumentationService* I,
                                             const bool acquire) {
   return reinterpret_cast<cb_map_t*>(reinterpret_cast<std::uintptr_t>(
       I->get_value(ra2yrcpp::hooks_yr::key_callbacks_yr, acquire)));
@@ -98,7 +98,7 @@ ra2yrproto::commands::Configuration* CBYR::configuration() {
 
 // TODO(shmocz): do the callback initialization later
 struct CBExitGameLoop final
-    : public MyCB<CBExitGameLoop, yrclient::ISCallback> {
+    : public MyCB<CBExitGameLoop, ra2yrcpp::ISCallback> {
   static constexpr char key_target[] = "on_gameloop_exit";
   static constexpr char key_name[] = "gameloop_exit";
 
@@ -356,19 +356,19 @@ struct CBDebugPrint final : public MyCB<CBDebugPrint> {
 };
 
 ra2yrproto::commands::StorageValue* ra2yrcpp::hooks_yr::get_storage(
-    yrclient::InstrumentationService* I) {
+    ra2yrcpp::InstrumentationService* I) {
   return ensure_storage_value<ra2yrproto::commands::StorageValue>(
       I, "message_storage");
 }
 
 // TODO(shmocz): ensure thread safety
-void ra2yrcpp::hooks_yr::init_callbacks(yrclient::InstrumentationService* I) {
+void ra2yrcpp::hooks_yr::init_callbacks(ra2yrcpp::InstrumentationService* I) {
   I->store_value<cb_map_t>(key_callbacks_yr);
 
   auto t = std::to_string(static_cast<std::uint64_t>(
       std::chrono::high_resolution_clock::now().time_since_epoch().count()));
 
-  auto f = [I](std::unique_ptr<yrclient::ISCallback> c) {
+  auto f = [I](std::unique_ptr<ra2yrcpp::ISCallback> c) {
     get_callbacks(I)->try_emplace(c->name(), std::move(c));
   };
 

@@ -50,19 +50,19 @@ struct DLLLoader : Xbyak::CodeGenerator {
 /// Create IS instance and add both builtin commands and YR specific commands.
 /// FIXME: make this cross platform
 ///
-yrclient::InstrumentationService* make_is(
-    yrclient::InstrumentationService::Options O,
-    std::function<std::string(yrclient::InstrumentationService*)> on_shutdown =
+ra2yrcpp::InstrumentationService* make_is(
+    ra2yrcpp::InstrumentationService::Options O,
+    std::function<std::string(ra2yrcpp::InstrumentationService*)> on_shutdown =
         nullptr);
 
 ///
 /// Inject ra2yrcpp DLL to target process.
 ///
 void inject_dll(unsigned pid, const std::string path_dll,
-                yrclient::InstrumentationService::Options o,
+                ra2yrcpp::InstrumentationService::Options o,
                 dll_inject::DLLInjectOptions dll);
 
-void* get_context(const yrclient::InstrumentationService::Options O);
+void* get_context(const ra2yrcpp::InstrumentationService::Options O);
 
 const DLLLoader::Options default_options{
     {0U, 0U},         cfg::DLL_NAME, cfg::INIT_NAME, cfg::MAX_CLIENTS,

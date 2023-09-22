@@ -4,7 +4,7 @@
 
 #include "types.h"
 
-namespace yrclient {
+namespace ra2yrcpp {
 
 namespace pb = google::protobuf;
 
@@ -30,4 +30,4 @@ ra2yrproto::Command create_command(
     const pb::Message& cmd,
     ra2yrproto::CommandType type = ra2yrproto::CLIENT_COMMAND);
 
-}  // namespace yrclient
+}  // namespace ra2yrcpp

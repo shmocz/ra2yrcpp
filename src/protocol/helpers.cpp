@@ -137,7 +137,7 @@ void ra2yrcpp::protocol::dump_messages(const std::string path,
 }
 
 std::string ra2yrcpp::protocol::message_type(const pb::Any& m) {
-  auto toks = yrclient::split_string(m.type_url(), "/");
+  auto toks = ra2yrcpp::split_string(m.type_url(), "/");
   return toks.back();
 }
 
@@ -146,7 +146,7 @@ std::string ra2yrcpp::protocol::message_type(const pb::Message& m) {
 }
 
 bool ra2yrcpp::protocol::from_json(const vecu8& bytes, pb::Message* m) {
-  auto s = yrclient::to_string(bytes);
+  auto s = ra2yrcpp::to_string(bytes);
   if (pb::util::JsonStringToMessage(s, m).ok()) {
     return true;
   }

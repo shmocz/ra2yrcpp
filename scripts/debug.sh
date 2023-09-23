@@ -11,7 +11,7 @@ TOOLCHAIN="$(echo $CMAKE_TOOLCHAIN_FILE | sed -E 's/.+\/(.+)\.cmake/\1/g')-${CMA
 # Executable to be passed to wine and it's args, example:
 # EXE="$HOMEDIR/$BUILDDIR/$TOOLCHAIN/pkg/bin/test_dll_inject.exe --gtest_repeat=-1 --gtest_filter=*IServiceDLL*"
 : ${EXE:="$HOMEDIR/$BUILDDIR/$TOOLCHAIN/pkg/bin/test_dll_inject.exe --gtest_repeat=-1 --gtest_filter=*IServiceDLL*"}
-GDB_COMMAND='x86_64-w64-mingw32-gdb -ex "target extended-remote '"$TARGET"'" -ex "set pagination off" -ex "set logging overwrite on" -ex "set logging on" -ex "set disassembly-flavor intel"'
+GDB_COMMAND='x86_64-w64-mingw32-gdb -iex "set pagination off" -ex "target extended-remote '"$TARGET"'" -ex "set pagination off" -ex "set logging overwrite on" -ex "set logging on" -ex "set disassembly-flavor intel"'
 : ${GDB_SCRIPT:="$HOMEDIR/scripts/debug.gdb"}
 
 function dcmd_generic() {
@@ -51,7 +51,7 @@ function debug_integration() {
 	make INTEGRATION_TEST_TARGET="$INTEGRATION_TEST_TARGET" test_integration &
 	sleep 3
 	tmux_send_keys C-c
-	tmux_send_keys "DEBUG_FN=debug_integration_test ./scripts/debug.sh" C-m
+	tmux_send_keys "CMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE CMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE DEBUG_FN=debug_integration_test ./scripts/debug.sh" C-m
 	wait
 }
 

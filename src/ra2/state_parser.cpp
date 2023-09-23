@@ -6,14 +6,21 @@
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
 #include "ra2/abi.hpp"
+#include "ra2/event_list.hpp"
 #include "ra2/yrpp_export.hpp"
 #include "utility/array_iterator.hpp"
+#include "utility/serialize.hpp"
+
+#include <fmt/core.h>
+
+#undef GetMessage
 
 #include <cstdint>
 #include <cstring>
 
 #include <algorithm>
 #include <array>
+#include <stdexcept>
 
 using namespace ra2;
 
@@ -29,6 +36,10 @@ void Cell::copy_to(ra2yrproto::ra2yr::Cell* dst, const Cell* src) {
   dst->set_shrouded(src->shrouded);
   dst->set_passability(src->passability);
   dst->set_index(src->index);
+  if (src->first_object != 0U) {
+    dst->mutable_objects()->Clear();
+    dst->add_objects()->set_pointer_self(src->first_object);
+  }
 }
 
 void ClassParser::Object() {
@@ -36,6 +47,13 @@ void ClassParser::Object() {
   T->set_health(P->Health);
   T->set_selected(P->IsSelected);
   T->set_in_limbo(P->InLimbo);
+  if (P->IsOnMap) {
+    auto* q = T->mutable_coordinates();
+    auto L = P->Location;
+    q->set_x(L.X);
+    q->set_y(L.Y);
+    q->set_z(L.Z);
+  }
 }
 
 void ClassParser::Mission() {
@@ -54,13 +72,6 @@ void ClassParser::Techno() {
   T->set_pointer_house(reinterpret_cast<u32>(P->Owner));
   T->set_pointer_initial_owner(reinterpret_cast<u32>(P->InitialOwner));
   // TODO: armor multiplier
-  if (P->IsOnMap) {
-    auto* q = T->mutable_coordinates();
-    auto L = P->Location;
-    q->set_x(L.X);
-    q->set_y(L.Y);
-    q->set_z(L.Z);
-  }
 }
 
 void ClassParser::Foot() {
@@ -83,15 +94,13 @@ void ClassParser::Foot() {
 void ClassParser::Aircraft() {
   Foot();
   auto* P = reinterpret_cast<AircraftClass*>(c.src);
-  T->set_pointer_technotypeclass(reinterpret_cast<u32>(P->Type));
-  T->set_object_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_AIRCRAFT);
+  set_type_class(P->Type, ra2yrproto::ra2yr::ABSTRACT_TYPE_AIRCRAFT);
 }
 
 void ClassParser::Unit() {
   Foot();
   auto* P = reinterpret_cast<UnitClass*>(c.src);
-  T->set_object_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_UNIT);
-  T->set_pointer_technotypeclass(reinterpret_cast<u32>(P->Type));
+  set_type_class(P->Type, ra2yrproto::ra2yr::ABSTRACT_TYPE_UNIT);
   T->set_deployed(P->Deployed);
   T->set_deploying(P->IsDeploying);
 }
@@ -99,15 +108,13 @@ void ClassParser::Unit() {
 void ClassParser::Building() {
   Techno();
   auto* P = reinterpret_cast<BuildingClass*>(c.src);
-  T->set_object_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_BUILDING);
-  T->set_pointer_technotypeclass(reinterpret_cast<u32>(P->Type));
+  set_type_class(P->Type, ra2yrproto::ra2yr::ABSTRACT_TYPE_BUILDING);
 }
 
 void ClassParser::Infantry() {
   Foot();
   auto* P = reinterpret_cast<InfantryClass*>(c.src);
-  T->set_object_type(ra2yrproto::ra2yr::ABSTRACT_TYPE_INFANTRY);
-  T->set_pointer_technotypeclass(reinterpret_cast<u32>(P->Type));
+  set_type_class(P->Type, ra2yrproto::ra2yr::ABSTRACT_TYPE_INFANTRY);
 }
 
 void ClassParser::parse() {
@@ -124,8 +131,13 @@ void ClassParser::parse() {
   } else if (t == AircraftClass::AbsID) {
     Aircraft();
   } else {
-    eprintf("unknown ObjectClass: {}", static_cast<int>(t));
+    // eprintf("unknown ObjectClass: {}", static_cast<int>(t));
   }
+}
+
+void ClassParser::set_type_class(void* ttc, ra2yrproto::ra2yr::AbstractType t) {
+  T->set_object_type(t);
+  T->set_pointer_technotypeclass(reinterpret_cast<u32>(ttc));
 }
 
 TypeClassParser::TypeClassParser(Cookie c,
@@ -300,21 +312,6 @@ void EventParser::parse() {
   }
 }
 
-template <unsigned N>
-static bool bytes_equal(const void* p1, const void* p2) {
-#if 0
-  for (auto i = 0U; i < N; i++) {
-    if (reinterpret_cast<const char*>(p1)[i] !=
-        reinterpret_cast<const char*>(p2)[i]) {
-      return false;
-    }
-  }
-  return true;
-#else
-  return std::memcmp(p1, p2, N) == 0;
-#endif
-}
-
 static void parse_Cell(Cell* C, const int ix, const CellClass& cc) {
   C->radiation_level = cc.RadLevel;
   C->land_type = static_cast<i32>(cc.LandType);
@@ -330,6 +327,7 @@ static void parse_Cell(Cell* C, const int ix, const CellClass& cc) {
       static_cast<int>(ra2yrproto::ra2yr::LandType::LAND_TYPE_Tiberium)) {
     C->tiberium_value = ra2::abi::get_tiberium_value(cc);
   }
+  C->first_object = reinterpret_cast<std::uintptr_t>(cc.FirstObject);
 }
 
 std::vector<CellClass*> ra2::get_valid_cells(MapClass* M) {
@@ -361,10 +359,10 @@ static void parse_cells(Cell* dest, CellClass** src, const std::size_t c,
 
 static void update_modified_cells(
     const Cell* current, Cell* previous, const std::size_t c,
-    pb::RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference) {
+    gpb::RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference) {
   for (std::size_t k = 0; k < c; k++) {
     auto& C = current[k];
-    if (!bytes_equal<sizeof(Cell)>(&C, &previous[k])) {
+    if (!serialize::bytes_equal(&C, &previous[k])) {
       C.copy_to(difference->Add(), &C);
       previous[k] = C;
     }
@@ -374,17 +372,18 @@ static void update_modified_cells(
 template <int N>
 static void apply_cell_stride(
     Cell* previous, Cell* cell_buf, CellClass** cells,
-    pb::RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference, MapClass* M) {
+    gpb::RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference, MapClass* M) {
   const auto& L = M->MapCoordBounds;
   parse_cells(cell_buf, cells, N, L);
-  if (!bytes_equal<sizeof(Cell) * N>(cell_buf, previous)) {
+  if (!serialize::bytes_equal(cell_buf, previous, sizeof(Cell) * N)) {
     update_modified_cells(cell_buf, previous, N, difference);
   }
 }
 
 // TODO(shmocz): objects
-void ra2::parse_map(std::vector<Cell>* previous, MapClass* D,
-                    pb::RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference) {
+void ra2::parse_map(
+    std::vector<Cell>* previous, MapClass* D,
+    gpb::RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference) {
   static constexpr int chunk = 128;
   static std::vector<CellClass*> valid_cell_objects;
   static std::array<Cell, chunk> cell_buf;
@@ -462,8 +461,8 @@ void ra2::parse_MapData(ra2yrproto::ra2yr::MapData* dst, MapClass* src,
 }
 
 template <typename T>
-void parse_EventList(pb::RepeatedPtrField<ra2yrproto::ra2yr::Event>* dst,
-                     T* list) {
+static void parse_EventList(
+    gpb::RepeatedPtrField<ra2yrproto::ra2yr::Event>* dst, T* list) {
   if (dst->size() != list->Count) {
     dst->Clear();
 
@@ -471,13 +470,12 @@ void parse_EventList(pb::RepeatedPtrField<ra2yrproto::ra2yr::Event>* dst,
       (void)dst->Add();
     }
   }
-  for (auto i = 0; i < list->Count; i++) {
-    auto ix =
-        (list->Head + i) & ((sizeof(list->List) / sizeof(*list->List)) - 1);
-    auto& it = dst->at(i);
-    ra2::EventParser P(&list->List[ix], &it, list->Timings[ix]);
+  EventListUtil::apply(list, [dst](const EventEntry& e) {
+    auto& it = dst->at(e.index);
+    ra2::EventParser P(e.e, &it, e.timing);
     P.parse();
-  }
+    return false;
+  });
 }
 
 void ra2::parse_EventLists(ra2yrproto::ra2yr::GameState* G,
@@ -543,7 +541,7 @@ void ra2::parse_HouseClass(ra2yrproto::ra2yr::House* dst,
 }
 
 void ra2::parse_Factories(
-    pb::RepeatedPtrField<ra2yrproto::ra2yr::Factory>* dst) {
+    gpb::RepeatedPtrField<ra2yrproto::ra2yr::Factory>* dst) {
   auto* D = FactoryClass::Array.get();
   if (dst->size() != D->Count) {
     ra2yrcpp::protocol::fill_repeated_empty(dst, D->Count);
@@ -565,9 +563,9 @@ void ra2::parse_Factories(
   }
 }
 
-pb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>*
+gpb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>*
 ra2::parse_AbstractTypeClasses(
-    pb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* T,
+    gpb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* T,
     ra2::abi::ABIGameMD* abi) {
   auto [D, T_] = init_arrays<AbstractTypeClass>(T);
 
@@ -579,14 +577,41 @@ ra2::parse_AbstractTypeClasses(
   return T;
 }
 
+// Insert msg to repeated ptr field, resizing the field if necessary
+template <typename T>
+static T* try_get_message(gpb::RepeatedPtrField<T>* f, int index,
+                          int capacity_increment = 10) {
+  if (f->size() < (index + 1)) {
+    ra2yrcpp::protocol::fill_repeated(f, capacity_increment);
+  }
+  return &f->at(index);
+}
+
+// TODO: const corr
+template <typename T, typename D>
+int parse_object_array(ra2::abi::ABIGameMD* abi, T* src,
+                       gpb::RepeatedPtrField<D>* dst, int j) {
+  ra2yrproto::ra2yr::Object* O = nullptr;
+  for (int i = 0; i < src->Count; i++) {
+    if (O == nullptr) {
+      O = try_get_message(dst, j);
+    }
+    try {
+      ra2::ClassParser P({abi, src->Items[i]}, O);
+      P.parse();
+      j++;
+      O = nullptr;
+    } catch (...) {
+    }
+  }
+  return j;
+}
+
 void ra2::parse_Objects(ra2yrproto::ra2yr::GameState* G,
                         ra2::abi::ABIGameMD* abi) {
-  auto [D, H] = init_arrays<TechnoClass>(G->mutable_objects());
-
-  for (int i = 0; i < D->Count; i++) {
-    ra2::ClassParser P({abi, D->Items[i]}, &H->at(i));
-    P.parse();
-  }
+  auto* H = G->mutable_objects();
+  (void)ra2yrcpp::protocol::truncate(
+      H, parse_object_array(abi, TechnoClass::Array.get(), H, 0));
 }
 
 void ra2::parse_HouseClasses(ra2yrproto::ra2yr::GameState* G) {
@@ -598,7 +623,7 @@ void ra2::parse_HouseClasses(ra2yrproto::ra2yr::GameState* G) {
 }
 
 ra2yrproto::ra2yr::ObjectTypeClass* ra2::find_type_class(
-    pb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* types,
+    gpb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* types,
     ra2yrproto::ra2yr::AbstractType rtti_id, int array_index) {
   auto e = std::find_if(types->begin(), types->end(), [&](const auto& v) {
     return v.array_index() == array_index && v.type() == rtti_id;
@@ -606,7 +631,7 @@ ra2yrproto::ra2yr::ObjectTypeClass* ra2::find_type_class(
   return e != types->end() ? &(*e) : nullptr;
 }
 
-bool ra2::is_local(const pb::RepeatedPtrField<ra2yrproto::ra2yr::House>& H) {
+bool ra2::is_local(const gpb::RepeatedPtrField<ra2yrproto::ra2yr::House>& H) {
   return std::count_if(H.begin(), H.end(),
                        [](const auto& h) { return h.is_human_player(); }) == 1;
 }

@@ -51,6 +51,9 @@ if(RA2YRCPP_BUILD_MAIN_DLL)
     hooks_yr.cpp
     is_context.cpp
     ra2/abi.cpp
+    ra2/common.cpp
+    ra2/event_list.cpp
+    ra2/state_context.cpp
     ra2/state_parser.cpp
     ra2/yrpp_export.cpp
     ra2yrcppcli/ra2yrcppcli.cpp)

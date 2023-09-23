@@ -8,6 +8,7 @@
 #include "command/is_command.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
+#include "ra2/state_context.hpp"
 #include "types.h"
 
 #include <google/protobuf/repeated_ptr_field.h>
@@ -49,6 +50,7 @@ struct CBYR : public ra2yrcpp::ISCallback {
   ra2yrcpp::storage_t* storage{nullptr};
   ra2::abi::ABIGameMD* abi_{nullptr};
   ra2yrproto::commands::Configuration* config_{nullptr};
+  ra2::StateContext* state_context_{nullptr};
 
   CBYR();
   ra2::abi::ABIGameMD* abi();
@@ -58,6 +60,7 @@ struct CBYR : public ra2yrcpp::ISCallback {
   ra2yrproto::ra2yr::GameState* game_state();
   auto* prerequisite_groups();
   tc_t* type_classes();
+  ra2::StateContext* get_state_context();
 };
 
 /// Get all currently active callback objects.

@@ -37,4 +37,23 @@ auto read_obj_le(const std::uintptr_t addr) {
   return read_obj_le<T>(reinterpret_cast<void*>(addr));
 }
 
+inline bool bytes_equal(const void* p1, const void* p2, unsigned size) {
+#if 0
+  for (auto i = 0U; i < N; i++) {
+    if (reinterpret_cast<const char*>(p1)[i] !=
+        reinterpret_cast<const char*>(p2)[i]) {
+      return false;
+    }
+  }
+  return true;
+#else
+  return std::memcmp(p1, p2, size) == 0;
+#endif
+}
+
+template <typename T>
+bool bytes_equal(const T* p1, const T* p2) {
+  return bytes_equal(p1, p2, sizeof(T));
+}
+
 }  // namespace serialize

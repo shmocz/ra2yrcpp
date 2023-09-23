@@ -8,6 +8,7 @@
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
 #include "ra2/abi.hpp"
+#include "ra2/state_context.hpp"
 #include "ra2/state_parser.hpp"
 #include "ra2/yrpp_export.hpp"
 #include "utility/serialize.hpp"
@@ -84,6 +85,13 @@ CBYR::tc_t* CBYR::type_classes() {
   return get_storage(this->I)
       ->mutable_initial_game_state()
       ->mutable_object_types();
+}
+
+ra2::StateContext* CBYR::get_state_context() {
+  return state_context_ != nullptr
+             ? state_context_
+             : ensure_storage_value<ra2::StateContext>(I, "state_context", abi_,
+                                                       get_storage(this->I));
 }
 
 auto* CBYR::prerequisite_groups() {

@@ -5,9 +5,11 @@
 #include "protocol/helpers.hpp"
 #include "types.h"
 
+#include <google/protobuf/descriptor.h>
 #include <google/protobuf/repeated_ptr_field.h>
 
 #include <cstddef>
+#include <cstdint>
 
 #include <tuple>
 #include <vector>
@@ -24,7 +26,7 @@ class ABIGameMD;
 
 namespace ra2 {
 
-namespace pb = google::protobuf;
+namespace gpb = google::protobuf;
 
 struct Cookie {
   ra2::abi::ABIGameMD* abi;
@@ -56,6 +58,8 @@ struct ClassParser {
   void Infantry();
 
   void parse();
+
+  void set_type_class(void* ttc, ra2yrproto::ra2yr::AbstractType);
 };
 
 struct TypeClassParser {
@@ -115,6 +119,7 @@ struct Cell {
   char height;
   char level;
   char pad[1];
+  std::uintptr_t first_object;
 
   static void copy_to(ra2yrproto::ra2yr::Cell* dst, const Cell* src);
 };
@@ -129,11 +134,11 @@ void parse_EventLists(ra2yrproto::ra2yr::GameState* G,
 void parse_prerequisiteGroups(ra2yrproto::ra2yr::PrerequisiteGroups* T);
 
 void parse_map(std::vector<Cell>* previous, MapClass* D,
-               pb::RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference);
+               gpb::RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference);
 
 std::vector<CellClass*> get_valid_cells(MapClass* M);
 
-void parse_Factories(pb::RepeatedPtrField<ra2yrproto::ra2yr::Factory>* dst);
+void parse_Factories(gpb::RepeatedPtrField<ra2yrproto::ra2yr::Factory>* dst);
 
 template <typename T, typename U>
 static auto init_arrays(U* dst) {
@@ -144,19 +149,19 @@ static auto init_arrays(U* dst) {
   return std::make_tuple(D, dst);
 }
 
-pb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>*
+gpb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>*
 parse_AbstractTypeClasses(
-    pb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* T,
+    gpb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* T,
     ra2::abi::ABIGameMD* abi);
 
 void parse_Objects(ra2yrproto::ra2yr::GameState* G, ra2::abi::ABIGameMD* abi);
 void parse_HouseClasses(ra2yrproto::ra2yr::GameState* G);
 
 ra2yrproto::ra2yr::ObjectTypeClass* find_type_class(
-    pb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* types,
+    gpb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* types,
     ra2yrproto::ra2yr::AbstractType rtti_id, int array_index);
 
 /// Return true if the current player is the only human player in the game.
-bool is_local(const pb::RepeatedPtrField<ra2yrproto::ra2yr::House>& H);
+bool is_local(const gpb::RepeatedPtrField<ra2yrproto::ra2yr::House>& H);
 
 }  // namespace ra2

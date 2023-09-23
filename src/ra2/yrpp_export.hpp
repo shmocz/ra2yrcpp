@@ -37,3 +37,5 @@
 #include <UnitTypeClass.h>
 #include <Unsorted.h>
 // IWYU pragma: end_exports
+
+#undef ERROR

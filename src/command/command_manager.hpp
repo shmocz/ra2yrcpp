@@ -135,6 +135,7 @@ class CommandManager {
     auto [l, q] = aq_results_queue();
     if (q->find(id) != q->end()) {
       eprintf("existing queue_id={}", id);
+      return;
     }
     // TODO(shmocz) avoid referencing queue_t
     q->try_emplace(id, std::make_shared<result_q_t>(

@@ -21,16 +21,19 @@ bool wait_until(std::unique_lock<LockT>* lock, std::condition_variable* cv,
   return (cv->wait_for(*lock, timeout, pred));
 }
 
-// TODO: size limit
+// TODO(shmocz): size limit
+// TODO(shmocz): This is only used in multi_client. Could re-use elsewhere.
 template <typename T, typename KeyT = std::uint64_t>
 class AsyncMap : public async_queue::AsyncContainer {
  public:
-  AsyncMap() {}
+  AsyncMap() = default;
 
   void put(const KeyT key, T item) {
     std::unique_lock<std::mutex> l(a_.get()->m);
-    dprintf("key={}", key);
-    data_[key] = item;
+    auto [it, status] = data_.try_emplace(key, item);
+    if (!status) {
+      throw std::runtime_error(fmt::format("key exists: {}", key));
+    }
     notify_all();
   }
 
@@ -39,16 +42,15 @@ class AsyncMap : public async_queue::AsyncContainer {
     auto* a = a_.get();
     std::unique_lock<decltype(a->m)> l(a->m);
     if (timeout > 0.0s) {
-      dprintf("key={}", key);
       if (!wait_until(
               &l, &a->cv, [&] { return (data_.find(key) != data_.end()); },
               timeout)) {
         throw std::runtime_error("timeout after " +
                                  std::to_string(timeout.count()) + "ms");
       }
-      return data_[key];
+      return data_.at(key);
     }
-    return data_[key];
+    return data_.at(key);
   }
 
   void erase(const KeyT key) {

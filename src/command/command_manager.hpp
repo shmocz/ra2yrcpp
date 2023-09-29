@@ -247,7 +247,7 @@ class CommandManager {
     if (cmd->pending()) {
       std::unique_lock<decltype(pending_commands_mut_)> lp(
           pending_commands_mut_);
-      pending_commands_.push_back(cmd);
+      pending_commands_.push_back(cmd->task_id());
     }
 
     if (cmd->discard_result()) {
@@ -262,7 +262,7 @@ class CommandManager {
     }
   }
 
-  std::vector<command_ptr_t>& pending_commands() { return pending_commands_; }
+  std::vector<u64>& pending_commands() { return pending_commands_; }
 
   std::vector<command_ptr_t> flush_results(const u64 id,
                                            const duration_t timeout = 0.0s,
@@ -281,11 +281,12 @@ class CommandManager {
     std::unique_lock<decltype(pending_commands_mut_)> lk(pending_commands_mut_);
     auto& p = pending_commands();
     p.erase(std::remove_if(p.begin(), p.end(),
-                           [&res](auto& c) {
-                             return std::find_if(
-                                        res.begin(), res.end(), [&c](auto& d) {
-                                          return d->task_id() == c->task_id();
-                                        }) != res.end();
+                           [&res](u64 task_id) {
+                             return std::find_if(res.begin(), res.end(),
+                                                 [&task_id](auto& d) {
+                                                   return d->task_id() ==
+                                                          task_id;
+                                                 }) != res.end();
                            }),
             p.end());
     return res;
@@ -349,7 +350,7 @@ class CommandManager {
   std::priority_queue<command_ptr_t, std::vector<command_ptr_t>, QueueCompare>
       work_queue_;
   std::mutex pending_commands_mut_;
-  std::vector<command_ptr_t> pending_commands_;
+  std::vector<u64> pending_commands_;
   std::map<std::string, handler_t> handlers_;
   std::condition_variable work_queue_cv_;
   std::mutex work_queue_mut_;

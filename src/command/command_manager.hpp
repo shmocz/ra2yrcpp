@@ -101,6 +101,23 @@ class Command {
     // TODO(shmocz): clear command data
   }
 
+  handler_t& async_handler() { return async_handler_; }
+
+  void set_async_handler(handler_t f) {
+    pending_.store(true);
+    async_handler_ = f;
+  }
+
+  void run_async_handler() {
+    try {
+      async_handler_(this);
+    } catch (const std::exception& e) {
+      eprintf("async command: {}", e.what());
+      set_error(e.what());
+    }
+    pending_.store(false);
+  }
+
  private:
   BaseData base_data_;
   handler_t handler_;
@@ -110,6 +127,7 @@ class Command {
   std::atomic_bool discard_result_;
   std::string error_message_;
   handler_t done_callback_;
+  handler_t async_handler_;
 };
 
 /// Executes command handlers in single thread.
@@ -179,6 +197,18 @@ class CommandManager {
 
     auto C = std::make_shared<command_t>(B, handlers_.at(name), std::move(data),
                                          done_callback);
+    return C;
+  }
+
+  command_ptr_t make_async_command(const std::string name, T&& data,
+                                   const u64 queue_id) {
+    std::unique_lock<std::mutex> l(command_counter_mut_);
+    typename command_t::BaseData B = {name, queue_id, ++command_counter_, 0U,
+                                      CommandType::USER};
+
+    auto C =
+        std::make_shared<command_t>(B, handlers_.at(name), std::move(data));
+    C->set_async_handler([](auto*) {});
     return C;
   }
 

@@ -109,7 +109,7 @@ struct CBExecuteGameLoopCommand final : public MyCB<CBExecuteGameLoopCommand> {
   CBExecuteGameLoopCommand() = default;
 
   void put_work(std::function<void(work_item*)> fn, ra2yrcpp::cmd_t* cmd) {
-    bool async = cmd->pending();
+    bool async = cmd->pending().get();
     work.push({this, cmd, [async, fn](auto* it) {
                  try {
                    fn(it);

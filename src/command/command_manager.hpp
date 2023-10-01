@@ -81,7 +81,7 @@ class Command {
 
   util::AtomicVariable<ResultCode>& result_code() { return result_code_; }
 
-  std::atomic_bool& pending() { return pending_; }
+  util::AtomicVariable<bool>& pending() { return pending_; }
 
   std::atomic_bool& discard_result() { return discard_result_; }
 
@@ -100,7 +100,7 @@ class Command {
   handler_t handler_;
   T command_data_;
   util::AtomicVariable<ResultCode> result_code_;
-  std::atomic_bool pending_;
+  util::AtomicVariable<bool> pending_;
   std::atomic_bool discard_result_;
   std::string error_message_;
 };
@@ -246,8 +246,11 @@ class CommandManager {
       cmd->set_error(e.what());
     }
 
+    // TODO(shmocz): race condition for pending check? command added many times?
     auto [l, rq] = aq_results_queue();
-    if (cmd->pending()) {
+    // TODO(shmocz): pending flag might become cleared right after entering the
+    // block below, causing it to be never cleared again
+    if (cmd->pending().get()) {
       std::unique_lock<decltype(pending_commands_mut_)> lp(
           pending_commands_mut_);
       pending_commands_.push_back(cmd->task_id());
@@ -280,7 +283,7 @@ class CommandManager {
     l.unlock();
     // pop all non pending results
     auto res =
-        q->pop(count, timeout, [](auto& c) { return !c->pending().load(); });
+        q->pop(count, timeout, [](auto& c) { return !c->pending().get(); });
     std::unique_lock<decltype(pending_commands_mut_)> lk(pending_commands_mut_);
     auto& p = pending_commands();
     p.erase(std::remove_if(p.begin(), p.end(),

@@ -55,7 +55,7 @@ struct ISCommand {
 
   void save_command_result() {
     // replace result, but only if pending is not set
-    if (!c->pending()) {
+    if (!c->pending().get()) {
       auto& p = c->command_data()->M;
       p.PackFrom(command_data_);
     } else {

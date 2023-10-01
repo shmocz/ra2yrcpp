@@ -132,8 +132,8 @@ class InstrumentationService {
 };
 
 std::tuple<command_ptr_t, ra2yrproto::RunCommandAck> handle_cmd(
-    InstrumentationService* I, const int queue_id, ra2yrproto::Command* cmd,
-    const bool discard_result = false);
+    InstrumentationService* I, int queue_id, ra2yrproto::Command* cmd,
+    bool discard_result = false);
 
 const InstrumentationService::Options default_options{
     {cfg::SERVER_ADDRESS, cfg::SERVER_PORT, cfg::MAX_CLIENTS,

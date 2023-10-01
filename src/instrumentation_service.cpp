@@ -88,8 +88,8 @@ ra2yrproto::PollResults InstrumentationService::flush_results(
 }
 
 std::tuple<command_ptr_t, ra2yrproto::RunCommandAck> ra2yrcpp::handle_cmd(
-    InstrumentationService* I, const int queue_id, ra2yrproto::Command* cmd,
-    const bool discard_result) {
+    InstrumentationService* I, int queue_id, ra2yrproto::Command* cmd,
+    bool discard_result) {
   // TODO: reduce amount of copies we make
   auto client_cmd = cmd->command();
   // Get trailing portion of protobuf type url

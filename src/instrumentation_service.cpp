@@ -70,7 +70,15 @@ ra2yrproto::PollResults InstrumentationService::flush_results(
   ra2yrproto::PollResults P;
   auto* PR = P.mutable_result();
   while (!results.empty()) {
-    auto item = results.back();
+    auto& item = results.back();
+#ifdef DEBUG_SPTR
+    const auto uc = item.use_count();
+    if (uc > 1) {
+      eprintf("use_count={}, data={}", uc,
+              item->command_data()->M.ShortDebugString());
+      std::abort();
+    }
+#endif
     auto* res = PR->add_results();
     res->set_command_id(item->task_id());
     res->mutable_result()->CopyFrom(item->command_data()->M);
@@ -86,7 +94,7 @@ ra2yrproto::PollResults InstrumentationService::flush_results(
   return P;
 }
 
-std::tuple<command_ptr_t, ra2yrproto::RunCommandAck> ra2yrcpp::handle_cmd(
+std::tuple<command_hdl_t, ra2yrproto::RunCommandAck> ra2yrcpp::handle_cmd(
     InstrumentationService* I, int queue_id, ra2yrproto::Command* cmd,
     bool discard_result, cmd_t::handler_t done_callback) {
   // TODO: reduce amount of copies we make
@@ -100,11 +108,12 @@ std::tuple<command_ptr_t, ra2yrproto::RunCommandAck> ra2yrcpp::handle_cmd(
       queue_id, done_callback);
   ack.set_id(c->task_id());
   c->discard_result().store(discard_result);
-  I->cmd_manager().enqueue_command(c);
+  auto w = command_hdl_t(c);
+  I->cmd_manager().emplace_command(std::move(c));
 
   // write status back
   ack.set_queue_id(queue_id);
-  return std::make_tuple(c, ack);
+  return std::make_tuple(w, ack);
 }
 
 // TODO: return just Response body/msg, not the whole Response

@@ -12,6 +12,7 @@
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <utility>
 #include <vector>
 
 namespace async_queue {
@@ -63,16 +64,18 @@ class AsyncQueue : public AsyncContainer {
     return *this;
   }
 
+  void push(T t) { emplace(std::move(t)); }
+
   ///
   /// Put an item to the queue, notifying everyone waiting for new items. If the
   /// queue is bounded, block until free space is available.
   ///
-  void push(T t) {
+  void emplace(T&& t) {
     std::unique_lock<std::mutex> l(a_.get()->m);
     if (max_size_ > 0 && size() + 1 > max_size_) {
       a_.get()->cv.wait(l, [&] { return size() + 1 <= max_size_; });
     }
-    q_.push(t);
+    q_.emplace(std::move(t));
 #ifdef LOG_TRACE
     dprintf("notifying, a={},sz={}", reinterpret_cast<void*>(a_.get()), size());
 #endif
@@ -103,16 +106,16 @@ class AsyncQueue : public AsyncContainer {
       int num_pop = count < 1 ? size() : std::min(count, size());
       // TODO: use random access container to avoid popping and pushing back
       while (num_pop-- > 0) {
-        auto p = q_.front();
+        auto& p = q_.front();
         if (predicate != nullptr && !predicate(p)) {
-          pred_false.push_back(p);
+          pred_false.emplace_back(std::move(p));
         } else {
-          res.push_back(p);
+          res.emplace_back(std::move(p));
         }
         q_.pop();
       }
-      for (auto p : pred_false) {
-        q_.push(p);
+      for (auto& p : pred_false) {
+        q_.emplace(std::move(p));
       }
       pred_false.clear();
     } while (res.size() < count);

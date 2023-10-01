@@ -2,6 +2,7 @@
 
 #include <cstddef>
 
+#include <utility>
 #include <vector>
 
 namespace ring_buffer {
@@ -11,11 +12,13 @@ class RingBuffer {
  public:
   explicit RingBuffer(const std::size_t max_size = -1u) : max_size_(max_size) {}
 
-  void push(T t) {
+  void push(T t) { emplace(std::move(t)); }
+
+  void emplace(T&& t) {
     if (size() >= max_size_) {
       q_.erase(q_.begin());
     }
-    q_.push_back(t);
+    q_.emplace_back(std::move(t));
   }
 
   void pop() { q_.pop_back(); }

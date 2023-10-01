@@ -136,9 +136,10 @@ void is_context::get_procaddr(Xbyak::CodeGenerator* c, void* m,
 static void handle_cmd_wait(ra2yrcpp::InstrumentationService* I,
                             const gpb::Message& cmd) {
   auto CC = ra2yrcpp::create_command(cmd);
-  auto [c, a] = ra2yrcpp::handle_cmd(I, 0U, &CC, true);
-  c->result_code().wait_pred(
-      [](auto v) { return v != ra2yrcpp::command::ResultCode::NONE; });
+  util::AtomicVariable<bool> done(false);
+  (void)ra2yrcpp::handle_cmd(I, 0U, &CC, true,
+                             [&done](auto*) { done.store(true); });
+  done.wait(true);
 }
 
 ra2yrcpp::InstrumentationService* is_context::make_is(

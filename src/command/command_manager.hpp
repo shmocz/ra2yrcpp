@@ -209,6 +209,13 @@ class CommandManager {
     return c;
   }
 
+  void emplace_command(command_ptr_t&& c) {
+    std::unique_lock<std::mutex> k(work_queue_mut_);
+    // TODO(shmocz): use uptr
+    work_queue_.emplace(std::move(c));
+    work_queue_cv_.notify_all();
+  }
+
   /// Built-in command functions
 
   /// Synchronously Execute CREATE_QUEUE
@@ -245,6 +252,12 @@ class CommandManager {
   ///
   /// @param cmd the Command object to be executed
   void invoke_user_command(command_ptr_t cmd) {
+    emplace_user_command(std::move(cmd));
+  }
+
+  // TODO(shmocz): could create internal command to clear the pending_tasks
+  // vector in thread safe fashion.
+  void emplace_user_command(command_ptr_t&& cmd) {
     cmd->result_code().store(ResultCode::NONE);
     try {
       cmd->run();
@@ -268,11 +281,11 @@ class CommandManager {
       return;
     }
 
+    const u64 queue_id = cmd->queue_id();
     try {
-      auto q = results_queue_.at(cmd->queue_id());
-      q->push(cmd);
+      results_queue_.at(queue_id)->emplace(std::move(cmd));
     } catch (const std::out_of_range& e) {
-      eprintf("queue {} not found, result discarded", cmd->queue_id());
+      eprintf("queue {} not found, result discarded", queue_id);
     }
   }
 
@@ -286,7 +299,7 @@ class CommandManager {
     if (rq->find(id) == rq->end()) {
       throw std::out_of_range(fmt::format("no such queue {}", id));
     }
-    auto q = rq->at(id);
+    std::shared_ptr<result_q_t>& q = rq->at(id);
 
     l.unlock();
     // pop all non pending results
@@ -329,7 +342,7 @@ class CommandManager {
           break;
         case CommandType::USER: {
           k.unlock();
-          invoke_user_command(cmd);
+          emplace_user_command(std::move(cmd));
         } break;
         default:
           throw std::runtime_error("Unknown command type");

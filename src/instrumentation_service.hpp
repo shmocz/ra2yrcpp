@@ -50,6 +50,7 @@ using cmd_t = ra2yrcpp::command::iservice_cmd;
 using cmd_manager_t = ra2yrcpp::command::CommandManager<cmd_t::data_t>;
 using command_ptr_t = cmd_manager_t::command_ptr_t;
 using hooks_t = std::map<std::uintptr_t, hook::Hook>;
+using command_hdl_t = command_ptr_t::weak_type;
 
 class InstrumentationService {
  public:
@@ -130,9 +131,9 @@ class InstrumentationService {
   std::unique_ptr<WebsocketServer> ws_server_;
 };
 
-std::tuple<command_ptr_t, ra2yrproto::RunCommandAck> handle_cmd(
+std::tuple<command_hdl_t, ra2yrproto::RunCommandAck> handle_cmd(
     InstrumentationService* I, int queue_id, ra2yrproto::Command* cmd,
-    bool discard_result = false);
+    bool discard_result = false, cmd_t::handler_t done_callback = nullptr);
 
 const InstrumentationService::Options default_options{
     {cfg::SERVER_ADDRESS, cfg::SERVER_PORT, cfg::MAX_CLIENTS,

@@ -65,6 +65,7 @@ class Command {
         pending_(false),
         discard_result_(false) {}
 
+  // TODO(shmocz): could set error/result just here
   void run() { handler_(this); }
 
   // Pointer to args/result data. (protobuf.Any for protobuf based commands)
@@ -87,6 +88,12 @@ class Command {
   handler_t& handler() { return handler_; }
 
   std::string& error_message() { return error_message_; }
+
+  void set_error(const char* msg) {
+    error_message_.assign(msg);
+    result_code_.store(ResultCode::ERROR);
+    // TODO(shmocz): clear command data
+  }
 
  private:
   BaseData base_data_;
@@ -233,8 +240,7 @@ class CommandManager {
       cmd->result_code().store(ResultCode::OK);
     } catch (const std::exception& e) {
       eprintf("fail {}", e.what());
-      cmd->error_message().assign(e.what());
-      cmd->result_code().store(ResultCode::ERROR);
+      cmd->set_error(e.what());
     }
 
     auto [l, rq] = aq_results_queue();

@@ -116,8 +116,7 @@ struct CBExecuteGameLoopCommand final : public MyCB<CBExecuteGameLoopCommand> {
                  } catch (const std::exception& e) {
                    eprintf("gameloop command: {}", e.what());
                    if (async) {
-                     it->cmd->error_message().assign(e.what());
-                     it->cmd->result_code().store(command::ResultCode::ERROR);
+                     it->cmd->set_error(e.what());
                    }
                  }
                  if (async) {

@@ -56,16 +56,23 @@ class Command {
 
   Command() = delete;
 
-  Command(BaseData B, handler_t handler, T&& data)
+  Command(BaseData B, handler_t handler, T&& data,
+          handler_t done_callback = nullptr)
       : base_data_(B),
         handler_(handler),
         command_data_(data),
         result_code_(ResultCode::NONE),
         pending_(false),
-        discard_result_(false) {}
+        discard_result_(false),
+        done_callback_(done_callback) {}
 
   // TODO(shmocz): could set error/result just here
-  void run() { handler_(this); }
+  void run() {
+    handler_(this);
+    if (done_callback_) {
+      done_callback_(this);
+    }
+  }
 
   // Pointer to args/result data. (protobuf.Any for protobuf based commands)
   T* command_data() { return &command_data_; }
@@ -102,6 +109,7 @@ class Command {
   util::AtomicVariable<bool> pending_;
   std::atomic_bool discard_result_;
   std::string error_message_;
+  handler_t done_callback_;
 };
 
 /// Executes command handlers in single thread.
@@ -162,14 +170,15 @@ class CommandManager {
   }
 
   command_ptr_t make_command(const std::string name, T&& data,
-                             const u64 queue_id) {
+                             const u64 queue_id,
+                             handler_t done_callback = nullptr) {
     std::unique_lock<std::mutex> l(command_counter_mut_);
     typename command_t::BaseData B = {name, queue_id, ++command_counter_, 0U,
                                       CommandType::USER};
     handler_t handler = nullptr;
 
-    auto C =
-        std::make_shared<command_t>(B, handlers_.at(name), std::move(data));
+    auto C = std::make_shared<command_t>(B, handlers_.at(name), std::move(data),
+                                         done_callback);
     return C;
   }
 

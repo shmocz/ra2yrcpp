@@ -309,8 +309,7 @@ class CommandManager {
         case CommandType::USER: {
           k.unlock();
           invoke_user_command(cmd);
-          break;
-        }
+        } break;
         default:
           throw std::runtime_error("Unknown command type");
       }

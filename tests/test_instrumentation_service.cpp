@@ -2,17 +2,22 @@
 #include "ra2yrproto/core.pb.h"
 
 #include "asio_utils.hpp"
+#include "async_map.hpp"
+#include "auto_thread.hpp"
 #include "client_utils.hpp"
 #include "command/command_manager.hpp"
+#include "command/is_command.hpp"
 #include "commands_builtin.hpp"
 #include "config.hpp"
 #include "instrumentation_client.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
+#include "types.h"
 #include "util_proto.hpp"
 #include "util_string.hpp"
 #include "utility/sync.hpp"
+#include "utility/time.hpp"
 #include "websocket_connection.hpp"
 
 #include <fmt/core.h>
@@ -25,6 +30,8 @@
 
 #include <atomic>
 #include <chrono>
+#include <exception>
+#include <functional>
 #include <future>
 #include <memory>
 #include <regex>
@@ -37,7 +44,6 @@ using namespace std::chrono_literals;
 using namespace ra2yrcpp::test_util;
 
 namespace lib = websocketpp::lib;
-namespace pb = google::protobuf;
 
 using instrumentation_client::InstrumentationClient;
 
@@ -237,27 +243,69 @@ TEST_F(IServiceTest, TestHTTPRequest) {
 }
 
 class CommandTest : public ::testing::Test {
+ public:
+  using cmd_d_t = decltype(command::ISArg::M);
+  using manager_t = command::CommandManager<cmd_d_t>;
+  using cmdtype = typename manager_t::command_t;
+  std::unique_ptr<command::CommandManager<cmd_d_t>> M;
+  std::unique_ptr<utility::worker_util<cmd_d_t>> work;
+
  protected:
+  static std::string get_cmd_id(cmdtype* c) {
+    std::string pfx = "Sync";
+    if (c->async_handler() != nullptr) {
+      pfx = "Async";
+    }
+    return fmt::format("{}{}", pfx, c->task_id());
+  }
+
+  static void set_command_data(cmdtype* c) {
+    auto* d = c->command_data();
+    ra2yrproto::CommandResult R;
+    R.set_command_id(c->task_id());
+    R.set_error_message(get_cmd_id(c));
+    d->PackFrom(R);
+  }
+
+  ra2yrproto::CommandResult get_command_data(cmdtype* c) {
+    return protocol::from_any<ra2yrproto::CommandResult>(*c->command_data());
+  }
+
   void SetUp() {
     M = std::make_unique<command::CommandManager<cmd_d_t>>();
-    M->add_command("test", [](auto*) { dprintf("this is a test"); });
+    work = std::make_unique<utility::worker_util<cmd_d_t>>(
+        [](auto&) { util::sleep_ms(10); });
+    M->add_command("test", [](cmdtype* c) { set_command_data(c); });
+    M->add_command("test_async", [this](cmdtype* c) {
+      c->set_async_handler([](auto*) {});
+      set_command_data(c);
+      work->push(cmd_d_t(), [c](auto&) { c->run_async_handler(); });
+    });
     M->start();
   }
 
   void TearDown() {
     M->shutdown();
     M = nullptr;
+    work = nullptr;
   }
 
   auto flush(const u64 qid) { return M->flush_results(qid, 5.0s); }
 
-  auto make_cmd(const u64 qid) {
-    return M->enqueue_command(M->make_command("test", cmd_d_t(), qid));
+  auto create_cmd(u64 qid, std::string n, bool async = false) {
+    if (!async) {
+      return M->make_command(n, cmd_d_t(), qid);
+    }
+    return M->make_async_command(n, cmd_d_t(), qid);
   }
 
- public:
-  using cmd_d_t = pb::Any;
-  std::unique_ptr<command::CommandManager<cmd_d_t>> M;
+  auto make_cmd(const u64 qid) {
+    return M->enqueue_command(create_cmd(qid, "test"));
+  }
+
+  auto make_async_cmd(const u64 qid) {
+    return M->enqueue_command(create_cmd(qid, "test_async", true));
+  }
 };
 
 TEST_F(CommandTest, BasicTest) {
@@ -352,5 +400,103 @@ TEST_F(CommandTest, ComplexTest) {
 
   for (u64 i = 0; i < tasks.size(); i++) {
     tasks.at(i).wait();
+  }
+}
+
+TEST_F(CommandTest, AsyncTest) {
+  GTEST_SKIP();
+  constexpr u64 queue_id = 1;
+  (void)M->execute_create_queue(queue_id, cfg::RESULT_QUEUE_SIZE);
+  {
+    (void)make_cmd(queue_id);
+    auto C_res = flush(queue_id);
+    ASSERT_EQ(C_res.size(), 1);
+  }
+
+  // Check that result queue size bounds work
+  {
+    for (unsigned i = 0U; i < cfg::RESULT_QUEUE_SIZE + 5U; i++) {
+      auto C = make_async_cmd(queue_id);
+      C->result_code().wait_pred(
+          [](command::ResultCode v) { return v != command::ResultCode::NONE; });
+      C->pending().wait(false);
+    }
+    auto C_res = flush(queue_id);
+    ASSERT_EQ(C_res.size(), cfg::RESULT_QUEUE_SIZE);
+  }
+  (void)M->execute_destroy_queue(queue_id);
+  (void)M->execute_create_queue(queue_id);
+
+  constexpr int n_async_tasks = 100;
+  constexpr int n_normal_tasks = 10 * n_async_tasks;
+
+  async_map::AsyncMap<std::string, u64> keys;
+
+  // Task 1 schedules async commands
+  auto async_task = [&]() {
+    // Run some tasks
+    for (int j = 0; j < n_async_tasks; j++) {
+      auto C = create_cmd(queue_id, "test_async", true);
+      auto key = get_cmd_id(C.get());
+      keys.put(C->task_id(), key);
+      M->enqueue_command(C);
+    }
+  };
+
+  // Task 2 schedules normal commands
+  auto main_task = [&]() {
+    // Run some tasks
+    for (int j = 0; j < n_normal_tasks; j++) {
+      auto C = create_cmd(queue_id, "test");
+      auto key = get_cmd_id(C.get());
+      keys.put(C->task_id(), key);
+      M->enqueue_command(C);
+    }
+  };
+
+  // Task 3 flushes the results
+  auto flush_task = [&]() {
+    const int n_tasks = n_async_tasks + n_normal_tasks;
+    for (int j = n_tasks; j > 0;) {
+      auto C_res = flush(queue_id);
+      j -= static_cast<int>(C_res.size());
+      for (auto& c : C_res) {
+        auto res = get_command_data(c.get());
+        auto kres = keys.get(c->task_id());
+        ASSERT_EQ(res.error_message(), kres);
+      }
+    }
+  };
+
+#if 0
+  std::vector<std::future<void>> tasks;
+  tasks.emplace_back(std::async(std::launch::async, main_task));
+#else
+  std::vector<std::future<std::string>> tasks;
+  auto make_task = [&](std::function<void()> f) {
+    tasks.emplace_back(std::async(std::launch::async, [f]() -> std::string {
+      try {
+        f();
+        return std::string("");
+      } catch (const std::exception& e) {
+        return std::string(e.what());
+      }
+    }));
+  };
+  make_task(main_task);
+  make_task(async_task);
+  make_task(flush_task);
+#endif
+
+  //   make_task(flush_task);
+  std::vector<std::string> res;
+  for (u64 i = 0; i < tasks.size(); i++) {
+    dprintf("get res {}", i);
+    res.push_back(tasks.at(i).get());
+  }
+  dprintf("num res {}", res.size());
+  for (auto& s : res) {
+    dprintf("check");
+    ASSERT_EQ(s, "");
   }
 }

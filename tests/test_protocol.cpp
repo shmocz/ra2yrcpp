@@ -75,4 +75,11 @@ TEST_F(TemporaryDirectoryTest, ProtocolTest) {
   for (std::size_t i = 0; i < messages.size(); i++) {
     ASSERT_TRUE(D.Equals(messages.at(i), messages_out.at(i)));
   }
+  constexpr std::size_t n_empty_messages = 10U;
+  ra2yrproto::ra2yr::GameState G0;
+  ASSERT_TRUE(G0.houses().empty());
+  ra2yrcpp::protocol::fill_repeated_empty(G0.mutable_houses(),
+                                          n_empty_messages);
+  ASSERT_EQ(G0.houses().size(), n_empty_messages);
+  G0.clear_houses();
 }

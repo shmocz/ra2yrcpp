@@ -94,6 +94,7 @@ class WebSocketClient:
         self.task = None
         self._tries = 15
         self._connect_delay = 1.0
+        self._lock = asyncio.Lock()
 
     def open(self):
         self.task = asyncio.create_task(async_log_exceptions(self.main()))
@@ -103,8 +104,9 @@ class WebSocketClient:
         await self.task
 
     async def send_message(self, m: str) -> aiohttp.WSMessage:
-        await self.in_queue.put(m)
-        return await self.out_queue.get()
+        async with self._lock:
+            await self.in_queue.put(m)
+            return await self.out_queue.get()
 
     async def main(self):
         # send the initial message

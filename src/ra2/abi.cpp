@@ -55,10 +55,10 @@ u32 ABIGameMD::timeGetTime() {
       serialize::read_obj_le<std::uintptr_t>(0x7E1530))();
 }
 
-bool ABIGameMD::BuildingClass_CanPlaceHere(std::uintptr_t p_this,
-                                           CellStruct* cell,
-                                           std::uintptr_t house_owner) {
-  return BuildingClass_CanPlaceHere::call(this, p_this, cell, house_owner);
+bool ABIGameMD::BuildingTypeClass_CanPlaceHere(std::uintptr_t p_this,
+                                               CellStruct* cell,
+                                               std::uintptr_t house_owner) {
+  return BuildingTypeClass_CanPlaceHere::call(this, p_this, cell, house_owner);
 }
 
 bool ABIGameMD::DisplayClass_Passes_Proximity_Check(std::uintptr_t p_this,

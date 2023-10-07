@@ -39,8 +39,8 @@ class ABIGameMD {
 
   void sprintf(char** buf, std::uintptr_t args_start);
 
-  bool BuildingClass_CanPlaceHere(std::uintptr_t p_this, CellStruct* cell,
-                                  std::uintptr_t house_owner);
+  bool BuildingTypeClass_CanPlaceHere(std::uintptr_t p_this, CellStruct* cell,
+                                      std::uintptr_t house_owner);
 
   void AddMessage(int id, const std::string message, i32 color, i32 style,
                   u32 duration_frames, bool single_player);
@@ -222,7 +222,7 @@ using SellBuilding = Caller<0x447110U, bool __cdecl (*)(u32, u32)>;
 
 using SelectObject = Caller<0x6FBFA0u, bool __cdecl (*)(u32)>;
 
-using BuildingClass_CanPlaceHere =
+using BuildingTypeClass_CanPlaceHere =
     Caller<0x464AC0U,
            bool __cdecl (*)(std::uintptr_t, CellStruct*, std::uintptr_t)>;
 

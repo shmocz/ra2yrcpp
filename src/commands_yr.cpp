@@ -296,11 +296,10 @@ auto place_query() {
           auto* cs = reinterpret_cast<CellStruct*>(&cell_s);
 
           auto p_DisplayClass = 0x87F7E8u;
-          // TODO(shmocz): rename BuildingClass to BuildingTypeClass
           if (C->abi()->DisplayClass_Passes_Proximity_Check(
                   p_DisplayClass, reinterpret_cast<BuildingTypeClass*>(*B),
                   house->array_index(), cs) &&
-              C->abi()->BuildingClass_CanPlaceHere(
+              C->abi()->BuildingTypeClass_CanPlaceHere(
                   reinterpret_cast<std::uintptr_t>(*B), cs, house->self())) {
             auto* cnew = r.add_coordinates();
             cnew->CopyFrom(c);

@@ -1,15 +1,23 @@
 import asyncio
 import logging as lg
 import traceback
+from collections.abc import Iterable
 from datetime import datetime as dt
-from functools import cached_property
-from typing import Any, Dict, List, Set
+from enum import Enum
+from typing import Any
 
 import numpy as np
-from ra2yrproto import commands_builtin, commands_yr, core, ra2yr
+from ra2yrproto import commands_builtin, commands_game, commands_yr, core, ra2yr
 
 from pyra2yr.network import DualClient, logged_task
+from pyra2yr.state_manager import StateManager
 from pyra2yr.util import Clock, cell_grid
+
+
+class PlaceStrategy(Enum):
+    RANDOM = 0
+    FARTHEST = 1
+    ABSOLUTE = 2
 
 
 class CachedEntry:
@@ -84,11 +92,11 @@ class Manager:
         self.port = port
         self.poll_frequency = min(max(1, poll_frequency), 60)
         self.fetch_state_timeout = fetch_state_timeout
-        self.state: ra2yr.GameState = ra2yr.GameState()
-        self.type_classes: List[ra2yr.ObjectTypeClass] = []
+        # self.state: ra2yr.GameState = ra2yr.GameState()
+        self.state = StateManager()
+        self.type_classes: list[ra2yr.ObjectTypeClass] = []
         self.prerequisite_groups: ra2yr.PrerequisiteGroups = []
         self.callbacks = []
-        self.state_updated = asyncio.Condition()
         self._stop = asyncio.Event()
         self.client: DualClient = DualClient(self.address, self.port)
         self.t = Clock()
@@ -96,7 +104,6 @@ class Manager:
         self.show_stats_every = 30
         self.delta = 0
         self.M = ManagerUtil(self)
-        # default callbacks
 
     def start(self):
         self._main_task = logged_task(self.mainloop())
@@ -107,33 +114,15 @@ class Manager:
         await self._main_task
         await self.client.stop()
 
-    @cached_property
-    def prerequisite_map(self) -> Dict[int, Set[int]]:
-        items = {
-            "proc": -6,
-            "tech": -5,
-            "radar": -4,
-            "barracks": -3,
-            "factory": -2,
-            "power": -1,
-        }
-        return {
-            v: set(getattr(self.prerequisite_groups, k))
-            for k, v in items.items()
-        }
-
     async def step(self, s: ra2yr.GameState):
         pass
 
-    # FIXME: rename
-    async def update_type_classes(self):
+    async def update_initials(self):
         res_istate = await self.M.read_value(
             initial_game_state=ra2yr.GameState()
         )
         state = res_istate.data.initial_game_state
-        self.type_classes = state.object_types
-        self.prerequisite_groups = state.prerequisite_groups
-        assert len(self.type_classes) > 0
+        self.state.set_initials(state.object_types, state.prerequisite_groups)
 
     async def on_state_update(self, s: ra2yr.GameState):
         if self.iters % self.show_stats_every == 0:
@@ -147,10 +136,8 @@ class Manager:
             )
             self.t.tic()
         if s.current_frame > 0:
-            if not self.type_classes:
-                await self.update_type_classes()
-            if not self.prerequisite_groups:
-                self.prerequisite_groups = s.prerequisite_groups
+            if not self.state.has_initials():
+                await self.update_initials()
             try:
                 fn = await self.step(s)
                 if fn:
@@ -165,7 +152,8 @@ class Manager:
     async def get_state(self) -> ra2yr.GameState:
         cmd = commands_yr.GetGameState()
         state = await self.client.exec_command(cmd, timeout=5.0)
-        state.result.Unpack(cmd)
+        if not state.result.Unpack(cmd):
+            raise RuntimeError(f"failed to unpack state: {state}")
         return cmd.state
 
     async def run_command(self, c: Any) -> core.CommandResult:
@@ -201,28 +189,26 @@ class Manager:
                 )
                 deadline = dt.now().timestamp() + d
                 s = await self.get_state()
-                if self.state and (
-                    s.current_frame == self.state.current_frame
-                    and s.stage == self.state.stage
-                ):
+                if not self.state.should_update(s):
                     continue
-                self.state.CopyFrom(s)
+                self.state.set_state(s)
                 await self.on_state_update(s)
-                async with self.state_updated:
-                    self.state_updated.notify_all()
+                await self.state.state_updated()
             except asyncio.exceptions.TimeoutError:
                 lg.error("Couldn't fetch result")
 
-    async def wait_state(self, cond, timeout=30):
-        async with self.state_updated:
-            await asyncio.wait_for(
-                self.state_updated.wait_for(cond),
-                timeout,
-            )
+    # FIXME(shmocz): deprecate
+    async def wait_state(self, cond, timeout=30, err=None):
+        await self.state.wait_state(lambda x: cond(), timeout=timeout, err=err)
 
-    def players(self) -> List[ra2yr.House]:
+    async def wait_state2(self, cond, timeout=30, err=None):
+        await self.state.wait_state(cond, timeout=timeout, err=err)
+
+    def players(self) -> list[ra2yr.House]:
         return [
-            p for p in self.state.houses if p.name not in ["Special", "Neutral"]
+            p
+            for p in self.state.s.houses
+            if p.name not in ["Special", "Neutral"]
         ]
 
 
@@ -288,10 +274,20 @@ class CommandBuilder:
         )
 
     @classmethod
+    def make_produce_order(
+        cls, object_type=ra2yr.ObjectTypeClass, action=ra2yr.ProduceAction
+    ):
+        return cls.make_command(
+            commands_game.ProduceOrder(),
+            object_type=object_type,
+            action=action,
+        )
+
+    @classmethod
     def mission_clicked(
         cls,
-        object_addresses=List[int],
-        event=ra2yr.Mission,
+        object_addresses: list[int],
+        event: ra2yr.Mission,
         coordinates=None,
         target_object=None,
     ):
@@ -307,7 +303,7 @@ class CommandBuilder:
     def click_event(
         cls,
         event_type: ra2yr.NetworkEvent = None,
-        object_addresses: List[int] = None,
+        object_addresses: list[int] = None,
         **kwargs,
     ):
         return cls.make_command(
@@ -319,13 +315,29 @@ class CommandBuilder:
     @classmethod
     def unit_command(
         cls,
-        object_addresses: List[int] = None,
-        action: commands_yr.UnitAction = None,
+        object_addresses: list[int] = None,
+        action: ra2yr.UnitAction = None,
     ):
         return cls.make_command(
             commands_yr.UnitCommand(),
             object_addresses=object_addresses,
             action=action,
+        )
+
+    @classmethod
+    def unit_order(
+        cls,
+        object_addresses: list[int] = None,
+        action: ra2yr.UnitAction = None,
+        target_object: int = None,
+        coordinates=None,
+    ):
+        return cls.make_command(
+            commands_game.UnitOrder(),
+            object_addresses=object_addresses,
+            action=action,
+            target_object=target_object,
+            coordinates=coordinates,
         )
 
 
@@ -337,8 +349,8 @@ class ManagerUtil:
     # TODO(shmocz): low level stuff put elsewhere
     async def unit_command(
         self,
-        object_addresses: List[int] = None,
-        action: commands_yr.UnitAction = None,
+        object_addresses: list[int] = None,
+        action: ra2yr.UnitAction = None,
     ):
         return await self.manager.run(
             self.C.unit_command(
@@ -348,24 +360,25 @@ class ManagerUtil:
 
     async def select(
         self,
-        object_addresses: List[int] = None,
+        object_addresses: list[int] = None,
     ):
-        return await self.unit_command(
-            object_addresses=object_addresses, action=commands_yr.ACTION_SELECT
+        return await self.execute(
+            commands_game.UnitOrder,
+            object_addresses=object_addresses,
+            action=ra2yr.UNIT_ACTION_SELECT,
         )
 
-    async def move(self, object_addresses: List[int] = None, coordinates=None):
-        return await self.manager.run(
-            self.C.mission_clicked(
-                object_addresses=object_addresses,
-                event=ra2yr.Mission_Move,
-                coordinates=coordinates,
-            )
+    async def move(self, object_addresses: list[int] = None, coordinates=None):
+        return await self.execute(
+            commands_game.UnitOrder,
+            object_addresses=object_addresses,
+            action=ra2yr.UNIT_ACTION_MOVE,
+            coordinates=coordinates,
         )
 
     async def capture(
         self,
-        object_addresses: List[int] = None,
+        object_addresses: list[int] = None,
         coordinates=None,
         target_object: int = 0,
     ):
@@ -378,12 +391,18 @@ class ManagerUtil:
             )
         )
 
+    # TODO(shmocz): wait for proper value
     async def deploy(self, object_address: int = None):
         return await self.manager.run(
-            self.C.click_event(
-                event_type=ra2yr.NETWORK_EVENT_Deploy,
+            self.C.unit_order(
                 object_addresses=[object_address],
+                action=ra2yr.UNIT_ACTION_DEPLOY,
             )
+        )
+
+    async def execute(self, command_class: Any, **kwargs):
+        return await self.manager.run(
+            self.C.make_command(command_class(), **kwargs)
         )
 
     async def place_query(
@@ -400,16 +419,13 @@ class ManagerUtil:
 
     async def place_building(
         self,
-        heap_id=None,
-        is_naval=None,
-        location=None,
-    ):
-        return await self.manager.run(
-            self.C.make_place(
-                heap_id=heap_id,
-                is_naval=is_naval,
-                location=location,
-            )
+        building: ra2yr.Object = None,
+        coordinates: ra2yr.Coordinates = None,
+    ) -> core.CommandResult:
+        return await self.run_command(
+            commands_game.PlaceBuilding(
+                building=building, coordinates=coordinates
+            ),
         )
 
     async def click_event(
@@ -424,16 +440,59 @@ class ManagerUtil:
         )
 
     async def sell_buildings(self, object_addresses=None):
-        return await self.manager.run(
-            self.C.make_command(
-                commands_yr.ClickEvent(),
-                object_addresses=object_addresses,
-                event=ra2yr.NETWORK_EVENT_Sell,
-            )
+        return await self.execute(
+            commands_game.UnitOrder,
+            object_addresses=object_addresses,
+            action=ra2yr.UNIT_ACTION_SELL,
         )
 
     async def sell_building(self, object_address=None):
         return await self.sell_buildings(object_addresses=[object_address])
+
+    async def produce_order(
+        self,
+        object_type: ra2yr.ObjectTypeClass,
+        action: ra2yr.ProduceAction = None,
+    ) -> core.CommandResult:
+        return await self.run_command(
+            commands_game.ProduceOrder(object_type=object_type, action=action)
+        )
+
+    async def unit_order(
+        self,
+        objects: list[ra2yr.Object] = None,
+        action: ra2yr.UnitAction = None,
+        target_object: ra2yr.Object = None,
+        coordinates: ra2yr.Coordinates = None,
+    ):
+        p_target = None
+        if target_object:
+            p_target = target_object.pointer_self
+        if not isinstance(objects, list):
+            if isinstance(objects, Iterable):
+                objects = list(objects)
+            elif not objects is None:
+                objects = [objects]
+            else:
+                objects = []
+        return await self.manager.run_command(
+            commands_game.UnitOrder(
+                object_addresses=[o.pointer_self for o in objects],
+                action=action,
+                target_object=p_target,
+                coordinates=coordinates,
+            )
+        )
+
+    async def sell(self, objects: list[ra2yr.Object]):
+        return await self.unit_order(
+            objects=objects, action=ra2yr.UNIT_ACTION_SELL
+        )
+
+    async def sell_walls(self, coordinates: ra2yr.Coordinates):
+        return await self.unit_order(
+            action=ra2yr.UNIT_ACTION_SELL_CELL, coordinates=coordinates
+        )
 
     async def produce(
         self,
@@ -459,6 +518,17 @@ class ManagerUtil:
             )
         )
 
+    async def run_command(self, c: Any):
+        return await self.manager.run_command(c)
+
+    async def start_production(
+        self, object_type: ra2yr.ObjectTypeClass
+    ) -> core.CommandResult:
+        return await self.produce_order(
+            object_type=object_type,
+            action=ra2yr.PRODUCE_ACTION_BEGIN,
+        )
+
     async def add_message(
         self,
         message: str = None,
@@ -477,7 +547,7 @@ class ManagerUtil:
     async def read_value(self, **kwargs):
         return await self.manager.run(
             commands_yr.ReadValue(),
-            data=commands_yr.StorageValue(**kwargs),
+            data=ra2yr.StorageValue(**kwargs),
         )
 
     async def inspect_configuration(
@@ -503,16 +573,14 @@ class ManagerUtil:
         return res
 
     async def wait_game_to_begin(self, timeout=60):
-        await self.manager.wait_state(
-            lambda: self.manager.state.stage == ra2yr.STAGE_INGAME
-            and self.manager.state.current_frame > 1
-            and self.manager.type_classes,
+        await self.manager.wait_state2(
+            lambda x: x.s.stage == ra2yr.STAGE_INGAME and x.s.current_frame > 1,
             timeout=timeout,
         )
 
     async def wait_game_to_exit(self, timeout=60):
         await self.manager.wait_state(
-            lambda: self.manager.state.stage == ra2yr.STAGE_EXIT_GAME,
+            lambda: self.manager.state.s.stage == ra2yr.STAGE_EXIT_GAME,
             timeout=timeout,
         )
 

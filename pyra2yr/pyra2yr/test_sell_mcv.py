@@ -1,224 +1,352 @@
 import asyncio
 import logging
 import os
+import random
 import re
+import unittest
 
-from ra2yrproto import ra2yr, commands_yr
+import numpy as np
+from ra2yrproto import core, ra2yr
 
-from pyra2yr.manager import Manager, ManagerUtil
-from pyra2yr.network import logged_task
-from pyra2yr.test_util import verify_recording
+from pyra2yr.manager import PlaceStrategy
+from pyra2yr.state_manager import ObjectFactory
+from pyra2yr.test_util import BaseGameTest, check_config, verify_recording
 from pyra2yr.util import (
-    Clock,
-    coord2cell,
-    coord2tuple,
-    pdist,
-    tuple2coord,
+    array2coord,
+    coord2array,
+    setup_logging,
     unixpath,
 )
 
-logging.basicConfig(level=logging.DEBUG)
+setup_logging(level=logging.DEBUG)
 debug = logging.debug
 info = logging.info
 
 
-async def check_config(U: ManagerUtil = None):
-    # Get config
-    cmd_1 = await U.inspect_configuration()
-    info("cmd_1=%s", cmd_1)
-    cfg1 = cmd_1.config
-    cfg_ex = commands_yr.Configuration()
-    cfg_ex.CopyFrom(cfg1)
-    cfg_ex.debug_log = True
-    cfg_ex.parse_map_data_interval = 1
-    assert cfg_ex == cfg1
+class MCVSellTest(BaseGameTest):
+    async def check_record_output_defined(self):
+        # Get config
+        cmd_1 = await self.M.M.inspect_configuration()
+        cfg1 = cmd_1.config
+        self.assertNotEqual(cfg1.record_filename, "")
 
-    # Try changing some settings
-    cfg_diff = commands_yr.Configuration(parse_map_data_interval=4)
-    cfg2_ex = commands_yr.Configuration()
-    cfg2_ex.CopyFrom(cfg1)
-    cfg2_ex.MergeFrom(cfg_diff)
-    cmd_2 = await U.inspect_configuration(config=cfg_diff)
-    cfg2 = cmd_2.config
-    assert cfg2 == cfg2_ex
+    async def verify_recording(self):
+        # get record file path
+        cfg = await self.U.inspect_configuration()
+        res_s = await self.U.get_system_state()
 
-
-async def check_record_output_defined(U: ManagerUtil = None):
-    # Get config
-    cmd_1 = await U.inspect_configuration()
-    cfg1 = cmd_1.config
-    assert (
-        cfg1.record_filename
-    ), f"Record output wasn't set. Make sure RA2YRCPP_RECORD_PATH environment variable is set."
-
-
-async def mcv_sell(app=None):
-    M = Manager(poll_frequency=30)
-    info("start manager")
-    M.start()
-    info("manager started")
-    U = ManagerUtil(M)
-    X = Clock()
-
-    player_name = "player_0"
-
-    info("wait game to begin")
-    await U.wait_game_to_begin()
-    info("state=ingame, players=%s", M.state.houses)
-    await check_config(U)
-    await check_record_output_defined(U)
-
-    # Get TC's
-    info("num tc=%s", len(M.type_classes))
-
-    # MCV TC's
-    tc_mcv = [
-        t.pointer_self for t in M.type_classes if re.search(r"Vehicle", t.name)
-    ]
-
-    tc_conyard = [
-        t.pointer_self for t in M.type_classes if re.search(r"Yard", t.name)
-    ]
-
-    tc_tesla = [
-        t for t in M.type_classes if re.search(r"Tesla\s+Reactor", t.name)
-    ]
-    assert len(tc_tesla) == 1
-    tc_tesla = tc_tesla[0]
-    req = [
-        t
-        for t in M.type_classes
-        if t.type == ra2yr.ABSTRACT_TYPE_BUILDINGTYPE
-        and t.array_index in tc_tesla.prerequisites
-    ]
-    debug("tesla=%s, req=%s", tc_tesla, req)
-
-    # Get MCV pointer
-    p_player = [p.self for p in M.state.houses if p.name == player_name][0]
-    o_mcv = [
-        o
-        for o in M.state.objects
-        if o.pointer_technotypeclass in tc_mcv and o.pointer_house == p_player
-    ]
-    debug("mcv %s", o_mcv)
-    assert len(o_mcv) == 1
-    o_mcv = o_mcv[0]
-
-    X.tic()
-    debug("selecting MCV p=%d", o_mcv.pointer_self)
-    await U.select(object_addresses=[o_mcv.pointer_self])
-
-    # Wait until selected
-    await M.wait_state(
-        lambda: [
-            o
-            for o in M.state.objects
-            if o.pointer_self == o_mcv.pointer_self
-            and o.pointer_house == p_player
-            and o.selected
-        ]
-    )
-
-    info("latency(select): %f", X.toc())
-
-    # Move one cell down
-    cur_coords = coord2tuple(o_mcv.coordinates)
-    tgt_coords = tuple2coord(
-        tuple(x + y * 256 for x, y in zip(cur_coords, (1, 0, 0)))
-    )
-    info("move to %s", tgt_coords)
-    await U.move(
-        object_addresses=[o_mcv.pointer_self],
-        coordinates=tgt_coords,
-    )
-
-    # Wait until MCV on cell
-    # TODO: just wait to be deployable
-    await M.wait_state(
-        lambda: [
-            o
-            for o in M.state.objects
-            if o.pointer_self == o_mcv.pointer_self
-            and coord2cell(coord2tuple(o.coordinates))
-            == coord2cell(coord2tuple(tgt_coords))
-        ]
-    )
-
-    X.tic()
-    await U.deploy(o_mcv.pointer_self)
-
-    # wait until there's a MCV
-    await M.wait_state(
-        lambda: [
-            o
-            for o in M.state.objects
-            if o.pointer_technotypeclass in tc_conyard
-            and o.pointer_house == p_player
-        ]
-    )
-    info("latency(deploy): %f", X.toc())
-
-    # Get map data
-    res = await U.read_value(map_data=ra2yr.MapData())
-
-    # produce event
-    info("produce event")
-    await U.produce_building(heap_id=tc_tesla.array_index, is_naval=False)
-
-    # wait until done
-    await M.wait_state(
-        lambda: M.state.factories
-        and all([o.progress_timer == 54 for o in M.state.factories])
-    )
-
-    res = await U.get_place_locations(
-        cur_coords, tc_tesla.pointer_self, p_player, 15, 15
-    )
-
-    coords = res.coordinates
-    # get cell furthest away and place
-    dists = [
-        (i, pdist(cur_coords, coord2tuple(c))) for i, c in enumerate(coords)
-    ]
-    debug("dists=%s", dists)
-    i0, _ = sorted(dists, key=lambda x: x[1], reverse=True)[0]
-
-    # place
-    await U.place_building(
-        heap_id=tc_tesla.array_index,
-        is_naval=False,
-        location=coords[i0],
-    )
-
-    # send message
-    await U.add_message(
-        message="TESTING", duration_frames=0x96, color=ra2yr.ColorScheme_Red
-    )
-
-    # sell all buildings
-    for p in (o for o in M.state.objects if o.pointer_house == p_player):
-        await U.sell_building(p.pointer_self)
-
-    debug("wait game to exit")
-    await U.wait_game_to_exit()
-
-    # get record file path
-    cfg = await U.inspect_configuration()
-    res_s = await U.get_system_state()
-
-    await M.stop()
-    verify_recording(
-        os.path.join(
-            unixpath(res_s.state.directory),
-            cfg.config.record_filename,
+        verify_recording(
+            os.path.join(
+                unixpath(res_s.state.directory),
+                cfg.config.record_filename,
+            )
         )
-    )
 
+    async def produce_and_place(
+        self,
+        t: ra2yr.ObjectTypeClass,
+        coords,
+        strategy: PlaceStrategy = PlaceStrategy.FARTHEST,
+    ):
+        M = self.M
+        U = self.U
+        r = await U.start_production(t)
+        self.assertEqual(r.result_code, core.ResponseCode.OK)
+        obj = None
+        debug("coords=%s", coords)
 
-async def main():
-    t = logged_task(mcv_sell())
-    await t
+        # wait until corresponding type is being produced
+        await M.wait_state(
+            lambda: any(
+                o.pointer_technotypeclass == t.pointer_self
+                for (o, _) in self.get_production(self.current_player())
+            )
+        )
+
+        obj, _ = next(
+            x
+            for x in self.get_production()
+            if x[0].pointer_technotypeclass == t.pointer_self
+        )
+
+        # wait until done
+        await M.wait_state(
+            lambda: all(
+                f.completed and o.pointer_technotypeclass == t.pointer_self
+                for (o, f) in self.get_production(self.current_player())
+            )
+        )
+
+        if strategy == PlaceStrategy.FARTHEST:
+            place_locations = await self.get_place_locations(
+                coords, next(self.sm.get_objects(t)), 15, 15
+            )
+
+            # get cell closest away and place
+            dists = np.sqrt(np.sum((place_locations - coords) ** 2, axis=1))
+            i0 = np.argsort(dists)[-1]
+            coords = place_locations[i0]
+        fac = {x.object: x for x in self.get_factories(self.current_player())}
+        OF = ObjectFactory(self.sm)
+        obj = OF.create_object(
+            next(
+                o
+                for o in self.house_objects(self.current_player())
+                if o.pointer_technotypeclass == t.pointer_self
+                and o.pointer_self in fac
+            )
+        )
+        r = await U.place_building(
+            building=obj.o, coordinates=array2coord(coords)
+        )
+        if r.result_code != core.ResponseCode.OK:
+            raise RuntimeError(f"place failed: {r.error_message}")
+        # wait until building has been placed
+        await M.wait_state(
+            lambda: obj.o.pointer_self
+            not in [
+                q.pointer_self
+                for q, _ in self.get_production(self.current_player())
+            ]
+        )
+        return obj.o
+
+    async def get_unique_tc(self, pattern):
+        tc = list(self.sm.get_type_class_by_regex(pattern))
+        self.assertEqual(len(tc), 1)
+        return tc[0]
+
+    async def map_data(self) -> ra2yr.MapData:
+        res = await self.M.M.read_value(map_data=ra2yr.MapData())
+        return res.data.map_data
+
+    async def test_sell_mcv(self):
+        random.seed(1234)
+        M = self.M
+        U = M.M
+        self.U = U
+
+        await U.wait_game_to_begin()
+        await check_config(U)
+        await self.check_record_output_defined()
+
+        # Get TC's
+        info("num tc=%s", len(M.type_classes))
+
+        tc_tesla = await self.get_unique_tc(r"Tesla\s+Reactor")
+        tc_conscript = await self.get_unique_tc(r"Conscript")
+        tc_engi = await self.get_unique_tc(r"^Engineer$")
+        tc_wall = next(
+            self.sm.query_type_class(
+                r"Soviet\s+Wall", ra2yr.ABSTRACT_TYPE_BUILDINGTYPE
+            )
+        )
+        tc_rax = await self.get_unique_tc(r"Soviet\s+Barracks")
+
+        # Get MCV object
+        mcvs = [
+            o
+            for o in self.house_objects(self.current_player())
+            if re.search(
+                r"Construction\s+Vehicle",
+                self.sm.ttc_map[o.pointer_technotypeclass].name,
+            )
+        ]
+        self.assertEqual(len(mcvs), 1)
+        o_mcv = mcvs[0]
+        # debug(
+        #     "overlay types=%s",
+        #     "\n".join(
+        #         msg_oneline(t)
+        #         for t in self.sm.types()
+        #         if t.type == ra2yr.ABSTRACT_TYPE_OVERLAYTYPE
+        #     ),
+        # )
+        # get wall overlay type
+        tc_wall_ol = next(
+            self.sm.query_type_class(
+                r"Soviet\s+Wall", ra2yr.ABSTRACT_TYPE_OVERLAYTYPE
+            )
+        )
+        debug("wall overlay %s", tc_wall_ol)
+
+        await U.select(object_addresses=[o_mcv.pointer_self])
+
+        # Wait until selected
+        await M.wait_state(lambda: [self.sm.get_object(o_mcv).selected])
+
+        cur_coords = coord2array(o_mcv.coordinates)
+        tgt_coords = cur_coords + 256 * np.array([1, 0, 0])
+        debug("moving mcv")
+        await U.move(
+            object_addresses=[o_mcv.pointer_self],
+            coordinates=array2coord(tgt_coords),
+        )
+
+        # Wait until MCV on cell
+        # TODO(shmocz): just wait to be deployable
+        await M.wait_state(
+            lambda: np.all(
+                coord2array(self.sm.get_object(o_mcv).coordinates) / 256
+                == tgt_coords / 256
+            ),
+            timeout=5.0,
+            err="MCV at target cell",
+        )
+
+        await U.deploy(o_mcv.pointer_self)
+
+        await M.wait_state(
+            lambda: [
+                o
+                for o in self.house_objects(self.current_player())
+                if re.search(
+                    r"Yard", self.sm.ttc_map[o.pointer_technotypeclass].name
+                )
+            ],
+            err="conyard ready",
+        )
+
+        # Check that we cant build illegal buildings
+        # r = await M.run_command(
+        #     commands_game.ProduceOrder(
+        #         object_type=tc_power, action=ra2yr.PRODUCE_ACTION_BEGIN
+        #     )
+        # )
+        # self.assertRegex(r.error_message, r"unbuildable")
+
+        b_tesla = await self.produce_and_place(tc_tesla, cur_coords)
+
+        await asyncio.sleep(0.5)
+
+        b_rax = await self.produce_and_place(tc_rax, cur_coords)
+
+        await asyncio.sleep(0.5)
+
+        # b_wall = await self.produce_and_place(tc_wall, cur_coords)
+
+        # await asyncio.sleep(0.5)
+
+        # build wall around conyard
+
+        # sell conyard
+        o_conyard = next(
+            o
+            for o in self.my_buildings()
+            if re.search(
+                r"Construction\s+Yard",
+                self.sm.ttc_map[o.pointer_technotypeclass].name,
+            )
+        )
+
+        # get cells that contain MCV
+        W = await self.map_data()
+        D = [
+            i
+            for i, c in enumerate(W.cells)
+            if o_conyard.pointer_self in [q.pointer_self for q in c.objects]
+        ]
+        # FIXME: the coords are wrong
+        yy, xx = np.unravel_index(D, (W.width, W.height))
+        X2 = np.c_[xx, yy]
+        # get corner points for wall
+        m_min = np.min(X2, axis=0)
+        m_max = np.max(X2, axis=0)
+        debug("mmin=%s,mmax=%s", m_min, m_max)
+        cc = (
+            np.array(
+                [
+                    [m_max[0] + 1, m_max[1] + 1],  # BL
+                    [m_max[0] + 1, m_min[1] - 1],  # BR
+                    [m_min[0] - 1, m_max[1] + 1],  # TL
+                    [m_min[0] - 1, m_min[1] - 1],  # TR
+                ]
+            )
+            * 256
+        )
+
+        OF = ObjectFactory(self.sm)
+        cc2 = (cc / 256).astype(np.int64)
+        cc = np.c_[cc, np.ones((cc.shape[0], 1)) * o_conyard.coordinates.z]
+        # wall MCV
+        debug("place coords=%s", cc / 256)
+        for c in cc:
+            await self.produce_and_place(
+                tc_wall, c, strategy=PlaceStrategy.ABSOLUTE
+            )
+
+        await asyncio.sleep(1.0)
+        # get player objs
+        debug(
+            "objs=%s",
+            [
+                OF.create_object(o).tc()
+                for o in self.house_objects(self.current_player())
+            ],
+        )
+        # get all wall cells
+        W = await self.map_data()
+        D = [
+            c.index
+            for c in W.cells
+            if c.overlay_type_index == tc_wall_ol.array_index
+        ]
+        debug("wall cells %s", D)
+        # FIXME: the coords are wrong
+        yy, xx = np.unravel_index(D, (W.width, W.height))
+        X2 = np.c_[xx, yy]
+        # wall_cells = []
+        # # sell all but two walls
+        # objs_wall = [
+        #     q
+        #     for q in (
+        #         OF.create_object(o)
+        #         for o in self.house_objects(self.current_player())
+        #     )
+        #     if re.match(r"Soviet\s+Wall", q.tc().name)
+        # ]
+        # debug("walls:%s", objs_wall)
+        cc3 = (X2 * 256).astype(np.int64)
+        cc = np.c_[cc3, np.zeros((cc3.shape[0], 1))]
+        # sell walls
+        debug("wall cells: %s", X2)
+        for c in cc[:-3, ...]:
+            await U.sell_walls(array2coord(c))
+
+        # get cells that contain player objs
+        # yy, xx = np.unravel_index(D, (M.width, M.height))
+        # X2 = np.c_[xx, yy]
+
+        await asyncio.sleep(2)
+        await U.sell(objects=[o_conyard])
+        await asyncio.sleep(2)
+
+        # order connies to attack tesla reactor
+        connies = list(self.sm.get_objects(tc_conscript))
+        o_tesla = OF.create_object(self.sm.get_object(b_tesla))
+
+        r = await U.unit_order(
+            objects=connies,
+            action=ra2yr.UNIT_ACTION_ATTACK,
+            target_object=o_tesla.o,
+        )
+
+        # wait until tesla health drops under certain value, then order engineer to repair it
+        await M.wait_state(
+            lambda: o_tesla.update()
+            and o_tesla.o.health < o_tesla.tc().strength
+        )
+
+        r = await U.unit_order(
+            objects=self.sm.get_objects(tc_engi),
+            action=ra2yr.UNIT_ACTION_CAPTURE,
+            target_object=o_tesla.o,
+        )
+
+        await U.wait_game_to_exit()
+
+        await self.verify_recording()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    unittest.main()

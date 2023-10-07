@@ -193,7 +193,8 @@ class DualClient:
 
         res = self.parse_response(msg.data)
         ack = core.RunCommandAck()
-        res.body.Unpack(ack)
+        if not res.body.Unpack(ack):
+            raise RuntimeError(f"failed to unpack ack: {res}")
         return ack
 
     # TODO: could wrap this into task and cancel at exit
@@ -215,7 +216,8 @@ class DualClient:
             )
             res = self.parse_response(msg.data)
             cc = core.PollResults()
-            res.body.Unpack(cc)
+            if not res.body.Unpack(cc):
+                raise RuntimeError(f"failed to unpack poll results {cc}")
             for x in cc.result.results:
                 await self.results.put_item(x.command_id, x)
 

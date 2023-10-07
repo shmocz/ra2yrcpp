@@ -3,10 +3,12 @@ import io
 import logging
 import math
 import re
+import pstats
 from enum import Enum, IntFlag, auto
 from typing import Iterable, Iterator, List, Tuple
 
 import google.protobuf.text_format as text_format
+import numpy as np
 from google.protobuf.internal.decoder import _DecodeVarint32
 from ra2yrproto import ra2yr
 
@@ -19,7 +21,7 @@ def unixpath(p: str):
     return re.sub(r"^\w:", "", re.sub(r"\\+", "/", p))
 
 
-def coord2cell(x) -> Tuple[int, int, int]:
+def coord2cell(x):
     if isinstance(x, tuple):
         return tuple(coord2cell(v) for v in x)
     return int(x / 256)
@@ -33,6 +35,14 @@ def cell2coord(x) -> Tuple[int]:
 
 def coord2tuple(x: ra2yr.Coordinates) -> Tuple[int]:
     return tuple(getattr(x, k) for k in "xyz")
+
+
+def array2coord(x: np.array) -> ra2yr.Coordinates:
+    return ra2yr.Coordinates(**{k: int(v) for k, v in zip("xyz", x)})
+
+
+def coord2array(x: ra2yr.Coordinates) -> np.array:
+    return np.array(coord2tuple(x))
 
 
 def pdist(v1, v2, n=2):
@@ -190,7 +200,7 @@ def cell_to_coordinates(i: int, bounds: Tuple[int, int]):
 def finish_profiler(p):
     p.disable()
     s = io.StringIO()
-    ps = pstats.Stats(p, stream=s).sort_stats(SortKey.CUMULATIVE)
+    ps = pstats.Stats(p, stream=s).sort_stats(pstats.SortKey.CUMULATIVE)
     ps.print_stats()
     return s.getvalue()
 
@@ -247,6 +257,10 @@ def cell_grid(coords, rx: int, ry: int) -> List[ra2yr.Coordinates]:
     List[ra2yr.Coordinates]
         List of cell coordinates lying on the given bounds.
     """
+    # TODO(shmocz): generalize
+    logging.debug("coords=%s", coords)
+    if coords.size < 3:
+        coords = np.append(coords, 0)
     place_query_grid = []
     for i in range(0, rx):
         for j in range(0, ry):

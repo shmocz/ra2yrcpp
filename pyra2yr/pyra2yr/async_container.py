@@ -18,5 +18,7 @@ class AsyncDict:
 
     async def put_item(self, key, value):
         async with self._cond:
+            if key in self._data:
+                raise RuntimeError(f"key {key} exists")
             self._data[key] = value
             self._cond.notify_all()

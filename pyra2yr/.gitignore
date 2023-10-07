@@ -1,8 +1,7 @@
 **
 !.gitignore
 !Makefile
-!/ra2yrproto
-!/ra2yrproto/**
+!/ra2yrproto/__init__.py
 !/pyra2yr
 !/pyra2yr/**
 !.pylintrc

@@ -52,7 +52,10 @@ class Command {
     u64 task_id;
     u64 queue_size;  // built-int arg
     CommandType type;
+    BaseData() = delete;
   };
+
+  Command() = delete;
 
   Command(BaseData B, handler_t handler, T&& data)
       : base_data_(B),

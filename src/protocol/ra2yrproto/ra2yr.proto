@@ -215,7 +215,7 @@ message ObjectTypeClass {
   int32 cost = 2;
   int32 soylent = 3;
   Armor armor_type = 4;
-  uint32 array_index = 5;
+  int32 array_index = 5;
   uint32 pointer_self = 6;
   uint32 pointer_shp_struct = 7;
   repeated int32 prerequisites = 8;

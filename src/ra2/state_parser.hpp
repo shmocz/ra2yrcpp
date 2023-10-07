@@ -154,7 +154,7 @@ void parse_HouseClasses(ra2yrproto::ra2yr::GameState* G);
 
 ra2yrproto::ra2yr::ObjectTypeClass* find_type_class(
     pb::RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>* types,
-    ra2yrproto::ra2yr::AbstractType rtti_id, unsigned array_index);
+    ra2yrproto::ra2yr::AbstractType rtti_id, int array_index);
 
 /// Return true if the current player is the only human player in the game.
 bool is_local(const pb::RepeatedPtrField<ra2yrproto::ra2yr::House>& H);

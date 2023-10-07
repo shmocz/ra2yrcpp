@@ -393,6 +393,7 @@ void ra2yrcpp::hooks_yr::init_callbacks(ra2yrcpp::InstrumentationService* I) {
   }
   f(std::make_unique<CBExitGameLoop>());
   f(std::make_unique<CBExecuteGameLoopCommand>());
+  f(std::make_unique<CBGameCommand>());
 
   std::shared_ptr<std::ofstream> record_out = nullptr;
 

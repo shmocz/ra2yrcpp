@@ -136,11 +136,39 @@ struct CBExecuteGameLoopCommand final : public MyCB<CBExecuteGameLoopCommand> {
   }
 };
 
+struct CBGameCommand final : public MyCB<CBGameCommand> {
+  static constexpr char key_name[] = "cb_game_command";
+  static constexpr char key_target[] = "on_frame_update";
+  using work_t = std::function<void()>;
+
+  async_queue::AsyncQueue<work_t> work;
+
+  CBGameCommand() = default;
+
+  void put_work(work_t fn) { work.push(fn); }
+
+  void exec() override {
+    auto items = work.pop(0, 0.0s);
+    for (const auto& it : items) {
+      it();
+    }
+  }
+};
+
 template <typename T>
 void put_gameloop_command(
     ra2yrcpp::command::ISCommand<T>* Q,
     std::function<void(ra2yrcpp ::hooks_yr::work_item*)> fn) {
   CBExecuteGameLoopCommand::get(Q->I())->put_work(fn, Q->c);
+}
+
+template <typename T>
+void get_gameloop_command(ra2yrcpp::command::ISCommand<T>* Q,
+                          std::function<void(CBGameCommand*)> fn) {
+  auto* cb = ra2yrcpp::hooks_yr::CBGameCommand::get(Q->I());
+  auto* cmd = Q->c;
+  cmd->set_async_handler([cb, fn](auto*) { fn(cb); });
+  cb->put_work([cmd]() { cmd->run_async_handler(); });
 }
 
 struct YRHook {

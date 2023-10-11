@@ -6,7 +6,6 @@ VERSION = SOFT_VERSION-$(shell git rev-parse --short HEAD)
 
 REPO_FILES = $(shell git ls-tree -r --name-only HEAD) 
 TESTS := $(patsubst %.cpp,%.exe,$(subst tests/,bin/,$(shell find tests/ -iname "test_*.cpp")))
-PYTHON := python3
 
 export CMAKE_TOOLCHAIN_FILE ?= toolchains/mingw-w64-i686.cmake
 BASE_DIR := $(BUILDDIR)/$(notdir $(basename $(CMAKE_TOOLCHAIN_FILE)))-$(CMAKE_BUILD_TYPE)
@@ -14,12 +13,9 @@ BUILD_DIR = $(BASE_DIR)/build
 export DEST_DIR = $(BASE_DIR)/pkg
 BUILDER ?= builder
 
-export CPPCHECK ?= cppcheck
 export CM_FILES = $(filter %CMakeLists.txt, $(REPO_FILES))
 export CPP_SOURCES = $(filter %.cpp %.hpp %.c %.h, $(REPO_FILES))
 export W32_FILES := process.cpp state_parser.cpp dll_inject.cpp network.cpp addscn/addscn.cpp
-GAMEMD_PATCHED := $(DEST_DIR)/bin/gamemd-spawn-patched.exe
-EXTRA_PATCHES ?=
 
 export UID := $(shell id -u)
 export GID := $(shell id -g)
@@ -28,16 +24,9 @@ export CMAKE_TARGET ?= all
 export CMAKE_EXTRA_ARGS ?=
 export CXXFLAGS ?= -Wall -Wextra
 
-DLL_LOADER_UNIX = $(BUILD_DIR)/load_dll.bin
-DLL_LOADER = $(subst \,\\,$(shell winepath -w $(DLL_LOADER_UNIX)))
-
-INTEGRATION_TEST ?= docker-compose.integration.yml
-INTEGRATION_TEST_TARGET ?= ./pyra2yr/test_sell_mcv.py
-COMPOSE_ARGS ?= --abort-on-container-exit pyra2yr tunnel wm vnc novnc game-0 game-1
-compose_cmd := docker-compose -f docker-compose.yml -f $(INTEGRATION_TEST)
 # need -T flag for this to work properly in shell scripts, but this causes ctrl+c not to work.
 # TODO: find a workaround
-compose_build = docker-compose run -e BUILDDIR -e CMAKE_TOOLCHAIN_FILE -e CMAKE_TARGET -e NPROC -e CMAKE_BUILD_TYPE -e EXTRA_PATCHES -e CMAKE_EXTRA_ARGS -e CXXFLAGS -e TAG_NAME -T --rm $(BUILDER)
+compose_build = docker-compose run -e BUILDDIR -e CMAKE_TOOLCHAIN_FILE -e CMAKE_TARGET -e NPROC -e CMAKE_BUILD_TYPE -e CMAKE_EXTRA_ARGS -e CXXFLAGS -e TAG_NAME -T --rm $(BUILDER)
 
 
 doc:
@@ -77,33 +66,7 @@ build_cpp: $(BUILD_DIR)
 	cmake --build $(BUILD_DIR) --config $(CMAKE_BUILD_TYPE) --target $(CMAKE_TARGET) -j $(NPROC)
 	cmake --build $(BUILD_DIR) --config $(CMAKE_BUILD_TYPE) --target install/fast
 
-build: build_cpp $(GAMEMD_PATCHED)
-
-$(BUILD_DIR)/.gamemd-spawn.exe: gamemd-spawn.exe
-	cp $< $@
-
-# FIXME: if building just core lib, ra2yrcppcli.exe is unavailable
-$(BUILD_DIR)/p_text2.txt: $(BUILD_DIR)/.gamemd-spawn.exe
-	$(DEST_DIR)/bin/ra2yrcppcli.exe \
-		--address-GetProcAddr=0x7e1250 \
-		--address-LoadLibraryA=0x7e1220 \
-		--generate-dll-loader=$(DLL_LOADER)
-	$(DEST_DIR)/bin/addscn.exe $< .p_text2 0x1000 0x60000020 > $@
-	wineserver -w
-
-# FIXME: autodetect detour address
-$(GAMEMD_PATCHED): $(BUILD_DIR)/p_text2.txt
-	$(eval s_ptext2 := $(shell cat $(<)))
-	$(eval s_ptext2_addr := $(shell cat $(<) | cut -f 3 -d":"))
-	$(PYTHON) ./scripts/patch_gamemd.py \
-		-p "d0x7cd80f:$(BUILD_DIR)/load_dll.bin" \
-		$(EXTRA_PATCHES) \
-		-d $(s_ptext2_addr) \
-		-s ".p_text:0x00004d66:0x00b7a000:0x0047e000" \
-		-s ".text:0x003df38d:0x00401000:0x00001000" \
-		-s "$(s_ptext2)" \
-		-i $(BUILD_DIR)/.gamemd-spawn.exe > $(BUILD_DIR)/.gamemd-spawn-patched.exe
-	install -D $(BUILD_DIR)/.gamemd-spawn-patched.exe $@
+build: build_cpp
 
 build_protobuf:
 	mkdir -p $(BUILD_DIR)
@@ -129,11 +92,8 @@ test:
 		wineboot -s; \
 		wine $(DEST_DIR)/$$f; done
 
-test_integration: $(GAMEMD_PATCHED)
-	BUILDDIR=$(BUILDDIR) COMMAND='./scripts/run_gamemd.sh' COMMAND_PYRA2YR='python3 $(INTEGRATION_TEST_TARGET)' $(compose_cmd) up $(COMPOSE_ARGS)
-
-docker_base:
-	docker-compose build --build-arg USER_ID=$(UID)
+docker-base:
+	docker-compose build builder pyra2yr tunnel vnc
 
 docker_test:
 	set -e; for f in $(TESTS); do \
@@ -141,8 +101,7 @@ docker_test:
 		COMMAND="sh -c 'UID=$(UID) BUILDDIR=$(BUILDDIR) make BUILDDIR=$(BUILDDIR) DEST_DIR=$(DEST_DIR) TESTS=$$f test'" docker-compose up --abort-on-container-exit builder; done
 
 # NB. using "run" the env. vars need to be specified with -e flag
-# actually we dont wanna pass TC in env var, because it overrides the --toolchain flag, which we use to transform relative path
-docker_build:
+docker-build:
 	$(compose_build) make build
 
 cppcheck:
@@ -151,15 +110,12 @@ cppcheck:
 check: cmake_format lint format
 	./scripts/check.sh
 
-clean-gamemd:
-	rm -f $(GAMEMD_PATCHED) $(BUILD_DIR)/p_text2.txt $(BUILD_DIR)/.gamemd-spawn.exe
-
 clean:
 	rm -rf $(BUILDDIR); mkdir -p $(BUILDDIR)
-	rm -f test_data/*.status $(GAMEMD_PATCHED)
+	rm -f test_data/*.status
 
 # TODO: check out the special $(MAKE) variable that presumably passes flags
 docker-release:
 	$(compose_build) ./scripts/create-release.sh
 
-.PHONY: build build_cpp doc lint format test docker docker_build check cppcheck clean clean-gamemd
+.PHONY: build build_cpp doc lint format test docker docker_build check cppcheck clean

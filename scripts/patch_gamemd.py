@@ -3,11 +3,10 @@ import sys
 import re
 import os
 import struct
-from typing import List, Tuple
+from typing import List, Any, Iterable
 from dataclasses import dataclass
 import argparse
 import logging as lg
-from iced_x86 import *
 
 
 @dataclass
@@ -60,8 +59,8 @@ def map_paddr(sections: List[Section], paddr: int) -> int:
     return r
 
 
-def read_file(p):
-    with open(p, "r") as f:
+def read_file(p, mode="r"):
+    with open(p, mode) as f:
         return f.read()
 
 
@@ -76,6 +75,8 @@ def pushret(address):
 
 
 def decode_bytes(b: bytes, ip=0, count=0):
+    from iced_x86 import Decoder
+
     d = Decoder(32, b, ip=ip)
     for inst, _ in zip(d, range(count)):
         yield inst
@@ -87,95 +88,65 @@ def decode_until(b: bytes, ip=0, max_ins=10):
             return inst.ip - ip
 
 
-def create_detour(
-    binary: bytes,
-    address: int,
-    addr_detours: int,
-    code: bytes,
-    sections: List[Section] = None,
-) -> int:
-    """
-    Parameters
-    ----------
-    binary : bytes
-        PE binary
-    address : int
-        target virtual address
-    addr_detours : int
-        detours virtual address
-    code : bytes
-        code to write
-    sections : List[Section], optional
+@dataclass
+class Hook:
+    vaddr: int
+    paddr: int
+    size: int
 
-    Returns
-    -------
-    int
-        Size of newly created detour
-    """
-    paddr = map_vaddr(sections, address)
+
+@dataclass
+class Patch:
+    vaddr: int
+    paddr: int
+    size: int
+    code: bytearray = None
+
+    @classmethod
+    def from_address(cls, b: bytearray, sections, vaddr: int):
+        paddr = map_vaddr(sections, vaddr)
+        c = decode_until(b[paddr : (paddr + 256)], ip=paddr)
+        return Patch(vaddr, paddr, c)
+
+    def to_patch_string(self):
+        if not self.code:
+            return f"d0x{self.vaddr:02x}:s{self.size}"
+        return f"d0x{self.vaddr:02x}:{self.code.hex()}:s{self.size}"
+
+
+@dataclass
+class Handle:
+    binary: bytearray
+    args: Any
+    patches: List[Patch] = None
+    sections: List[Section] = None
+
+
+def make_detour(
+    binary: bytes,
+    h: Patch,
+    addr_detours: int,
+    sections: List[Section] = None,
+    code=None,
+):
+    code = code or bytearray()
     section_detours = get_section(sections, addr_detours)
     offset_detours = addr_detours - section_detours.vaddr
-    # determine numbers of instructions to disassemble
-    c = decode_until(binary[paddr : (paddr + 256)], ip=address)
-
-    bb = decode_bytes(binary[paddr : (paddr + 256)], ip=address, count=c)
-    # FIXME: how to handle RET?
-    to_copy = bytearray()
-    if not all(list(str(x) in ["ret", "nop"] for x in bb)):
-        to_copy = bytearray(binary[paddr : (paddr + c)])
-    else:  # put another return val
-        binary[(paddr + c) : (paddr + c + 1)] = b"\xc3"
-        to_copy = bytearray(b"\x90" * 6)
-
-    # make detour
-    detour = to_copy + code + pushret(address + c)
-    # copy bytes to trampoline area
+    detour = binary[h.paddr : (h.paddr + h.size)] + code + pushret(h.vaddr + h.size)
     patch(binary, detour, section_detours.paddr + offset_detours)
-    lg.info(
-        "patch: target,detour,len(detour)=%x,%x,%d",
-        address,
-        addr_detours,
-        len(detour),
-    )
     pr_1 = pushret(addr_detours)
-    assert c - len(pr_1) >= 0
-    b = pr_1 + bytearray([0x90] * (c - len(pr_1)))
-    # patch original binary
-    patch(binary, b, paddr)
+    pr_2 = pr_1 + bytearray([0x90] * (h.size - len(pr_1)))
+    patch(binary, pr_2, h.paddr)
     return len(detour)
 
 
-def create_detour_trampolines(
-    binary: bytes,
-    addresses: List[int],
-    patches: List[Tuple[str, int, bytes]] = None,
-    sections: List[Section] = None,
-    detour_address: int = 0xB7E6AC,
-):
-    patches = patches or []
-    addr_detours = detour_address
-    # Create simple detours to target addresses
-    for addr in addresses:
-        addr_detours = addr_detours + create_detour(
-            binary, addr, addr_detours, b"", sections
-        )
-
-    # Create custom detours and raw patches
-    for ptype, addr, code in patches:
-        if ptype == "d":
-            addr_detours = addr_detours + create_detour(
-                binary, addr, addr_detours, code, sections
-            )
-        elif ptype == "r":
-            patch(binary, code, map_vaddr(sections, addr))
-        else:
-            raise RuntimeError(f"Invalid patch type {ptype}")
-
-
-def write_out(b):
+def write_out(b, path=None):
     fp = sys.stdout.buffer
+    if path:
+        fp = open(path, "wb")
     fp.write(b)
     fp.flush()
+    fp.close()
 
 
 def auto_int(x):
@@ -204,7 +175,11 @@ def parse_args():
         "-p",
         "--patches",
         action="append",
+        default=[],
         help="Extra patches to apply in format <type><address>:<path>. <type> can be 'd' (detour) or 'r' (raw) Address is in hex.",
+    )
+    a.add_argument(
+        "-r", "--raw", type=str, help="Apply raw patches specified in given file"
     )
     a.add_argument(
         "-f",
@@ -213,42 +188,87 @@ def parse_args():
         help="C++ source from which to parse hook addresses",
     )
     a.add_argument(
-        "-i", "--input", default="gamemd-spawn.exe", help="gamemd path"
+        "-D",
+        "--dump-patches",
+        action="store_true",
+        help="Don't output patched binary. Rather all patches to be applied in a format suitable for -p parameter",
+    )
+    a.add_argument("-i", "--input", default="gamemd-spawn.exe", help="gamemd path")
+    a.add_argument(
+        "-o",
+        "--output",
+        default=None,
+        help="Output file. If unspecified, write to stdout",
     )
     return a.parse_args()
 
 
-def get_patches(patches: List[str]):
+def parse_patches(h: Handle, patches) -> Iterable[Patch]:
     for ptype, s_addr, path in [
         re.match(r"(d|r)0x([a-fA-F0-9]+):(.+)", p).groups() for p in patches
     ]:
         addr = int(s_addr, base=16)
         if os.path.exists(path):
-            with open(path, "rb") as f:
-                yield (ptype, addr, f.read())
+            p = Patch.from_address(h.binary, h.sections, addr)
+            p.code = bytearray(read_file(path, "rb"))
+            yield p
+        elif m := re.match(r"s(\d+)", path):
+            yield Patch(addr, map_vaddr(h.sections, addr), int(m[1]))
+        elif m := re.match(r"([a-fA-F0-9]+):s(\d+)", path):
+            code = bytearray.fromhex(m[1])
+            yield Patch(addr, map_vaddr(h.sections, addr), int(m[2]), code=code)
+        elif ptype == "r":
+            code = bytearray.fromhex(path)
+            yield Patch(addr, map_vaddr(h.sections, addr), len(code), code=code)
         else:
-            yield (ptype, addr, bytearray.fromhex(path))
+            raise RuntimeError(f"invalid patch type: {ptype} {path}")
 
 
 def get_sections(sections: List[str]) -> List[Section]:
     res = []
-    for s in sections:
-        z = s.split(":")
+    for z in (s.split(":") for s in sections):
         res.append(Section(z[0], *[int(x, 0) for x in z[1:]]))
     return res
+
+
+def do_patching(h: Handle) -> bytearray:
+    addr_detours = h.args.detour_address
+    binary_patched = h.binary.copy()
+    for p in h.patches:
+        addr_detours += make_detour(binary_patched, p, addr_detours, h.sections, p.code)
+    return binary_patched
+
+
+def get_handle(a) -> Handle:
+    H = Handle(binary=bytearray(read_file(a.input, "rb")), args=a)
+    H.sections = get_sections(a.sections)
+    H.patches = list(parse_patches(H, H.args.patches))
+    if a.raw:
+        raw_patches = re.split(r"\s+", read_file(H.args.raw))
+        H.patches.extend(list(parse_patches(H, raw_patches)))
+    else:
+        addr_hooks = get_hook_addresses(read_file(a.source_file))
+        H.patches.extend(
+            Patch.from_address(H.binary, H.sections, x) for x in addr_hooks
+        )
+    return H
 
 
 def main():
     lg.basicConfig(level=lg.INFO)
     a = parse_args()
-    addrs = get_hook_addresses(read_file(a.source_file))
 
-    with open(a.input, "rb") as f:
-        b = bytearray(f.read())
-        patches = list(get_patches(a.patches))
-        sections = get_sections(a.sections)
-        create_detour_trampolines(b, addrs, patches, sections, a.detour_address)
-        write_out(b)
+    H = get_handle(a)
+    if H.args.dump_patches:
+        return write_out(
+            bytes(
+                "\n".join(p.to_patch_string() for p in H.patches),
+                encoding="utf8",
+            ),
+            a.output,
+        )
+    binary_patched = do_patching(H)
+    return write_out(binary_patched, a.output)
 
 
 if __name__ == "__main__":

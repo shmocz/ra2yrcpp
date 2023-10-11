@@ -7,10 +7,9 @@ COPY --from=src /noVNC /
 RUN apk add --no-cache bash git nodejs python3
 
 FROM novnc
-ARG USER_ID
 
 RUN apk add --no-cache tigervnc openbox xterm terminus-font bash
-RUN adduser -D -u $USER_ID user
+RUN adduser -D user
 
 USER user
 WORKDIR /home/user

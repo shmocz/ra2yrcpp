@@ -1,4 +1,5 @@
 version: "3.9"
+
 services:
   vnc:
     build:
@@ -13,7 +14,6 @@ services:
       - "12001:5901" # vnc
       - "50000:50000" # tunnel
       - "14521:14521" # ra2yrcpp
-      - "14525:14525" # ws proxy
       - "12340:12340" # debugger
   novnc:
     image: shmocz/vnc:latest

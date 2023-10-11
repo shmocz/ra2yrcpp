@@ -7,11 +7,12 @@ HOMEDIR="/home/user/project"
 : ${BUILDDIR:="cbuild_docker"}
 TOOLCHAIN="$(echo $CMAKE_TOOLCHAIN_FILE | sed -E 's/.+\/(.+)\.cmake/\1/g')-${CMAKE_BUILD_TYPE}"
 : ${TARGET:="localhost:12340"}
+: ${INTEGRATION_TEST_TARGET:="./pyra2yr/test_sell_mcv.py"}
 
 # Executable to be passed to wine and it's args, example:
 # EXE="$HOMEDIR/$BUILDDIR/$TOOLCHAIN/pkg/bin/test_dll_inject.exe --gtest_repeat=-1 --gtest_filter=*IServiceDLL*"
 : ${EXE:="$HOMEDIR/$BUILDDIR/$TOOLCHAIN/pkg/bin/test_dll_inject.exe --gtest_repeat=-1 --gtest_filter=*IServiceDLL*"}
-GDB_COMMAND='x86_64-w64-mingw32-gdb -iex "set pagination off" -ex "target extended-remote '"$TARGET"'" -ex "set pagination off" -ex "set logging overwrite on" -ex "set logging on" -ex "set disassembly-flavor intel"'
+GDB_COMMAND='gdb'
 : ${GDB_SCRIPT:="$HOMEDIR/scripts/debug.gdb"}
 
 function dcmd_generic() {
@@ -23,18 +24,21 @@ function dcmd_generic() {
 
 function dcmd_integration() {
 	: ${user:="root"}
-	cmd="$(printf 'WINEPREFIX=${HOME}/project/%s/test_instances/${PLAYER_ID}/.wine %s' "$BUILDDIR" "$1")"
-	docker-compose -f docker-compose.yml -f docker-compose.integration.yml exec --user "$user" \
-		-w "$HOMEDIR"/$BUILDDIR/test_instances/player_${PLAYER_ID} \
-		game-$PLAYER_ID bash -c "$cmd"
+	: ${it=""}
+	docker exec $it --user "$user" -w "$HOMEDIR"/$BUILDDIR/test_instances/player_${PLAYER_ID} \
+		game-0-$PLAYER_ID bash -c "$1"
 }
 
 function gdb_connect() {
-	dcmd_integration "$(printf '%s %s' "$GDB_COMMAND" "$1")"
+	it="-it" dcmd_integration "$(printf '%s %s' "$GDB_COMMAND" "$1")"
 }
 
 function debug_integration_test() {
-	a="$(printf '%s "source "%s""' "-ex" "$GDB_SCRIPT")"
+	# get target PID
+	game_pid="$(dcmd_integration "pgrep -f gamemd-spawn-ra2yrcpp.exe")"
+	a="$(printf -- '-p %s %s "source "%s""' "$game_pid" "-ex" "$GDB_SCRIPT")"
+
+	# attach (and load symbols)
 	gdb_connect "$a"
 }
 
@@ -48,8 +52,13 @@ function tmux_send_keys() {
 }
 
 function debug_integration() {
-	make INTEGRATION_TEST_TARGET="$INTEGRATION_TEST_TARGET" test_integration &
-	sleep 3
+	python ./scripts/run-gamemd.py \
+		-b $BUILDDIR/test_instances \
+		-B $BUILDDIR/mingw-w64-i686-Release/pkg/bin \
+		-S maingame/gamemd-spawn-n.exe \
+		run-docker-instance \
+		-e pyra2yr/test_sell_mcv.py &
+	sleep 5
 	tmux_send_keys C-c
 	tmux_send_keys "CMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE CMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE DEBUG_FN=debug_integration_test ./scripts/debug.sh" C-m
 	wait

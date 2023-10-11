@@ -86,7 +86,7 @@ T* ensure_storage_value(ra2yrcpp::InstrumentationService* I,
 }
 
 // TODO(shmocz): try to pick a name to avoid confusion with IService's storage
-ra2yrproto::commands::StorageValue* get_storage(
+ra2yrproto::ra2yr::StorageValue* get_storage(
     ra2yrcpp::InstrumentationService* I);
 
 ra2yrproto::commands::Configuration* ensure_configuration(

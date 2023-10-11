@@ -355,9 +355,9 @@ struct CBDebugPrint final : public MyCB<CBDebugPrint> {
   }
 };
 
-ra2yrproto::commands::StorageValue* ra2yrcpp::hooks_yr::get_storage(
+ra2yrproto::ra2yr::StorageValue* ra2yrcpp::hooks_yr::get_storage(
     ra2yrcpp::InstrumentationService* I) {
-  return ensure_storage_value<ra2yrproto::commands::StorageValue>(
+  return ensure_storage_value<ra2yrproto::ra2yr::StorageValue>(
       I, "message_storage");
 }
 

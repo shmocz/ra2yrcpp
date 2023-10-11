@@ -555,3 +555,12 @@ message GameState {
   int32 tech_level = 14;
   repeated Cell cells_difference = 15;
 }
+
+message StorageValue {
+  GameState game_state = 1;
+  MapData map_data = 2;
+  GameState initial_game_state = 3;
+  EventListsSnapshot event_buffer = 4;
+  MapDataSoA map_data_soa = 5;
+  GameState load_state = 6;
+}

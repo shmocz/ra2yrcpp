@@ -15,6 +15,7 @@
 #include <FactoryClass.h>
 #include <FootClass.h>
 #include <Fundamentals.h>
+#include <GeneralDefinitions.h>
 #include <GeneralStructures.h>
 #include <Helpers/CompileTime.h>
 #include <HouseClass.h>

@@ -31,27 +31,18 @@ std::size_t x86::bytes_to_stack(Xbyak::CodeGenerator* c, const vecu8 bytes) {
   return s;
 }
 
-static std::vector<Xbyak::Reg32> get_regs(const Xbyak::CodeGenerator& c) {
-  return {c.eax, c.ebx, c.ecx, c.edx, c.esi, c.edi, c.ebp, c.esp};
-}
-
 void x86::restore_regs(Xbyak::CodeGenerator* c) {
 #ifdef XBYAK32
   c->popfd();
+  c->popad();
 #elif defined(XBYAK64)
   c->popfq();
 #endif
-  for (auto r : get_regs(*c)) {
-    c->pop(r);
-  }
 }
 
 void x86::save_regs(Xbyak::CodeGenerator* c) {
-  auto regs = get_regs(*c);
-  for (auto r = regs.rbegin(); r != regs.rend(); r++) {
-    c->push(*r);
-  }
 #ifdef XBYAK32
+  c->pushad();
   c->pushfd();
 #elif defined(XBYAK64)
   c->pushfq();

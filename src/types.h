@@ -23,7 +23,7 @@ union X86Regs {
   u32 regs[9];
 
   struct {
-    u32 eflags, eax, ebx, ecx, edx, esi, edi, ebp, esp;
+    u32 eflags, edi, esi, ebp, esp, ebx, edx, ecx, eax;
   };
 };
 

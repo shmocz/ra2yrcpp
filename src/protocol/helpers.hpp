@@ -105,4 +105,19 @@ void fill_repeated_empty(pb::RepeatedPtrField<T>* dst, const std::size_t n) {
 void copy_field(pb::Message* dst, pb::Message* src,
                 const pb::FieldDescriptor* f);
 
+/// Truncate RepeatedPtrField to given size. If length of dst
+/// is less than n, no truncation is performed.
+///
+/// @param dst
+/// @param n size to truncate to
+/// @return True if truncation was performed. False otherwise.
+template <typename T>
+bool truncate(pb::RepeatedPtrField<T>* dst, int n) {
+  if (n < dst->size()) {
+    dst->DeleteSubrange(n, (dst->size() - n - 1));
+    return true;
+  }
+  return false;
+}
+
 }  // namespace ra2yrcpp::protocol

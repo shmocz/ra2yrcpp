@@ -249,11 +249,8 @@ auto add_event() {
 auto place_query() {
   return get_async_cmd<ra2yrproto::commands::PlaceQuery>([](auto* Q) {
     auto args = Q->command_data();
-    if (static_cast<unsigned int>(args.coordinates().size()) >
-        cfg::PLACE_QUERY_MAX_LENGTH) {
-      args.mutable_coordinates()->DeleteSubrange(
-          cfg::PLACE_QUERY_MAX_LENGTH,
-          args.coordinates().size() - cfg::PLACE_QUERY_MAX_LENGTH);
+    if (ra2yrcpp::protocol::truncate(args.mutable_coordinates(),
+                                     cfg::PLACE_QUERY_MAX_LENGTH)) {
       wrprintf("truncated place query to size {}", args.coordinates().size());
     }
 

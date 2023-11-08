@@ -14,12 +14,12 @@ class InstrumentationService;
 
 namespace ra2yrcpp {
 
-namespace pb = google::protobuf;
+namespace gpb = google::protobuf;
 
 namespace command {
 struct ISArg {
   void* instrumentation_service;
-  pb::Any M;
+  gpb::Any M;
 };
 
 using iservice_cmd = Command<ISArg>;

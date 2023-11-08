@@ -37,7 +37,7 @@ using namespace std::chrono_literals;
 using namespace is_context;
 using x86::bytes_to_stack;
 
-namespace pb = google::protobuf;
+namespace gpb = google::protobuf;
 
 ProcAddrs is_context::get_procaddrs() {
   ProcAddrs A;
@@ -134,7 +134,7 @@ void is_context::get_procaddr(Xbyak::CodeGenerator* c, void* m,
 }
 
 static void handle_cmd_wait(ra2yrcpp::InstrumentationService* I,
-                            const pb::Message& cmd) {
+                            const gpb::Message& cmd) {
   auto CC = ra2yrcpp::create_command(cmd);
   auto [c, a] = ra2yrcpp::handle_cmd(I, 0U, &CC, true);
   c->result_code().wait_pred(

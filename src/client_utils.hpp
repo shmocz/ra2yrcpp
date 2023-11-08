@@ -15,7 +15,7 @@
 
 namespace ra2yrcpp::client_utils {
 
-namespace pb = google::protobuf;
+namespace gpb = google::protobuf;
 
 namespace {
 using namespace std::chrono_literals;
@@ -46,7 +46,8 @@ inline ra2yrproto::PollResults poll_until(
 }
 
 inline ra2yrproto::CommandResult run_one(
-    const pb::Message& M, instrumentation_client::InstrumentationClient* client,
+    const gpb::Message& M,
+    instrumentation_client::InstrumentationClient* client,
     const duration_t poll_timeout = 5.0s) {
   auto r_ack = client->send_command(M, ra2yrproto::CLIENT_COMMAND);
   if (r_ack.code() == ra2yrproto::ResponseCode::ERROR) {
@@ -77,7 +78,7 @@ inline auto run(const T& cmd,
 }
 
 struct CommandSender {
-  using fn_t = std::function<ra2yrproto::CommandResult(const pb::Message&)>;
+  using fn_t = std::function<ra2yrproto::CommandResult(const gpb::Message&)>;
 
   explicit CommandSender(fn_t fn) : fn(fn) {}
 

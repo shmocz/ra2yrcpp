@@ -40,7 +40,7 @@ namespace {
 using namespace std::chrono_literals;
 }
 
-using pb::RepeatedPtrField;
+using gpb::RepeatedPtrField;
 using cb_map_t = std::map<std::string, std::unique_ptr<ra2yrcpp::ISCallback>>;
 
 struct CBYR : public ra2yrcpp::ISCallback {

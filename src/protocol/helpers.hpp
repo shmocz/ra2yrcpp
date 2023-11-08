@@ -23,14 +23,14 @@
 
 namespace ra2yrcpp::protocol {
 
-namespace pb = google::protobuf;
+namespace gpb = google::protobuf;
 
 struct MessageBuilder {
-  pb::DynamicMessageFactory F;
-  const pb::DescriptorPool* pool;
-  const pb::Descriptor* desc;
-  pb::Message* m;
-  const pb::Reflection* refl;
+  gpb::DynamicMessageFactory F;
+  const gpb::DescriptorPool* pool;
+  const gpb::Descriptor* desc;
+  gpb::Message* m;
+  const gpb::Reflection* refl;
   explicit MessageBuilder(const std::string name);
 };
 
@@ -41,28 +41,28 @@ struct MessageStream {
 
 struct MessageIstream : public MessageStream {
   MessageIstream(std::shared_ptr<std::istream> is, bool gzip);
-  bool read(pb::Message* M);
+  bool read(gpb::Message* M);
 
   std::shared_ptr<std::istream> is;
-  std::shared_ptr<pb::io::ZeroCopyInputStream> s_i;
-  std::shared_ptr<pb::io::GzipInputStream> s_ig;
+  std::shared_ptr<gpb::io::ZeroCopyInputStream> s_i;
+  std::shared_ptr<gpb::io::GzipInputStream> s_ig;
 };
 
 struct MessageOstream : public MessageStream {
   MessageOstream(std::shared_ptr<std::ostream> os, bool gzip);
-  bool write(const pb::Message& M);
+  bool write(const gpb::Message& M);
 
   std::shared_ptr<std::ostream> os;
-  std::shared_ptr<pb::io::ZeroCopyOutputStream> s_o;
-  std::shared_ptr<pb::io::GzipOutputStream> s_g;
+  std::shared_ptr<gpb::io::ZeroCopyOutputStream> s_o;
+  std::shared_ptr<gpb::io::GzipOutputStream> s_g;
 };
 
-bool write_message(const pb::Message* M, pb::io::CodedOutputStream* os);
-bool read_message(pb::Message* M, pb::io::CodedInputStream* os);
+bool write_message(const gpb::Message* M, gpb::io::CodedOutputStream* os);
+bool read_message(gpb::Message* M, gpb::io::CodedInputStream* os);
 
 /// Dynamically set the field "args" of B's Message by parsing the JSON string
 /// in args. If args is empty, field is not set.
-pb::Message* create_command_message(MessageBuilder* B, const std::string args);
+gpb::Message* create_command_message(MessageBuilder* B, const std::string args);
 
 /// Process stream of serialized protobuf messages of same type.
 ///
@@ -70,17 +70,17 @@ pb::Message* create_command_message(MessageBuilder* B, const std::string args);
 /// @param M Message type to be read
 /// @param cb Callback to invoke for each processed message. If unspecified,
 /// dumps messages as JSON to stdout
-void dump_messages(const std::string path, const pb::Message& M,
-                   std::function<void(pb::Message*)> cb = nullptr);
+void dump_messages(const std::string path, const gpb::Message& M,
+                   std::function<void(gpb::Message*)> cb = nullptr);
 
-std::string message_type(const pb::Any& m);
-std::string message_type(const pb::Message& m);
+std::string message_type(const gpb::Any& m);
+std::string message_type(const gpb::Message& m);
 
-bool from_json(const vecu8& bytes, pb::Message* m);
-std::string to_json(const pb::Message& m);
+bool from_json(const vecu8& bytes, gpb::Message* m);
+std::string to_json(const gpb::Message& m);
 
 template <typename T>
-T from_any(const pb::Any& a) {
+T from_any(const gpb::Any& a) {
   T res;
   if (!a.UnpackTo(&res)) {
     throw std::runtime_error(
@@ -90,7 +90,7 @@ T from_any(const pb::Any& a) {
   return res;
 }
 
-std::vector<const pb::FieldDescriptor*> find_set_fields(const pb::Message& M);
+std::vector<const gpb::FieldDescriptor*> find_set_fields(const gpb::Message& M);
 
 ///
 /// Fills with n copies of given type.
@@ -106,13 +106,13 @@ void fill_repeated(gpb::RepeatedPtrField<T>* dst, const std::size_t n) {
 /// Clears the RepeatedPtField and fills it with n copies of given type.
 ///
 template <typename T>
-void fill_repeated_empty(pb::RepeatedPtrField<T>* dst, const std::size_t n) {
+void fill_repeated_empty(gpb::RepeatedPtrField<T>* dst, const std::size_t n) {
   dst->Clear();
   fill_repeated(dst, n);
 }
 
-void copy_field(pb::Message* dst, pb::Message* src,
-                const pb::FieldDescriptor* f);
+void copy_field(gpb::Message* dst, gpb::Message* src,
+                const gpb::FieldDescriptor* f);
 
 /// Truncate RepeatedPtrField to given size. If length of dst
 /// is less than n, no truncation is performed.
@@ -121,7 +121,7 @@ void copy_field(pb::Message* dst, pb::Message* src,
 /// @param n size to truncate to
 /// @return True if truncation was performed. False otherwise.
 template <typename T>
-bool truncate(pb::RepeatedPtrField<T>* dst, int n) {
+bool truncate(gpb::RepeatedPtrField<T>* dst, int n) {
   if (n < dst->size()) {
     dst->DeleteSubrange(n, (dst->size() - n - 1));
     return true;

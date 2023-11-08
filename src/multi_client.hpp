@@ -73,7 +73,7 @@ class AutoPollClient {
   ///
   /// Send command message with command client and poll results with poll client
   ///
-  ra2yrproto::Response send_command(const pb::Message& cmd);
+  ra2yrproto::Response send_command(const gpb::Message& cmd);
   static ra2yrproto::Response get_item();
 
   ResultMap& results();

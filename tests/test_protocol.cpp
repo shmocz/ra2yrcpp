@@ -16,7 +16,7 @@
 #include <vector>
 
 namespace fs = std::filesystem;
-namespace pb = google::protobuf;
+namespace gpb = google::protobuf;
 using namespace ra2yrcpp;
 
 class TemporaryDirectoryTest : public ::testing::Test {
@@ -71,7 +71,7 @@ TEST_F(TemporaryDirectoryTest, ProtocolTest) {
                             messages_out.push_back(G);
                           });
 
-  pb::util::MessageDifferencer D;
+  gpb::util::MessageDifferencer D;
   for (std::size_t i = 0; i < messages.size(); i++) {
     ASSERT_TRUE(D.Equals(messages.at(i), messages_out.at(i)));
   }

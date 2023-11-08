@@ -55,13 +55,14 @@ ra2yrproto::Response InstrumentationClient::send_message(const vecu8& data) {
   return R;
 }
 
-ra2yrproto::Response InstrumentationClient::send_message(const pb::Message& M) {
+ra2yrproto::Response InstrumentationClient::send_message(
+    const gpb::Message& M) {
   auto data = ra2yrcpp::to_vecu8(M);
   return send_message(data);
 }
 
 ra2yrproto::Response InstrumentationClient::send_command(
-    const pb::Message& cmd, ra2yrproto::CommandType type) {
+    const gpb::Message& cmd, ra2yrproto::CommandType type) {
   auto C = ra2yrcpp::create_command(cmd, type);
   return send_message(C);
 }

@@ -10,6 +10,7 @@
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/zero_copy_stream.h>
 #include <google/protobuf/message.h>
+#include <google/protobuf/repeated_ptr_field.h>
 
 #include <cstddef>
 
@@ -92,14 +93,22 @@ T from_any(const pb::Any& a) {
 std::vector<const pb::FieldDescriptor*> find_set_fields(const pb::Message& M);
 
 ///
+/// Fills with n copies of given type.
+///
+template <typename T>
+void fill_repeated(gpb::RepeatedPtrField<T>* dst, const std::size_t n) {
+  for (std::size_t i = 0U; i < n; i++) {
+    dst->Add();
+  }
+}
+
+///
 /// Clears the RepeatedPtField and fills it with n copies of given type.
 ///
 template <typename T>
 void fill_repeated_empty(pb::RepeatedPtrField<T>* dst, const std::size_t n) {
   dst->Clear();
-  for (auto i = 0U; i < n; i++) {
-    dst->Add();
-  }
+  fill_repeated(dst, n);
 }
 
 void copy_field(pb::Message* dst, pb::Message* src,

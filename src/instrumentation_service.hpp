@@ -11,13 +11,12 @@
 #include "websocket_server.hpp"
 
 #include <cstddef>
+#include <cstdint>
 
-#include <exception>
 #include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
-#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <utility>

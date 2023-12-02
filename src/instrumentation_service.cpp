@@ -5,7 +5,6 @@
 #include "asio_utils.hpp"
 #include "command/command_manager.hpp"
 #include "config.hpp"
-#include "errors.hpp"
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
 #include "util_string.hpp"

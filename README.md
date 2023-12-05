@@ -4,7 +4,26 @@ Library for interacting with Red Alert 2 Yuri's Revenge game process with protob
 
 ## Usage
 
-Copy `libra2yrcpp.dll` and patched `gamemd-spawn.exe` to the CnCNet installation folder (overwriting the original `gamemd-spawn.exe`), or ensure some other way that LoadLibrary can locate the DLL by it's base name. When the game is started, the DLL will be loaded and a with WebSocket server bound to port 14521.
+Get sources from [here](https://github.com/shmocz/ra2yrcpp/archive/refs/tags/latest.zip), or use git (use `--depth 1` if you want just the latest commit):
+
+```
+git clone --recurse-submodules https://github.com/shmocz/ra2yrcpp.git
+```
+
+Download the [latest release](https://github.com/shmocz/ra2yrcpp/releases/download/latest/ra2yrcpp.zip) and extract the contents to folder of your choice, e.g. `ra2yrcpp`. Patch the CnCNet spawner:
+
+```
+python ./scripts/run-gamemd.py \
+  --build-dir ra2yrcpp \
+  --spawner-path <CnCNet folder>/gamemd-spawn.exe \
+  patch-gamemd \
+  --output ra2yrcpp/gamemd-spawn-ra2yrcpp.exe
+```
+
+> **Warning**
+> You cannot use the modified spawner in any online games played over CnCNet. Not only is this against their ToS, but the ra2yrcpp-specific spawner is incompatible with the standard version.
+
+Copy `ra2yrcpp/libra2yrcpp.dll` and `ra2yrcpp/gamemd-spawn-ra2yrcpp.exe` to the CnCNet installation folder. If you wish to launch the game via official CnCNet client, then overwrite the original `gamemd-spawn.exe` with the patched spawner. When the game is started, the DLL will be loaded with WebSocket server bound to port 14521.
 
 The following environment variables control the behaviour of the service:
 
@@ -13,13 +32,33 @@ The following environment variables control the behaviour of the service:
 - `RA2YRCPP_RECORD_PATH`: Path to state record file (disabled by default)
 - `RA2YRCPP_RECORD_TRAFFIC`: Path to traffic record file (disabled by default)
 
-### Recording game data
+## Docker sessions
 
-A callback is created to save game state at the beginning of each frame. To output these to a file, set the environment variable `RA2YRCPP_RECORD_PATH=<name>.pb.gz`. The states are stored as compressed consecutive serialized protobuf messages. After exiting the game, the recording can be dumped as lines of JSON strings with the tool `ra2yrcppcli.exe`. **WARNING**: the uncompressed recording can get very large. Consider downsampling or transforming it into less verbose format for further processing.
+With the docker environment, it's possible to run multiple game instances over a dummy tunnel, mimicing a real world game played over the internet.
 
-### Recording traffic
+Set the path for `gamedata` volume in `docker-compose.yml` to RA2/CnCNet directory.
 
-Set the environment variable `RA2YRCPP_RECORD_TRAFFIC=<name>.pb.gz`
+```yaml
+volumes:
+  gamedata:
+    driver: local
+    driver_opts:
+      type: none
+      device: <CnCNet folder>
+      o: bind
+```
+
+Use the helper script to manage Docker sessions. The spawner will be automatically patched if necessary. VNC view will be available at (http://127.0.0.1:6081/vnc.html?autoconnect=1&reconnect=1). For example:
+
+```
+python ./scripts/run-gamemd.py \
+  --base-dir ra2yrcpp/test_instances \
+  --build-dir ra2yrcpp \
+  --ini-overrides test_data/cheap_items.ini \
+  --script pyra2yr/test_sell_mcv.py \
+  --spawner-path <CnCNet folder>/gamemd-spawn.exe \
+  run-docker-instance
+```
 
 ## Building
 
@@ -38,14 +77,6 @@ Set the environment variable `RA2YRCPP_RECORD_TRAFFIC=<name>.pb.gz`
 
 All dependencies except cmake, python, zlib and wine are already included as submodules.
 
-Get the sources and submodules and place `gamemd-spawn.exe` from CnCNet distribution into the project source directory.
-
-```bash
-git clone --recurse-submodules https://github.com/shmocz/ra2yrcpp.git
-cd ra2yrcpp
-cp <CNCNET_FOLDER>/gamemd-spawn.exe .
-```
-
 For `clang-cl`, zlib sources might be needed:
 
 ```bash
@@ -56,11 +87,19 @@ git clone -b v1.2.8 https://github.com/madler/zlib.git 3rdparty/zlib
 
 For convenience, a Docker image is provided for both MinGW and clang-cl toolchains with all necessary dependencies to build the application and related components. MinGW toolchain is used by default.
 
+Build the images:
+
 ```bash
-make docker_build
+make docker-base
 ```
 
-### General build instructions
+Build the library with docker:
+
+```bash
+make docker-build
+```
+
+### General build instructions (for developers)
 
 #### Obtain protobuf
 
@@ -93,13 +132,7 @@ cd "$BUILDDIR/${cfg[0]}-Release/pkg"
 find . -type f -exec install -D "{}" "$opt/{}" \;
 ```
 
-##### Install iced-x86
-
-iced-x86 Python library is used to disassemble instructions from game binary to automatically infer the number of bytes to copy when creating hooks. Make sure Python 3 is installed, then invoke:
-
-```bash
-pip install --user iced-x86
-```
+#### Build
 
 Pick a toolchain of your choice, release type and run make:
 
@@ -175,6 +208,15 @@ set(PROTOBUF_EXTRA_LIBS absl_status absl_log_internal_check_op absl_log_internal
 
 Exact list of libraries may vary across systems and protobuf versions.
 
+## Options
+
+### Recording game data
+
+> **Warning**
+> The uncompressed recording can be very large. Consider downsampling or transforming it into less verbose format for further processing.
+
+A callback is created to save game state at the beginning of each frame. To output these to a file, set the environment variable `RA2YRCPP_RECORD_PATH=<name>.pb.gz`. The states are stored as compressed consecutive serialized protobuf messages. After exiting the game, the recording can be dumped as lines of JSON strings with the tool `ra2yrcppcli.exe`.
+
 ### Running tests
 
 It's recommended to run tests using docker. Execute regular tests with:
@@ -183,29 +225,15 @@ It's recommended to run tests using docker. Execute regular tests with:
 make docker_test
 ```
 
-For integration tests, set the path for `gamedata` volume in `docker-compose.yml` to RA2/CnCNet directory.
-
-```yaml
-volumes:
-  gamedata:
-    driver: local
-    driver_opts:
-      type: none
-      device: PATH_TO_CNCNET_FILES
-      o: bind
-```
-
-And run the test. VNC view will be available at (http://127.0.0.1:6081/vnc.html?autoconnect=1&reconnect=1)
-
-```bash
-make test_integration
-```
-
 ## Troubleshooting
 
 ### The game doesn't start
 
 This can happen if ra2yrcpp cannot load zlib DLL. Ensure that `zlib1.dll` is placed in the same folder as `gamemd-spawn.exe`.
+
+### The game freezes shortly after loading
+
+Anti-cheat mechanism tends to cause this. Use the non-hardened version of the spawner available [here](https://github.com/CnCNet/yr-patches/releases/tag/latest).
 
 ## Credits
 

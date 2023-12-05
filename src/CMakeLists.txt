@@ -81,8 +81,8 @@ if(RA2YRCPP_BUILD_MAIN_DLL)
   if(MINGW)
     target_link_libraries(
       ra2yrcpp_dll
-      PUBLIC Threads::Threads yrclient -static-libgcc -static-libstdc++
-             -Wl,-Bstatic,--no-whole-archive -lwinpthread)
+      PUBLIC yrclient -static-libgcc -static-libstdc++
+             -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,--no-whole-archive)
   else()
     target_link_libraries(ra2yrcpp_dll PUBLIC yrclient)
   endif()

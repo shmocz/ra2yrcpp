@@ -123,7 +123,7 @@ void copy_field(gpb::Message* dst, gpb::Message* src,
 template <typename T>
 bool truncate(gpb::RepeatedPtrField<T>* dst, int n) {
   if (n < dst->size()) {
-    dst->DeleteSubrange(n, (dst->size() - n - 1));
+    dst->DeleteSubrange(n, (dst->size() - n));
     return true;
   }
   return false;

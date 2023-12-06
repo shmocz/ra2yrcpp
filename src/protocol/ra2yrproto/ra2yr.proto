@@ -586,6 +586,7 @@ enum UnitAction {
   UNIT_ACTION_REPAIR = 9;
   UNIT_ACTION_STOP = 10;
   UNIT_ACTION_SELL_CELL = 11;
+  UNIT_ACTION_ATTACK_MOVE = 12;
 }
 
 enum ProduceAction {

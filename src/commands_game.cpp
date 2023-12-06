@@ -112,6 +112,9 @@ struct UnitOrderCtx {
       case UnitAction::UNIT_ACTION_ATTACK:
         (void)click_mission(r2p::Mission_Attack);
         break;
+      case UnitAction::UNIT_ACTION_ATTACK_MOVE:
+        (void)click_mission(r2p::Mission_AttackMove);
+        break;
       case UnitAction::UNIT_ACTION_REPAIR:
         (void)click_mission(r2p::Mission_Repair);
         break;

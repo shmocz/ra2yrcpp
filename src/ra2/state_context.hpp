@@ -92,9 +92,9 @@ class StateContext {
 
   tc_cache_t& tc_cache();
 
-  bool can_place(const ra2yrproto::ra2yr::House& H,
-                 const ra2yrproto::ra2yr::ObjectTypeClass& T,
-                 const ra2yrproto::ra2yr::Coordinates& C);
+  void place_building(const ra2yrproto::ra2yr::House& H,
+                      const ra2yrproto::ra2yr::ObjectTypeClass& T,
+                      const ra2yrproto::ra2yr::Coordinates& C);
 
   abi_t* abi_;
   storage_t* s_;

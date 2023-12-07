@@ -40,6 +40,12 @@ EventEntry EventListUtil::find(EventListType t, const EventClass& E) {
           res = e;
           return true;
         }
+      } else if (E.Type == EventType::PLACE) {
+        if (E.Data.Place.RTTIType == e.e->Data.Place.RTTIType &&
+            E.Data.Place.HeapID == e.e->Data.Place.HeapID) {
+          res = e;
+          return true;
+        }
       } else {
         res = e;
         return true;

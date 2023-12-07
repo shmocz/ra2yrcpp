@@ -201,15 +201,29 @@ const ra2yrproto::ra2yr::Factory* StateContext::find_factory(
   return find_entry(s_->game_state().factories(), pred);
 }
 
-bool StateContext::can_place(const ra2yrproto::ra2yr::House& H,
-                             const ra2yrproto::ra2yr::ObjectTypeClass& T,
-                             const ra2yrproto::ra2yr::Coordinates& C) {
+void StateContext::place_building(const ra2yrproto::ra2yr::House& H,
+                                  const ra2yrproto::ra2yr::ObjectTypeClass& T,
+                                  const ra2yrproto::ra2yr::Coordinates& C) {
   const std::uintptr_t p_DisplayClass = 0x87F7E8u;
   auto cell_s = ra2::coord_to_cell(C);
-  return (abi_->DisplayClass_Passes_Proximity_Check(
-              p_DisplayClass,
-              reinterpret_cast<BuildingTypeClass*>(T.pointer_self()),
-              current_player()->array_index(), &cell_s) &&
-          abi_->BuildingTypeClass_CanPlaceHere(T.pointer_self(), &cell_s,
-                                               H.self()));
+  if (!abi_->DisplayClass_Passes_Proximity_Check(
+          p_DisplayClass,
+          reinterpret_cast<BuildingTypeClass*>(T.pointer_self()),
+          H.array_index(), &cell_s)) {
+    throw std::runtime_error("Proximity check failed");
+  }
+
+  if (!abi_->BuildingTypeClass_CanPlaceHere(T.pointer_self(), &cell_s,
+                                            H.self())) {
+    throw std::runtime_error("CanPlaceHere check failed");
+  }
+
+  ra2yrproto::ra2yr::Event E;
+  E.set_event_type(ra2yrproto::ra2yr::NETWORK_EVENT_Place);
+  auto* P = E.mutable_place();
+  P->set_rtti_type(T.type());
+  P->set_heap_id(T.array_index());
+  P->mutable_location()->CopyFrom(C);
+  E.set_house_index(H.array_index());
+  (void)add_event(E);
 }

@@ -41,6 +41,10 @@ struct UnitOrderCtx {
     ctx_->abi_->ClickEvent(p_obj(), e);
   }
 
+  bool requires_source_object() {
+    return !(uo().action() == r2p::UnitAction::UNIT_ACTION_SELL_CELL);
+  }
+
   bool requires_target_object() {
     switch (uo().action()) {
       case r2p::UnitAction::UNIT_ACTION_STOP:
@@ -57,10 +61,19 @@ struct UnitOrderCtx {
         return false;
       case r2p::UnitAction::UNIT_ACTION_CAPTURE:
         return false;
+      case r2p::UnitAction::UNIT_ACTION_REPAIR:
+        return false;
       default:
         return true;
     }
     return true;
+  }
+
+  // Return true if source object's current mission is invalid for execution of
+  // the UnitAction.
+  bool is_illegal_mission(ra2yrproto::ra2yr::Mission m) {
+    return (m == r2p::Mission::Mission_None ||
+            m == r2p::Mission::Mission_Construction);
   }
 
   bool click_mission(ra2yrproto::ra2yr::Mission m) {
@@ -86,7 +99,11 @@ struct UnitOrderCtx {
   // Apply action to single object
   void unit_action() {
     using r2p::UnitAction;
-    const std::uintptr_t p_object = p_obj();
+    if (requires_source_object() &&
+        is_illegal_mission(src_object_->current_mission())) {
+      throw std::runtime_error(fmt::format("Object has illegal mission: {}",
+                                           src_object_->current_mission()));
+    }
     switch (uo().action()) {
       case UnitAction::UNIT_ACTION_DEPLOY:
         click_event(r2p::NETWORK_EVENT_Deploy);
@@ -101,7 +118,7 @@ struct UnitOrderCtx {
         (void)ctx_->add_event(E);
       } break;
       case UnitAction::UNIT_ACTION_SELECT:
-        (void)ctx_->abi_->SelectObject(p_object);
+        (void)ctx_->abi_->SelectObject(p_obj());
         break;
       case UnitAction::UNIT_ACTION_MOVE:
         (void)click_mission(r2p::Mission_Move);
@@ -116,7 +133,7 @@ struct UnitOrderCtx {
         (void)click_mission(r2p::Mission_AttackMove);
         break;
       case UnitAction::UNIT_ACTION_REPAIR:
-        (void)click_mission(r2p::Mission_Repair);
+        (void)click_mission(r2p::Mission_Capture);
         break;
       case UnitAction::UNIT_ACTION_STOP:
         (void)click_mission(r2p::Mission_Stop);
@@ -205,18 +222,7 @@ auto place_building() {
                         O.pointer_self()));
       }
 
-      if (!ctx->can_place(*ctx->current_player(), *OE.tc, args.coordinates())) {
-        throw std::runtime_error(fmt::format("PLACE check failed"));
-      }
-
-      ra2yrproto::ra2yr::Event E;
-      E.set_event_type(ra2yrproto::ra2yr::NETWORK_EVENT_Place);
-      auto* P = E.mutable_place();
-      P->set_rtti_type(OE.tc->type());
-      P->set_heap_id(OE.tc->array_index());
-      P->mutable_location()->CopyFrom(args.coordinates());
-      E.set_house_index(ctx->current_player()->array_index());
-      (void)ctx->add_event(E);
+      ctx->place_building(*ctx->current_player(), *OE.tc, args.coordinates());
     });
   });
 }

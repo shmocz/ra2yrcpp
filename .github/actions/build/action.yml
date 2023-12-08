@@ -8,7 +8,7 @@ runs:
       shell: bash
       run: |
         mkdir -p cbuild wine-dir
-        make docker-release
+        ./scripts/tools.sh docker-release
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v3

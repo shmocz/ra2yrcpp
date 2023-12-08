@@ -13,8 +13,6 @@ services:
       - "6081:6081" # novnc
       - "12001:5901" # vnc
       - "50000:50000" # tunnel
-      - "14521:14521" # ra2yrcpp
-      - "12340:12340" # debugger
   novnc:
     image: shmocz/vnc:latest
     network_mode: service:vnc
@@ -25,8 +23,8 @@ services:
     command: sh -c 'exec openbox-session'
     depends_on:
       - vnc
-    env_file:
-      - integration.env
+    environment:
+      DISPLAY: ":1"
     network_mode: service:vnc
   builder:
     image: shmocz/ra2yrcpp:latest
@@ -52,7 +50,6 @@ services:
       - ./.wine-clang:/home/user/.wine
     command: "${COMMAND}"
     working_dir: /home/user/project
-    # to get debug dlls
     env_file:
       - integration.env
     user: "${UID}:${UID}"

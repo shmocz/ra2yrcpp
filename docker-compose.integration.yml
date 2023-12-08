@@ -1,31 +1,19 @@
 version: "3.9"
 
-x-common: &common
-  cap_add:
-    - SYS_PTRACE
-  command: "${COMMAND}"
-  depends_on:
-    - wm
-  env_file:
-    - integration.env
-  image: shmocz/ra2yrcpp:latest
-  network_mode: service:vnc
-  stop_signal: SIGKILL
-  user: "${UID}:${GID}"
-  volumes:
-    - .:/home/user/project
-    - gamedata:/home/user/RA2
-    - ./.wine-dir:/home/user/.wine
-  working_dir: /home/user/project
-
 services:
   game-0:
-    <<: *common
-    environment:
-      PLAYER_ID: player_0
-      RA2YRCPP_PORT: 14521
-  game-1:
-    <<: *common
-    environment:
-      PLAYER_ID: player_1
-      RA2YRCPP_PORT: 14522
+    cap_add:
+      - SYS_PTRACE
+    command: "${COMMAND}"
+    depends_on:
+      - wm
+    env_file:
+      - integration.env
+    image: shmocz/ra2yrcpp:latest
+    network_mode: service:vnc
+    stop_signal: SIGKILL
+    volumes:
+      - .:/home/user/project
+      - gamedata:/home/user/RA2
+      - ./.wine-dir:/home/user/.wine
+    working_dir: /home/user/project

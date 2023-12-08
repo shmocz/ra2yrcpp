@@ -90,13 +90,13 @@ For convenience, a Docker image is provided for both MinGW and clang-cl toolchai
 Build the images:
 
 ```bash
-make docker-base
+docker-compose build builder pyra2yr tunnel vnc
 ```
 
 Build the library with docker:
 
 ```bash
-make docker-build
+./scripts/tools.sh docker-build
 ```
 
 ### General build instructions (for developers)
@@ -106,9 +106,7 @@ make docker-build
 > **Warning**
 > Builds of libprotobuf lack compatibility across different compilers. Attempting to link a MinGW compiled library in MSVC/clang-cl toolchain, or vice versa, will result in errors.
 
-##### Option 1
-
-Copy files from docker image. If you built the main docker image then protobuf has already been built and you can copy the files from there:
+If you built the main docker image then protobuf has already been built and you can copy the files from there:
 
 ```bash
 mkdir -p opt/usr
@@ -116,30 +114,14 @@ docker-compose cp -L builder:/usr/i686-w64-mingw32 opt/usr
 docker-compose cp -L builder:/usr/bin/protoc opt/bin
 ```
 
-##### Option 2
-
-Build protobuf using a docker container. Use either the "builder" or "clang-cl" docker image:
-
-```bash
-cfg=("clang-cl-msvc" "clang-cl")
-# uncomment to use MinGW
-# cfg=("mingw-w64-i686" "builder")
-export CMAKE_TOOLCHAIN_FILE=toolchains/${cfg[0]}.cmake
-export BUILDDIR="build-protobuf"
-docker-compose run -e BUILDDIR -e CMAKE_TOOLCHAIN_FILE --rm -it "${cfg[1]}" make build_protobuf
-opt="$(realpath -s opt)"
-cd "$BUILDDIR/${cfg[0]}-Release/pkg"
-find . -type f -exec install -D "{}" "$opt/{}" \;
-```
-
 #### Build
 
-Pick a toolchain of your choice, release type and run make:
+Pick a toolchain of your choice, release type and the build script:
 
 ```bash
 export CMAKE_TOOLCHAIN_FILE=<toolchain-path>
 export CMAKE_RELEASE_TYPE=Release
-make build
+./scripts/tools.sh build-cpp
 ```
 
 This performs the build and installation under `cbuild/<toolchain-id>-<release-type>`.
@@ -173,7 +155,7 @@ Execute build with:
 
 ```bash
 export CMAKE_TOOLCHAIN_FILE=toolchains/clang-cl-msvc.cmake
-make build
+./scripts/tools.sh build-cpp
 ```
 
 the build and install directories will be performed to `cbuild/<toolchain-name>-$CMAKE_RELEASE_TYPE`, under the names `build` and `pkg` respectively.
@@ -184,7 +166,7 @@ The instructions are identical to `clang-cl`, consult the reference toolchain fi
 
 ```bash
 export CMAKE_TOOLCHAIN_FILE=toolchains/mingw-w64-i686.cmake
-make build
+./scripts/tools.sh build-cpp
 ```
 
 ### Build core library natively without YRpp
@@ -216,14 +198,6 @@ Exact list of libraries may vary across systems and protobuf versions.
 > The uncompressed recording can be very large. Consider downsampling or transforming it into less verbose format for further processing.
 
 A callback is created to save game state at the beginning of each frame. To output these to a file, set the environment variable `RA2YRCPP_RECORD_PATH=<name>.pb.gz`. The states are stored as compressed consecutive serialized protobuf messages. After exiting the game, the recording can be dumped as lines of JSON strings with the tool `ra2yrcppcli.exe`.
-
-### Running tests
-
-It's recommended to run tests using docker. Execute regular tests with:
-
-```bash
-make docker_test
-```
 
 ## Troubleshooting
 

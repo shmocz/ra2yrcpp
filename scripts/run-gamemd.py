@@ -61,9 +61,7 @@ zlib1.dll\
 
 
 def setup_logging(level=logging.INFO):
-    FORMAT = (
-        "[%(levelname)s] %(asctime)s %(module)s.%(filename)s:%(lineno)d: %(message)s"
-    )
+    FORMAT = "[%(levelname)s] %(asctime)s %(module)s.%(filename)s:%(lineno)d: %(message)s"
     logging.basicConfig(level=level, format=FORMAT)
     start_time = datetime.datetime.now().isoformat()
     level_name = logging.getLevelName(level)
@@ -143,7 +141,9 @@ class ConfigFile:
 
     def __post_init__(self):
         for k in ["color", "location", "name"]:
-            if len(set(getattr(p, k) for p in self.players)) != len(self.players):
+            if len(set(getattr(p, k) for p in self.players)) != len(
+                self.players
+            ):
                 raise RuntimeError(f'Duplicate player attribute: "{k}"')
 
     @classmethod
@@ -170,11 +170,15 @@ class ConfigFile:
             ("IsSpectator", "is_observer"),
             ("Port", "port"),
         ]
-        return [(k, getattr(p, v)) for k, v in kmap] + [("Color", p.color.value)]
+        return [(k, getattr(p, v)) for k, v in kmap] + [
+            ("Color", p.color.value)
+        ]
 
     def others_sections(self, player_index: int):
         oo = [
-            p for p in self.players if p.ai_difficulty < 0 and p.index != player_index
+            p
+            for p in self.players
+            if p.ai_difficulty < 0 and p.index != player_index
         ]
         res = []
         for o in oo:
@@ -224,13 +228,18 @@ class ConfigFile:
             )
         )
         res.append(
-            self.kv_to_string("Tunnel", [("Ip", self.tunnel), ("Port", self.port)])
+            self.kv_to_string(
+                "Tunnel", [("Ip", self.tunnel), ("Port", self.port)]
+            )
         )
         if ai_players:
             res.append(
                 self.kv_to_string(
                     "HouseHandicaps",
-                    [(f"Multi{x.index + 1}", f"{x.ai_difficulty}") for x in ai_players],
+                    [
+                        (f"Multi{x.index + 1}", f"{x.ai_difficulty}")
+                        for x in ai_players
+                    ],
                 )
             )
             res.append(
@@ -242,7 +251,10 @@ class ConfigFile:
             res.append(
                 self.kv_to_string(
                     "HouseColors",
-                    [(f"Multi{x.index + 1}", f"{x.color.value}") for x in ai_players],
+                    [
+                        (f"Multi{x.index + 1}", f"{x.color.value}")
+                        for x in ai_players
+                    ],
                 )
             )
         return "\n\n".join(res) + "\n"
@@ -259,7 +271,9 @@ def popen(args, **kwargs):
 
 
 def docker_exit():
-    subprocess.run("docker-compose down --remove-orphans -t 1", shell=True, check=True)
+    subprocess.run(
+        "docker-compose down --remove-orphans -t 1", shell=True, check=True
+    )
 
 
 def read_players_config(path) -> list[PlayerEntry]:
@@ -523,7 +537,9 @@ class RunDockerInstance(MainCommand):
         subprocess.CalledProcessError: If the process fails.
         """
         args = self.args
-        args_ini_overrides = list(sum([("-i", x) for x in args.ini_overrides], ()))
+        args_ini_overrides = list(
+            sum([("-i", x) for x in args.ini_overrides], ())
+        )
         cname = f"game-0-{i}"
         cmdline = Docker.run(
             ["./scripts/run-gamemd.py"]
@@ -552,7 +568,10 @@ class RunDockerInstance(MainCommand):
                 "run-gamemd",
             ],
             "game-0",
-            compose_files=["docker-compose.yml", "docker-compose.integration.yml"],
+            compose_files=[
+                "docker-compose.yml",
+                "docker-compose.integration.yml",
+            ],
             uid=self.uid,
             name=cname,
             env=[
@@ -567,10 +586,16 @@ class RunDockerInstance(MainCommand):
         os.environ["COMMAND_PYRA2YR"] = f"python3 {pyra2yr_script}"
 
         uid = self.uid
-        main_service = popen(Docker.up("tunnel wm vnc novnc pyra2yr".split(" ")))
+        main_service = popen(
+            Docker.up("tunnel wm vnc novnc pyra2yr".split(" "))
+        )
 
         # hack to wait until pyra2yr service has started
-        try_fn(lambda: prun(Docker.exec(["ls", "-l"], "pyra2yr", uid=uid), check=True))
+        try_fn(
+            lambda: prun(
+                Docker.exec(["ls", "-l"], "pyra2yr", uid=uid), check=True
+            )
+        )
 
         procs = []
 
@@ -641,7 +666,11 @@ class RunGameMD:
     def apply_ini_overrides(self):
         m = read_file(self.map_path)
         with open(self.map_path, "w") as f:
-            f.write("\n\n".join([m] + [read_file(p) for p in self.args.ini_overrides]))
+            f.write(
+                "\n\n".join(
+                    [m] + [read_file(p) for p in self.args.ini_overrides]
+                )
+            )
 
     def generate_spawnini(self):
         with open(self.spawn_path, "w") as f:
@@ -672,7 +701,12 @@ class RunGameMD:
 
     def run(self):
         cmd = {
-            "syringe": ["Syringe.exe", f" {NAME_SPAWNER_SYRINGE}", "-SPAWN", "-CD"],
+            "syringe": [
+                "Syringe.exe",
+                f" {NAME_SPAWNER_SYRINGE}",
+                "-SPAWN",
+                "-CD",
+            ],
             "static": [NAME_SPAWNER_PATCHED, "-SPAWN"],
         }[self.args.type]
         so = open(self.instance_dir / "out.log", "w")
@@ -719,7 +753,7 @@ def build(args):
             check=True,
         )
 
-    _run(["make", "build_cpp"])
+    _run(["./scripts/tools.sh", "build-cpp"])
 
 
 def parse_args():
@@ -729,7 +763,8 @@ def parse_args():
     )
     sp = a.add_subparsers(title="Subcommands", dest="subcommand")
     a1 = sp.add_parser(
-        "run-docker-instance", help="Execute one or more game instances with Docker."
+        "run-docker-instance",
+        help="Execute one or more game instances with Docker.",
     )
     a1.add_argument(
         "-e",
@@ -795,7 +830,11 @@ def parse_args():
         help="Tunnel server IP address.",
     )
     a.add_argument(
-        "-tp", "--tunnel-port", type=int, default=50000, help="Tunnel server port."
+        "-tp",
+        "--tunnel-port",
+        type=int,
+        default=50000,
+        help="Tunnel server port.",
     )
     a.add_argument(
         "-d",

@@ -344,7 +344,7 @@ class Docker:
     @classmethod
     def up(cls, services, compose_files=None):
         r = cls._common(compose_files)
-        r.append("up")
+        r.extend(["up", "--abort-on-container-exit"])
         r.extend(services)
         return r
 
@@ -602,8 +602,11 @@ class RunDockerInstance(MainCommand):
         def _stop_instances():
             main_service.terminate()
             for cname, p in procs:
-                prun(["docker", "stop", cname], check=True)
-                p.wait()
+                try:
+                    prun(["docker", "stop", cname], check=True)
+                    p.wait()
+                except subprocess.CalledProcessError:
+                    pass
 
         atexit.register(_stop_instances)
 
@@ -616,7 +619,10 @@ class RunDockerInstance(MainCommand):
             cname, proc = self.create_game_instance(i, c.name, 14520 + i + 1)
             procs.append((cname, proc))
 
+        # TODO: stop if any of the containers exits
         while True:
+            if main_service.poll() != None:
+                break
             time.sleep(1)
 
 

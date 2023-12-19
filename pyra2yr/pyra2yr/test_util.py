@@ -1,43 +1,14 @@
-import gzip
+import asyncio
 import logging as lg
 import unittest
-from typing import Iterator, Type
+from typing import Type
 
 import numpy as np
-from ra2yrproto import commands_yr, ra2yr
+from ra2yrproto import commands_yr, core, ra2yr
 
-from pyra2yr.manager import Manager, ManagerUtil
-from pyra2yr.util import (
-    StateUtil,
-    array2coord,
-    coord2array,
-    read_protobuf_messages,
-)
-
-
-def verify_recording(path: str):
-    n_deploy = 0
-    last_frame = 0
-    with gzip.open(path, "rb") as f:
-        m = read_protobuf_messages(f)
-
-        # get type classes
-        m0 = next(m)
-        S = StateUtil(m0.object_types)
-        S.set_state(m0)
-        last_frame = S.state.current_frame
-        for _, m0 in enumerate(m):
-            S.set_state(m0)
-            for u in S.get_units("player_0"):
-                if u.deployed or u.deploying:
-                    n_deploy += 1
-            cur_frame = S.state.current_frame
-            assert (
-                cur_frame - last_frame == 1
-            ), f"cur,last={cur_frame},{last_frame}"
-            last_frame = S.state.current_frame
-    assert last_frame > 0
-    assert n_deploy > 0
+from pyra2yr.manager import Manager, ManagerUtil, PlaceStrategy
+from pyra2yr.state_objects import FactoryEntry, MapData, ObjectEntry
+from pyra2yr.util import array2coord, coord2array
 
 
 async def check_config(U: ManagerUtil = None):
@@ -58,6 +29,128 @@ async def check_config(U: ManagerUtil = None):
     cmd_2 = await U.inspect_configuration(config=cfg_diff)
     cfg2 = cmd_2.config
     assert cfg2 == cfg2_ex
+
+
+class MyManager(Manager):
+    async def get_place_locations(
+        self, coords: np.array, o: ra2yr.Object, rx: int, ry: int
+    ) -> np.array:
+        """Return coordinates where a building can be placed.
+
+        Parameters
+        ----------
+        coords : np.array
+            Center point
+        o : ra2yr.Object
+            The ready building
+        rx : int
+            Query x radius
+        ry : int
+            Query y radius
+
+        Returns
+        -------
+        np.array
+            Result coordinates.
+        """
+        xx = np.arange(rx) - int(rx / 2)
+        yy = np.arange(ry) - int(ry / 2)
+        if coords.size < 3:
+            coords = np.append(coords, 0)
+        grid = (
+            np.transpose([np.tile(xx, yy.shape), np.repeat(yy, xx.shape)]) * 256
+        )
+        grid = np.c_[grid, np.zeros((grid.shape[0], 1))] + coords
+        res = await self.M.place_query(
+            type_class=o.pointer_technotypeclass,
+            house_class=o.pointer_house,
+            coordinates=[array2coord(x) for x in grid],
+        )
+        return np.array([coord2array(x) for x in res.coordinates])
+
+    def get_unique_tc(self, pattern) -> ra2yr.ObjectTypeClass:
+        tc = list(self.state.query_type_class(p=pattern))
+        if len(tc) != 1:
+            raise RuntimeError(f"Non unique TypeClass: {pattern}: {tc}")
+        return tc[0]
+
+    async def begin_production(self, t: ra2yr.ObjectTypeClass) -> FactoryEntry:
+        # TODO: Check for error
+        await self.M.start_production(t)
+        frame = self.state.s.current_frame
+
+        # Wait until corresponding type is being produced
+        await self.wait_state(
+            lambda: any(
+                f
+                for f in self.state.query_factories(
+                    h=self.state.current_player(), t=t
+                )
+            )
+            or self.state.s.current_frame - frame >= 300
+        )
+        try:
+            # Get the object
+            return next(
+                self.state.query_factories(h=self.state.current_player(), t=t)
+            )
+        except StopIteration as e:
+            raise RuntimeError(f"Failed to start production of {t}") from e
+
+    async def produce_unit(self, t: ra2yr.ObjectTypeClass | str) -> ObjectEntry:
+        if isinstance(t, str):
+            t = self.get_unique_tc(t)
+
+        fac = await self.begin_production(t)
+
+        # Wait until done
+        # TODO: check for cancellation
+        await self.wait_state(
+            lambda: fac.object.get().current_mission == ra2yr.Mission_Guard
+        )
+        return fac.object
+
+    async def produce_and_place(
+        self,
+        t: ra2yr.ObjectTypeClass,
+        coords,
+        strategy: PlaceStrategy = PlaceStrategy.FARTHEST,
+    ) -> ObjectEntry:
+        U = self.M
+        fac = await self.begin_production(t)
+        obj = fac.object
+
+        # wait until done
+        await self.wait_state(lambda: fac.get().completed)
+
+        if strategy == PlaceStrategy.FARTHEST:
+            place_locations = await self.get_place_locations(
+                coords,
+                obj.get(),
+                15,
+                15,
+            )
+
+            # get cell closest away and place
+            dists = np.sqrt(np.sum((place_locations - coords) ** 2, axis=1))
+            coords = place_locations[np.argsort(dists)[-1]]
+        r = await U.place_building(
+            building=obj.get(), coordinates=array2coord(coords)
+        )
+        if r.result_code != core.ResponseCode.OK:
+            raise RuntimeError(f"place failed: {r.error_message}")
+        # wait until building has been placed
+        await self.wait_state(
+            lambda: obj.invalid()
+            or fac.invalid()
+            and obj.get().current_mission
+            not in (ra2yr.Mission_None, ra2yr.Mission_Construction)
+        )
+        return obj
+
+    async def get_map_data(self) -> MapData:
+        W = await self.M.map_data()
+        return MapData(W)
 
 
 class BaseGameTest(unittest.IsolatedAsyncioTestCase):
@@ -89,59 +182,3 @@ class BaseGameTest(unittest.IsolatedAsyncioTestCase):
             poll_frequency=self.poll_frequency,
             fetch_state_timeout=self.fetch_state_timeout,
         )
-
-    def house_objects(self, h: ra2yr.House) -> Iterator[ra2yr.Object]:
-        return (o for o in self.sm.s.objects if o.pointer_house == h.self)
-
-    def current_player(self) -> ra2yr.House:
-        try:
-            return next(p for p in self.sm.s.houses if p.current_player)
-        except StopIteration:
-            lg.error(
-                "fatal, invalid current player. houses: %s",
-                self.sm.s.houses,
-            )
-            raise
-
-    def my_buildings(self) -> Iterator[ra2yr.Object]:
-        #
-        return (
-            o
-            for o in self.house_objects(self.current_player())
-            if o.object_type == ra2yr.ABSTRACT_TYPE_BUILDING
-        )
-
-    def get_production(
-        self, h: ra2yr.House = None
-    ) -> Iterator[tuple[ra2yr.Object, ra2yr.Factory]]:
-        if not h:
-            return (
-                (self.sm.get_object(o.object), o) for o in self.sm.s.factories
-            )
-        return (
-            (self.sm.get_object(o.object), o)
-            for o in self.sm.s.factories
-            if o.owner == h.self
-        )
-
-    async def get_place_locations(
-        self, coords: np.array, o: ra2yr.Object, rx: int, ry: int
-    ) -> np.array:
-        xx = np.arange(rx) - int(rx / 2)
-        yy = np.arange(ry) - int(ry / 2)
-        if coords.size < 3:
-            coords = np.append(coords, 0)
-        grid = (
-            np.transpose([np.tile(xx, yy.shape), np.repeat(yy, xx.shape)]) * 256
-        )
-        grid = np.c_[grid, np.zeros((grid.shape[0], 1))] + coords
-        # result = np.c_[result, np.zeros((result.shape[0], 1))]
-        res = await self.M.M.place_query(
-            type_class=o.pointer_technotypeclass,
-            house_class=o.pointer_house,
-            coordinates=[array2coord(x) for x in grid],
-        )
-        return np.array([coord2array(x) for x in res.coordinates])
-
-    def get_factories(self, h: ra2yr.House) -> Iterator[ra2yr.Factory]:
-        return (x for x in self.sm.s.factories if x.owner == h.self)

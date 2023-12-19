@@ -1,11 +1,10 @@
 import datetime
 import io
 import logging
-import math
-import re
 import pstats
+import re
 from enum import Enum, IntFlag, auto
-from typing import Iterable, Iterator, List, Tuple
+from typing import Iterator, List, Tuple
 
 import google.protobuf.text_format as text_format
 import numpy as np
@@ -45,10 +44,8 @@ def coord2array(x: ra2yr.Coordinates) -> np.array:
     return np.array(coord2tuple(x))
 
 
-def pdist(v1, v2, n=2):
-    return math.sqrt(
-        sum((x0 - x1) ** n for i, (x0, x1) in enumerate(zip(v1, v2)))
-    )
+def pdist(x1, x2, axis=0):
+    return np.sqrt(np.sum((x1 - x2) ** 2, axis=axis))
 
 
 def ind2sub(i, x0, x1):
@@ -58,35 +55,6 @@ def ind2sub(i, x0, x1):
 
 def sub2ind(i0, i1, b0, b1):
     return i0 * b0 + i1
-
-
-class StateUtil:
-    def __init__(self, type_classes: List[ra2yr.TypeClass]):
-        self.type_classes = type_classes
-        self._state = None
-
-    def set_state(self, state: ra2yr.GameState):
-        self._state = state
-
-    @property
-    def state(self) -> ra2yr.GameState:
-        if not self._state:
-            raise RuntimeError("no state")
-        return self._state
-
-    def get_house(self, name: str) -> ra2yr.House:
-        return next(h for h in self.state.houses if h.name == name)
-
-    def get_units(self, house_name: str) -> Iterable[ra2yr.Object]:
-        h = self.get_house(house_name)
-        return (u for u in self.state.objects if u.pointer_house == h.self)
-
-    def get_production(self, house_name: str) -> ra2yr.Factory:
-        h = self.get_house(house_name)
-        return (f for f in self.state.factories if f.owner == h.self)
-
-    def get_self(self) -> ra2yr.House:
-        return next(h for h in self.state.houses if h.current_player)
 
 
 def read_protobuf_messages(f) -> Iterator[ra2yr.GameState]:
@@ -104,20 +72,6 @@ def read_protobuf_messages(f) -> Iterator[ra2yr.GameState]:
 
 def msg_oneline(m):
     return text_format.MessageToString(m, as_one_line=True)
-
-
-def equals(a, b, msg=""):
-    if not msg:
-        msg = f"{a} != {b}"
-
-    assert a == b, msg
-
-
-def set_equals(a, b, msg=""):
-    sa = set(a)
-    sb = set(b)
-
-    equals(sa, sb, msg)
 
 
 class EventListID(Enum):
@@ -159,10 +113,6 @@ class EventHistory:
         return res
 
 
-def find_objects(s: ra2yr.GameState, o: ra2yr.Object):
-    return (x for x in s.objects if o.pointer_self == x.pointer_self)
-
-
 def setup_logging(level=logging.INFO):
     FORMAT = "[%(levelname)s] %(asctime)s %(module)s.%(filename)s:%(lineno)d: %(message)s"
     logging.basicConfig(level=level, format=FORMAT)
@@ -181,20 +131,6 @@ class Clock:
 
     def toc(self):
         return (datetime.datetime.now() - self.t).total_seconds()
-
-
-def cell_to_coordinates(i: int, bounds: Tuple[int, int]):
-    """Convert index to Coordinates (leptons) format
-
-    Parameters
-    ----------
-    i : int
-        _description_
-    bounds : Tuple[int, int]
-        _description_
-    """
-    x0, x1 = ind2sub(i, *bounds)
-    return cell2coord((x0 + 0.5, x1 + 0.5, 0))
 
 
 def finish_profiler(p):
@@ -258,7 +194,6 @@ def cell_grid(coords, rx: int, ry: int) -> List[ra2yr.Coordinates]:
         List of cell coordinates lying on the given bounds.
     """
     # TODO(shmocz): generalize
-    logging.debug("coords=%s", coords)
     if coords.size < 3:
         coords = np.append(coords, 0)
     place_query_grid = []

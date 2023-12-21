@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package ra2yrproto;
-
-message TunnelPacket {
-  uint32 source = 1;
-  uint32 destination = 2;
-  bytes data = 3;
-}

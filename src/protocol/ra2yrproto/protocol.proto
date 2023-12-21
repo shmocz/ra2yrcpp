@@ -1,5 +1,0 @@
-syntax = "proto3";
-
-package ra2yrproto;
-
-import "google/protobuf/any.proto";

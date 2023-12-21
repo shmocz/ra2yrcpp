@@ -69,17 +69,8 @@ services:
       - .:/home/user/project
     command: |
       sh -c '
-      if [ ! -d .venv ]; then
-        python3 -m venv .venv
-        . .venv/bin/activate
-        python3 -m pip install -r requirements.txt -e .
-      else
-        set -e
-        . .venv/bin/activate
-        set +e
-        python3 -m pip install -r requirements.txt -e .
-      fi
-      ${COMMAND_PYRA2YR}'
+      poetry install --only main,dev
+      poetry run ${COMMAND_PYRA2YR}'
     stop_signal: SIGKILL
     working_dir: /home/user/project/pyra2yr
     tty: true

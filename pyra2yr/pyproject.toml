@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "pyra2yr"
+version = "0.1.0"
+description = "Python interface for ra2yrproto"
+authors = ["shmocz <112764837+shmocz@users.noreply.github.com>"]
+license = "GPL3"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+numpy = "^1.26.2"
+aiohttp = "^3.9.1"
+protobuf = "^4.25.1"
+
+[tool.poetry.group.release.dependencies]
+ra2yrproto = { url = "https://github.com/shmocz/ra2yrproto/releases/download/latest/ra2yrproto-1-py3-none-any.whl" }
+
+[tool.poetry.group.dev.dependencies]
+ra2yrproto = { path = "../src/protocol/ra2yrproto/dist/ra2yrproto-1-py3-none-any.whl" }
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

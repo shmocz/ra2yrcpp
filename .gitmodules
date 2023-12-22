@@ -19,3 +19,6 @@
 [submodule "3rdparty/protobuf"]
 	path = 3rdparty/protobuf
 	url = https://github.com/shmocz/protobuf.git
+[submodule "src/protocol/ra2yrproto"]
+	path = src/protocol/ra2yrproto
+	url = https://github.com/shmocz/ra2yrproto.git

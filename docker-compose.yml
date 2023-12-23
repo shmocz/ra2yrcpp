@@ -1,31 +1,6 @@
 version: "3.9"
 
 services:
-  vnc:
-    build:
-      context: .
-      dockerfile: docker/vnc.Dockerfile
-    image: shmocz/vnc:latest
-    command: sh -c 'Xvnc :1 -depth 24 -geometry $$RESOLUTION -br -rfbport=5901 -SecurityTypes None -AcceptSetDesktopSize=off'
-    environment:
-      RESOLUTION: "1280x1024"
-    ports:
-      - "6081:6081" # novnc
-      - "12001:5901" # vnc
-      - "50000:50000" # tunnel
-  novnc:
-    image: shmocz/vnc:latest
-    network_mode: service:vnc
-    user: root
-    command: /utils/novnc_proxy --vnc localhost:5901 --listen 6081
-  wm:
-    image: shmocz/vnc:latest
-    command: sh -c 'exec openbox-session'
-    depends_on:
-      - vnc
-    environment:
-      DISPLAY: ":1"
-    network_mode: service:vnc
   builder:
     image: shmocz/ra2yrcpp:latest
     build:
@@ -35,8 +10,6 @@ services:
       - .:/home/user/project
       - ./wine-dir:/home/user/.wine
     user: "${UID}:${UID}"
-    env_file:
-      - integration.env
     command: "${COMMAND}"
     working_dir: /home/user/project
   clang-cl:
@@ -46,40 +19,7 @@ services:
       dockerfile: docker/clang-cl-msvc.Dockerfile
     volumes:
       - .:/home/user/project
-      - gamedata:/home/user/RA2
       - ./.wine-clang:/home/user/.wine
     command: "${COMMAND}"
     working_dir: /home/user/project
-    env_file:
-      - integration.env
     user: "${UID}:${UID}"
-  tunnel:
-    build:
-      context: .
-      dockerfile: docker/tunnel.Dockerfile
-    image: shmocz/pycncnettunnel:latest
-    stop_signal: SIGKILL
-    network_mode: service:vnc
-  pyra2yr:
-    build:
-      context: .
-      dockerfile: docker/pyra2yr.Dockerfile
-    image: shmocz/pyra2yr:latest
-    volumes:
-      - .:/home/user/project
-    command: |
-      sh -c '
-      poetry install --only main,dev
-      poetry run ${COMMAND_PYRA2YR}'
-    stop_signal: SIGKILL
-    working_dir: /home/user/project/pyra2yr
-    tty: true
-    network_mode: service:vnc
-
-volumes:
-  gamedata:
-    driver: local
-    driver_opts:
-      type: none
-      device: /home/user/project/maingame # path to CnCNet files
-      o: bind

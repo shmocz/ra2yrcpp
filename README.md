@@ -32,34 +32,6 @@ The following environment variables control the behaviour of the service:
 - `RA2YRCPP_RECORD_PATH`: Path to state record file (disabled by default)
 - `RA2YRCPP_RECORD_TRAFFIC`: Path to traffic record file (disabled by default)
 
-## Docker sessions
-
-With the docker environment, it's possible to run multiple game instances over a dummy tunnel, mimicing a real world game played over the internet.
-
-Set the path for `gamedata` volume in `docker-compose.yml` to RA2/CnCNet directory.
-
-```yaml
-volumes:
-  gamedata:
-    driver: local
-    driver_opts:
-      type: none
-      device: <CnCNet folder>
-      o: bind
-```
-
-Use the helper script to manage Docker sessions. The spawner will be automatically patched if necessary. VNC view will be available at (http://127.0.0.1:6081/vnc.html?autoconnect=1&reconnect=1). For example:
-
-```
-python ./scripts/run-gamemd.py \
-  --base-dir ra2yrcpp/test_instances \
-  --build-dir ra2yrcpp \
-  --ini-overrides test_data/cheap_items.ini \
-  --script pyra2yr/test_sell_mcv.py \
-  --spawner-path <CnCNet folder>/gamemd-spawn.exe \
-  run-docker-instance
-```
-
 ## Building
 
 `ra2yrcpp` depends on following software:
@@ -69,7 +41,6 @@ python ./scripts/run-gamemd.py \
 - cmake
 - fmt
 - protobuf
-- python3 (iced-x86 library used for patching)
 - websocketpp
 - wine (Optional: see section about cross-compilation and protoc)
 - xbyak
@@ -90,7 +61,7 @@ For convenience, a Docker image is provided for both MinGW and clang-cl toolchai
 Build the images:
 
 ```bash
-docker-compose build builder pyra2yr tunnel vnc
+docker-compose build builder
 ```
 
 Build the library with docker:

@@ -12,7 +12,6 @@
 #include "config.hpp"
 #include "context.hpp"
 #include "dll_inject.hpp"
-#include "hook.hpp"
 #include "hooks_yr.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
@@ -162,12 +161,11 @@ ra2yrcpp::InstrumentationService* is_context::make_is(
           ra2yrproto::commands::CreateHooks C1;
 
           C1.set_no_suspend_threads(true);
-          for (const auto& [k, v] : ra2yrcpp::hooks_yr::get_hooks()) {
-            auto [p_target, code_size] = hook::get_hook_entry(v);
+          for (const auto& Y : ra2yrcpp::hooks_yr::get_hooks()) {
             auto* H = C1.add_hooks();
-            H->set_address(p_target);
-            H->set_name(k);
-            H->set_code_length(code_size);
+            H->set_address(Y.address);
+            H->set_name(Y.name);
+            H->set_code_length(Y.size);
           }
 
           handle_cmd_wait(t, C1);

@@ -411,12 +411,12 @@ void ra2yrcpp::hooks_yr::init_callbacks(ra2yrcpp::InstrumentationService* I) {
 }
 
 constexpr std::array<YRHook, 6> gg_hooks = {{
-    {CBGameCommand::key_target, 0x55de4f},         //
-    {CBExitGameLoop::key_target, 0x72dfb0},        //
-    {CBTunnelSendTo::key_target, 0x7b3d6f},        //
-    {CBTunnelRecvFrom::key_target, 0x7b3f15},      //
-    {CBUpdateLoadProgress::key_target, 0x643c62},  //
-    {CBDebugPrint::key_target, 0x4068e0},
+    {0x55de4f, 7U, CBGameCommand::key_target},         //
+    {0x72dfb0, 6U, CBExitGameLoop::key_target},        //
+    {0x7b3d6f, 6U, CBTunnelSendTo::key_target},        //
+    {0x7b3f15, 6U, CBTunnelRecvFrom::key_target},      //
+    {0x643c62, 6U, CBUpdateLoadProgress::key_target},  //
+    {0x4068e0, 6U, CBDebugPrint::key_target},
 }};
 
 std::vector<YRHook> ra2yrcpp::hooks_yr::get_hooks() {

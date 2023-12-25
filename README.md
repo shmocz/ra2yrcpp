@@ -10,13 +10,13 @@ Get sources from [here](https://github.com/shmocz/ra2yrcpp/archive/refs/tags/lat
 git clone --recurse-submodules https://github.com/shmocz/ra2yrcpp.git
 ```
 
-Download the [latest release](https://github.com/shmocz/ra2yrcpp/releases/download/latest/ra2yrcpp.zip) and extract the contents to folder of your choice, e.g. `ra2yrcpp`. Patch the CnCNet spawner:
+Download the [latest release](https://github.com/shmocz/ra2yrcpp/releases/download/latest/ra2yrcpp.zip) and extract the contents to folder of your choice, e.g. `ra2yrcpp`. Download [spawner](https://github.com/CnCNet/yr-patches/releases/download/latest/yr-patches.zip) and patch it:
 
 ```
-python ./scripts/run-gamemd.py \
+python ./scripts/patch_gamemd.py \
+  --auto-patch \
   --build-dir ra2yrcpp \
-  --spawner-path <CnCNet folder>/gamemd-spawn.exe \
-  patch-gamemd \
+  --input yr-patches/release/cncnet/gamemd-spawn.exe \
   --output ra2yrcpp/gamemd-spawn-ra2yrcpp.exe
 ```
 

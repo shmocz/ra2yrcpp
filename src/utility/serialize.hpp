@@ -9,7 +9,7 @@ namespace serialize {
 using u8 = std::uint8_t;
 
 template <typename T, typename U>
-auto read_obj(U* addr) {
+auto read_obj(const U* addr) {
   T t;
   std::memset(&t, 0, sizeof(t));
   auto a = reinterpret_cast<const u8*>(addr);

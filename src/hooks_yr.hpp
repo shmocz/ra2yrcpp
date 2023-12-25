@@ -129,8 +129,9 @@ void get_gameloop_command(ra2yrcpp::command::ISCommand<T>* Q,
 }
 
 struct YRHook {
-  const char* name;
+  u32 address;
   u32 size;
+  const char* name;
 };
 
 std::vector<YRHook> get_hooks();

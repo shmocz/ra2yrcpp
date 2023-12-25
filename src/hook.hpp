@@ -121,12 +121,6 @@ class Hook {
   bool manual_;
 };
 
-/// Given a location that has been hooked (contains push+ret), get the address
-/// of the detour location and the size of original instructions in bytes. The
-/// size is determined by searching for push/ret instructions in the detour
-/// location.
-std::tuple<u32, std::size_t> get_hook_entry(const u32 target);
-
 struct Callback {
   Callback();
   Callback(const Callback&) = delete;

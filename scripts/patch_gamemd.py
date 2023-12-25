@@ -3,6 +3,10 @@ import sys
 import re
 import os
 import struct
+import subprocess
+import shutil
+import tempfile
+from pathlib import Path
 from typing import List, Any, Iterable
 from dataclasses import dataclass
 import argparse
@@ -132,7 +136,9 @@ def make_detour(
     code = code or bytearray()
     section_detours = get_section(sections, addr_detours)
     offset_detours = addr_detours - section_detours.vaddr
-    detour = binary[h.paddr : (h.paddr + h.size)] + code + pushret(h.vaddr + h.size)
+    detour = (
+        binary[h.paddr : (h.paddr + h.size)] + code + pushret(h.vaddr + h.size)
+    )
     patch(binary, detour, section_detours.paddr + offset_detours)
     pr_1 = pushret(addr_detours)
     pr_2 = pr_1 + bytearray([0x90] * (h.size - len(pr_1)))
@@ -155,8 +161,14 @@ def auto_int(x):
 
 def parse_args():
     a = argparse.ArgumentParser(
-        description="Patch gamemd executable and output result to stdout",
+        description="Patch gamemd executable.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    a.add_argument(
+        "-b",
+        "--build-dir",
+        type=Path,
+        help="ra2yrcpp build dir",
     )
     a.add_argument(
         "-s",
@@ -179,7 +191,11 @@ def parse_args():
         help="Extra patches to apply in format <type><address>:<path>. <type> can be 'd' (detour) or 'r' (raw) Address is in hex.",
     )
     a.add_argument(
-        "-r", "--raw", type=str, help="Apply raw patches specified in given file"
+        "-r",
+        "--raw",
+        type=Path,
+        default=Path("data") / "patches.txt",
+        help="Apply raw patches specified in given file",
     )
     a.add_argument(
         "-f",
@@ -193,12 +209,20 @@ def parse_args():
         action="store_true",
         help="Don't output patched binary. Rather all patches to be applied in a format suitable for -p parameter",
     )
-    a.add_argument("-i", "--input", default="gamemd-spawn.exe", help="gamemd path")
+    a.add_argument(
+        "-i", "--input", default="gamemd-spawn.exe", help="gamemd path"
+    )
     a.add_argument(
         "-o",
         "--output",
         default=None,
         help="Output file. If unspecified, write to stdout",
+    )
+    a.add_argument(
+        "-a",
+        "--auto-patch",
+        action="store_true",
+        help="Auto patch spawner",
     )
     return a.parse_args()
 
@@ -235,7 +259,9 @@ def do_patching(h: Handle) -> bytearray:
     addr_detours = h.args.detour_address
     binary_patched = h.binary.copy()
     for p in h.patches:
-        addr_detours += make_detour(binary_patched, p, addr_detours, h.sections, p.code)
+        addr_detours += make_detour(
+            binary_patched, p, addr_detours, h.sections, p.code
+        )
     return binary_patched
 
 
@@ -254,9 +280,71 @@ def get_handle(a) -> Handle:
     return H
 
 
+def prun(args, **kwargs):
+    cmdline = [str(x) for x in args]
+    lg.info("exec: %s", cmdline)
+    return subprocess.run(cmdline, **kwargs)
+
+
+def cmd_gamemd_patch():
+    return [
+        "python3",
+        "./scripts/patch_gamemd.py",
+        "-s",
+        ".p_text:0x00004d66:0x00b7a000:0x0047e000",
+        "-s",
+        ".text:0x003df38d:0x00401000:0x00001000",
+    ]
+
+
+def cmd_addscn(addscn_path, dst):
+    return [addscn_path, dst, ".p_text2", "0x1000", "0x60000020"]
+
+
+def add_section(addscn_path, src, dst):
+    # Append new section to and write PE section info to text file
+    o = prun(cmd_addscn(addscn_path, src), check=True, capture_output=True)
+    pe_info_d = str(o.stdout, encoding="utf-8").strip()
+
+    # wait wine to exit
+    if sys.platform != "win32":
+        prun(["wineserver", "-w"], check=True)
+    shutil.copy(src, dst)
+    return pe_info_d
+
+
+def auto_patch(args):
+    td = tempfile.TemporaryDirectory()
+    b_temp = Path(td.name) / "tmp.exe"
+    shutil.copy(args.input, b_temp)
+    b_dst = Path(td.name) / "tmp-2.exe"
+
+    pe_info_d = add_section(Path(args.build_dir) / "addscn.exe", b_temp, b_dst)
+    p_text_2_addr = pe_info_d.split(":")[2]
+
+    prun(
+        cmd_gamemd_patch()
+        + [
+            "-s",
+            pe_info_d,
+            "-d",
+            p_text_2_addr,
+            "--raw",
+            args.raw,
+            "--input",
+            b_dst,
+            "-o",
+            args.output,
+        ]
+    )
+
+
 def main():
     lg.basicConfig(level=lg.INFO)
     a = parse_args()
+
+    if a.auto_patch:
+        return auto_patch(a)
 
     H = get_handle(a)
     if H.args.dump_patches:

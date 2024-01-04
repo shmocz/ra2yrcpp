@@ -3,6 +3,7 @@
 set -o nounset
 set -e
 : ${BUILDDIR="cbuild"}
+: ${BUILDER:="builder"}
 : ${CMAKE_BUILD_TYPE:="Release"}
 : ${CMAKE_EXTRA_ARGS=""}
 : ${CMAKE_TARGET:="all"}
@@ -247,7 +248,7 @@ function compose-cmd() {
         -e CXXFLAGS \
         -e NPROC \
         -e TAG_NAME \
-        builder \
+        $BUILDER \
         "$@"
 }
 

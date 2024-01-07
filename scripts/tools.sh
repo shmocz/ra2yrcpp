@@ -220,7 +220,9 @@ function create-release() {
     check-build "$build_log"
 
     # Execute tests
+    set -e
     run-tests
+    set +e
 
     # Execute integration tests (if applicable)
 
@@ -246,8 +248,11 @@ function compose-cmd() {
         -e CMAKE_TARGET \
         -e CMAKE_TOOLCHAIN_FILE \
         -e CXXFLAGS \
+        -e HOME="/home/user" \
         -e NPROC \
         -e TAG_NAME \
+        -e WINEARCH="win32" \
+        -e WINEPREFIX="/home/user/.wine" \
         $BUILDER \
         "$@"
 }

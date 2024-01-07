@@ -26,8 +26,8 @@ using ra2yrcpp::command::get_cmd;
 using ra2yrcpp::command::message_result;
 
 using ra2yrcpp::hooks_yr::ensure_storage_value;
+using ra2yrcpp::hooks_yr::get_data;
 using ra2yrcpp::hooks_yr::get_gameloop_command;
-using ra2yrcpp::hooks_yr::get_storage;
 
 // TODO(shmocz): don't allow deploying of already deployed object
 static void unit_action(const u32 p_object,
@@ -100,15 +100,10 @@ auto unit_command() {
 auto create_callbacks() {
   return get_cmd<ra2yrproto::commands::CreateCallbacks>([](auto* Q) {
     auto [lk_s, s] = Q->I()->aq_storage();
-    // Create ABI
-    (void)ensure_storage_value<ra2::abi::ABIGameMD>(Q->I(), "abi");
-
-    // TODO(shmocz): modify the init to just ignore the request if already done
-    if (s->find(ra2yrcpp::hooks_yr::key_callbacks_yr) == s->end()) {
-      ra2yrcpp::hooks_yr::init_callbacks(Q->I());
-    }
+    // Create main game data structure
+    // TODO(shmocz): initialize elsewhere
+    ra2yrcpp::hooks_yr::init_callbacks(get_data(Q->I()));
     auto cbs = ra2yrcpp::hooks_yr::get_callbacks(Q->I());
-    lk_s.unlock();
     auto [lk, hhooks] = Q->I()->aq_hooks();
     for (auto& [k, v] : *cbs) {
       auto target = v->target();
@@ -140,7 +135,7 @@ auto get_game_state() {
   return get_cmd<ra2yrproto::commands::GetGameState>([](auto* Q) {
     auto [mut, s] = Q->I()->aq_storage();
     Q->command_data().mutable_state()->CopyFrom(
-        get_storage(Q->I())->game_state());
+        get_data(Q->I())->sv.game_state());
   });
 }
 
@@ -148,7 +143,7 @@ auto inspect_configuration() {
   return get_cmd<ra2yrproto::commands::InspectConfiguration>([](auto* Q) {
     auto [mut, s] = Q->I()->aq_storage();
     auto& res = Q->command_data();
-    auto* cfg = ra2yrcpp::hooks_yr::ensure_configuration(Q->I());
+    auto* cfg = &ra2yrcpp::hooks_yr::get_data(Q->I())->cfg;
     cfg->MergeFrom(Q->command_data().config());
     res.mutable_config()->CopyFrom(*cfg);
   });
@@ -301,10 +296,10 @@ auto read_value() {
 
     if (fld->name() == "map_data_soa") {
       convert_map_data(D->mutable_map_data_soa(),
-                       get_storage(Q->I())->mutable_map_data());
+                       get_data(Q->I())->sv.mutable_map_data());
     } else {
       // TODO(shmocz): use oneof
-      ra2yrcpp::protocol::copy_field(D, get_storage(Q->I()), fld);
+      ra2yrcpp::protocol::copy_field(D, &get_data(Q->I())->sv, fld);
     }
   });
 }

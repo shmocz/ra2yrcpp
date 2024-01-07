@@ -6,6 +6,7 @@
 #include "async_queue.hpp"
 #include "command/is_command.hpp"
 #include "instrumentation_service.hpp"
+#include "ra2/abi.hpp"
 #include "ra2/state_context.hpp"
 #include "types.h"
 
@@ -23,16 +24,7 @@ template <typename T>
 struct ISCommand;
 }
 
-namespace ra2 {
-namespace abi {
-class ABIGameMD;
-}
-}  // namespace ra2
-
 namespace ra2yrcpp::hooks_yr {
-
-constexpr char key_callbacks_yr[] = "callbacks_yr";
-constexpr char key_configuration[] = "yr_config";
 
 namespace {
 using namespace std::chrono_literals;
@@ -41,13 +33,21 @@ using namespace std::chrono_literals;
 using gpb::RepeatedPtrField;
 using cb_map_t = std::map<std::string, std::unique_ptr<ra2yrcpp::ISCallback>>;
 
+struct GameDataYR {
+  GameDataYR();
+
+  ra2::abi::ABIGameMD abi;
+  ra2yrproto::ra2yr::StorageValue sv;
+  ra2yrproto::commands::Configuration cfg;
+  std::unique_ptr<ra2::StateContext> ctx{nullptr};
+  cb_map_t callbacks;
+  bool callbacks_initialized{false};
+};
+
 struct CBYR : public ra2yrcpp::ISCallback {
   using tc_t = RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>;
 
-  ra2yrcpp::storage_t* storage{nullptr};
-  ra2::abi::ABIGameMD* abi_{nullptr};
-  ra2yrproto::commands::Configuration* config_{nullptr};
-  ra2::StateContext* state_context_{nullptr};
+  GameDataYR* data_{nullptr};
 
   CBYR();
   ra2::abi::ABIGameMD* abi();
@@ -58,11 +58,13 @@ struct CBYR : public ra2yrcpp::ISCallback {
   auto* prerequisite_groups();
   tc_t* type_classes();
   ra2::StateContext* get_state_context();
+  GameDataYR* data();
 };
 
+ra2yrcpp::hooks_yr::GameDataYR* get_data(ra2yrcpp::InstrumentationService* I);
+
 /// Get all currently active callback objects.
-cb_map_t* get_callbacks(ra2yrcpp::InstrumentationService* I,
-                        const bool acquire = false);
+cb_map_t* get_callbacks(ra2yrcpp::InstrumentationService* I);
 
 template <typename D, typename B = CBYR>
 struct MyCB : public B {
@@ -71,7 +73,7 @@ struct MyCB : public B {
   std::string target() override { return D::key_target; }
 
   static D* get(ra2yrcpp::InstrumentationService* I) {
-    return reinterpret_cast<D*>(get_callbacks(I)->at(D::key_name).get());
+    return reinterpret_cast<D*>(get_data(I)->callbacks.at(D::key_name).get());
   }
 };
 
@@ -85,14 +87,7 @@ T* ensure_storage_value(ra2yrcpp::InstrumentationService* I,
   return static_cast<T*>(I->storage().at(key).get());
 }
 
-// TODO(shmocz): try to pick a name to avoid confusion with IService's storage
-ra2yrproto::ra2yr::StorageValue* get_storage(
-    ra2yrcpp::InstrumentationService* I);
-
-ra2yrproto::commands::Configuration* ensure_configuration(
-    ra2yrcpp::InstrumentationService* I);
-
-void init_callbacks(ra2yrcpp::InstrumentationService* I);
+void init_callbacks(ra2yrcpp::hooks_yr::GameDataYR* D);
 
 struct work_item {
   CBYR* cb;
@@ -112,6 +107,10 @@ struct CBGameCommand final : public MyCB<CBGameCommand> {
   void put_work(work_t fn) { work.push(fn); }
 
   void exec() override {
+    // If in single-step mode, release storage lock and wait for game to be
+    // unlocked.
+
+    // Re-acquire storage lock if necessary
     auto items = work.pop(0, 0.0s);
     for (const auto& it : items) {
       it();

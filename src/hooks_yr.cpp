@@ -1,6 +1,7 @@
 #include "hooks_yr.hpp"
 
 #include "ra2yrproto/commands_yr.pb.h"
+#include "ra2yrproto/ra2yr.pb.h"
 
 #include "auto_thread.hpp"
 #include "config.hpp"
@@ -42,68 +43,50 @@ static auto default_configuration() {
   return C;
 }
 
-ra2yrproto::commands::Configuration* ra2yrcpp::hooks_yr::ensure_configuration(
-    ra2yrcpp::InstrumentationService* I) {
-  auto& s = I->storage();
-  if (s.find(key_configuration) == s.end()) {
-    (void)ensure_storage_value<ra2yrproto::commands::Configuration>(
-        I, key_configuration, default_configuration());
-  }
-  return ensure_storage_value<ra2yrproto::commands::Configuration>(
-      I, key_configuration);
+GameDataYR::GameDataYR() : cfg(default_configuration()) {
+  ctx = std::make_unique<ra2::StateContext>(&abi, &sv);
 }
 
-cb_map_t* ra2yrcpp::hooks_yr::get_callbacks(ra2yrcpp::InstrumentationService* I,
-                                            const bool acquire) {
-  return reinterpret_cast<cb_map_t*>(reinterpret_cast<std::uintptr_t>(
-      I->get_value(ra2yrcpp::hooks_yr::key_callbacks_yr, acquire)));
+cb_map_t* ra2yrcpp::hooks_yr::get_callbacks(
+    ra2yrcpp::InstrumentationService* I) {
+  return &get_data(I)->callbacks;
 }
 
 CBYR::CBYR() {}
 
-ra2::abi::ABIGameMD* CBYR::abi() {
-  return abi_ != nullptr ? abi_
-                         : ensure_storage_value<ra2::abi::ABIGameMD>(I, "abi");
-}
+ra2::abi::ABIGameMD* CBYR::abi() { return &data()->abi; }
 
 void CBYR::do_call() {
-  auto [mut, s] = I->aq_storage();
-  storage = s;
-  abi_ = abi();
-  auto [mut_cc, cc] = abi_->acquire_code_generators();
+  I->lock_storage();
+  auto [mut_cc, cc] = abi()->acquire_code_generators();
   try {
     exec();
   } catch (const std::exception& e) {
     eprintf("{}: {}", name(), e.what());
   }
-  storage = nullptr;
+  I->unlock_storage();
 }
 
 ra2yrproto::ra2yr::GameState* CBYR::game_state() {
-  return get_storage(this->I)->mutable_game_state();
+  return data()->sv.mutable_game_state();
 }
 
 CBYR::tc_t* CBYR::type_classes() {
-  return get_storage(this->I)
-      ->mutable_initial_game_state()
-      ->mutable_object_types();
+  return data()->sv.mutable_initial_game_state()->mutable_object_types();
 }
 
-ra2::StateContext* CBYR::get_state_context() {
-  return state_context_ != nullptr
-             ? state_context_
-             : ensure_storage_value<ra2::StateContext>(I, "state_context", abi_,
-                                                       get_storage(this->I));
+ra2::StateContext* CBYR::get_state_context() { return data()->ctx.get(); }
+
+ra2yrcpp::hooks_yr::GameDataYR* CBYR::data() {
+  return data_ != nullptr ? data_ : get_data(I);
 }
 
 auto* CBYR::prerequisite_groups() {
-  return get_storage(this->I)
-      ->mutable_initial_game_state()
-      ->mutable_prerequisite_groups();
+  return data()->sv.mutable_initial_game_state()->mutable_prerequisite_groups();
 }
 
 ra2yrproto::commands::Configuration* CBYR::configuration() {
-  return config_ != nullptr ? config_ : config_ = ensure_configuration(this->I);
+  return &data()->cfg;
 }
 
 // TODO(shmocz): do the callback initialization later
@@ -124,11 +107,11 @@ struct CBExitGameLoop final
     // NB. the corresponding HookCallback must be removed from Hook object
     // (shared_ptr would be handy here)
     auto [mut, s] = I->aq_storage();
-    get_storage(I)->mutable_game_state()->set_stage(
+    get_data(I)->sv.mutable_game_state()->set_stage(
         ra2yrproto::ra2yr::STAGE_EXIT_GAME);
 
     auto [lk, hhooks] = I->aq_hooks();
-    auto* callbacks = get_callbacks(I, false);
+    auto* callbacks = get_callbacks(I);
     // Loop through all callbacks
     std::vector<std::string> keys;
     std::transform(callbacks->begin(), callbacks->end(),
@@ -168,7 +151,8 @@ struct CBUpdateLoadProgress final : public MyCB<CBUpdateLoadProgress> {
   void exec() override {
     auto* B = ProgressScreenClass::Instance().PlayerProgresses;
 
-    auto* local_state = get_storage(I)->mutable_load_state();
+    auto* sv = &data()->sv;
+    auto* local_state = sv->mutable_load_state();
     if (local_state->load_progresses().empty()) {
       for (auto i = 0U; i < (sizeof(*B) / sizeof(B)); i++) {
         local_state->add_load_progresses(0.0);
@@ -177,7 +161,7 @@ struct CBUpdateLoadProgress final : public MyCB<CBUpdateLoadProgress> {
     for (int i = 0; i < local_state->load_progresses().size(); i++) {
       local_state->set_load_progresses(i, B[i]);
     }
-    get_storage(I)->mutable_game_state()->set_stage(
+    sv->mutable_game_state()->set_stage(
         ra2yrproto::ra2yr::LoadStage::STAGE_LOADING);
   }
 };
@@ -214,11 +198,12 @@ struct CBSaveState final : public MyCB<CBSaveState> {
 
   std::shared_ptr<ra2yrproto::ra2yr::GameState> state_to_protobuf(
       const bool do_type_classes = false) {
-    auto* gbuf = get_storage(I)->mutable_game_state();
+    auto* sval = &data()->sv;
+    auto* gbuf = sval->mutable_game_state();
 
     // put load stages
     gbuf->mutable_load_progresses()->CopyFrom(
-        get_storage(I)->load_state().load_progresses());
+        sval->load_state().load_progresses());
 
     gbuf->clear_object_types();
     gbuf->clear_prerequisite_groups();
@@ -241,10 +226,9 @@ struct CBSaveState final : public MyCB<CBSaveState> {
     gbuf->set_stage(ra2yrproto::ra2yr::LoadStage::STAGE_INGAME);
 
     // Initialize MapData
-    if (gbuf->current_frame() > 0U &&
-        get_storage(I)->map_data().cells_size() == 0U) {
-      ra2::parse_MapData(get_storage(I)->mutable_map_data(),
-                         MapClass::Instance.get(), abi());
+    if (gbuf->current_frame() > 0U && sval->map_data().cells_size() == 0U) {
+      ra2::parse_MapData(sval->mutable_map_data(), MapClass::Instance.get(),
+                         abi());
     }
 
     if (cells.empty() && gbuf->current_frame() > 0U) {
@@ -259,16 +243,15 @@ struct CBSaveState final : public MyCB<CBSaveState> {
       gbuf->clear_cells_difference();
       ra2::parse_map(&cells, MapClass::Instance.get(),
                      gbuf->mutable_cells_difference());
-      update_MapData(get_storage(I)->mutable_map_data(),
-                     gbuf->cells_difference());
+      update_MapData(sval->mutable_map_data(), gbuf->cells_difference());
     }
 
     if (initial_state == nullptr) {
-      initial_state = get_storage(I)->mutable_initial_game_state();
+      initial_state = data()->sv.mutable_initial_game_state();
       initial_state->CopyFrom(*gbuf);
     }
 
-    ra2::parse_EventLists(gbuf, get_storage(I)->mutable_event_buffer(),
+    ra2::parse_EventLists(gbuf, sval->mutable_event_buffer(),
                           cfg::EVENT_BUFFER_SIZE);
 
     return std::make_shared<ra2yrproto::ra2yr::GameState>(*gbuf);
@@ -366,21 +349,20 @@ struct CBDebugPrint final : public MyCB<CBDebugPrint> {
   }
 };
 
-ra2yrproto::ra2yr::StorageValue* ra2yrcpp::hooks_yr::get_storage(
+ra2yrcpp::hooks_yr::GameDataYR* ra2yrcpp::hooks_yr::get_data(
     ra2yrcpp::InstrumentationService* I) {
-  return ensure_storage_value<ra2yrproto::ra2yr::StorageValue>(
-      I, "message_storage");
+  return ensure_storage_value<ra2yrcpp::hooks_yr::GameDataYR>(I, "game_data");
 }
 
 // TODO(shmocz): ensure thread safety
-void ra2yrcpp::hooks_yr::init_callbacks(ra2yrcpp::InstrumentationService* I) {
-  I->store_value<cb_map_t>(key_callbacks_yr);
-
+void ra2yrcpp::hooks_yr::init_callbacks(ra2yrcpp::hooks_yr::GameDataYR* D) {
+  if (D->callbacks_initialized) {
+    return;
+  }
   auto t = std::to_string(static_cast<std::uint64_t>(
       std::chrono::high_resolution_clock::now().time_since_epoch().count()));
-
-  auto f = [I](std::unique_ptr<ra2yrcpp::ISCallback> c) {
-    get_callbacks(I)->try_emplace(c->name(), std::move(c));
+  auto f = [D](std::unique_ptr<ra2yrcpp::ISCallback> c) {
+    D->callbacks.try_emplace(c->name(), std::move(c));
   };
 
   if (std::getenv("RA2YRCPP_RECORD_TRAFFIC") != nullptr) {
@@ -401,7 +383,7 @@ void ra2yrcpp::hooks_yr::init_callbacks(ra2yrcpp::InstrumentationService* I) {
 
   if (std::getenv("RA2YRCPP_RECORD_PATH") != nullptr) {
     const std::string record_path = std::getenv("RA2YRCPP_RECORD_PATH");
-    ensure_configuration(I)->set_record_filename(record_path);
+    D->cfg.set_record_filename(record_path);
     iprintf("record state to {}", record_path);
     record_out = std::make_shared<std::ofstream>(
         record_path, std::ios_base::out | std::ios_base::binary);

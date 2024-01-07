@@ -251,6 +251,10 @@ util::acquire_t<hooks_t> InstrumentationService::aq_hooks() {
   return util::acquire(&hooks_, &mut_hooks_);
 }
 
+void InstrumentationService::lock_storage() { mut_storage_.lock(); }
+
+void InstrumentationService::unlock_storage() { mut_storage_.unlock(); }
+
 util::acquire_t<storage_t, std::recursive_mutex>
 InstrumentationService::aq_storage() {
   return util::acquire(&storage_, &mut_storage_);

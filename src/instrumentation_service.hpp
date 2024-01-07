@@ -87,6 +87,8 @@ class InstrumentationService {
   util::acquire_t<hooks_t> aq_hooks();
   // TODO(shmocz): separate storage class
   util::acquire_t<storage_t, std::recursive_mutex> aq_storage();
+  void lock_storage();
+  void unlock_storage();
 
   template <typename T, typename... Args>
   void store_value(const std::string key, Args&&... args) {

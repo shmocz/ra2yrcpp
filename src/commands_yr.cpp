@@ -133,9 +133,20 @@ auto create_callbacks() {
 
 auto get_game_state() {
   return get_cmd<ra2yrproto::commands::GetGameState>([](auto* Q) {
-    auto [mut, s] = Q->I()->aq_storage();
-    Q->command_data().mutable_state()->CopyFrom(
-        get_data(Q->I())->sv.game_state());
+    Q->I()->lock_storage();
+    auto* D = get_data(Q->I());
+    // Unpause game if single-step mode.
+    if (D->cfg.single_step() && D->game_paused.get()) {
+      Q->I()->unlock_storage();
+      D->game_paused.wait(true);
+      Q->I()->lock_storage();
+    }
+
+    Q->command_data().mutable_state()->CopyFrom(D->sv.game_state());
+    if (D->cfg.single_step()) {
+      D->game_paused.store(false);
+    }
+    Q->I()->unlock_storage();
   });
 }
 

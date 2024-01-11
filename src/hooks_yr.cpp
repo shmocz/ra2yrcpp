@@ -40,6 +40,7 @@ static auto default_configuration() {
   ra2yrproto::commands::Configuration C;
   C.set_debug_log(true);
   C.set_parse_map_data_interval(1U);
+  C.set_single_step(false);
   return C;
 }
 

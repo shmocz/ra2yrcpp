@@ -9,6 +9,7 @@
 #include "ra2/abi.hpp"
 #include "ra2/state_context.hpp"
 #include "types.h"
+#include "utility/sync.hpp"
 
 #include <google/protobuf/repeated_ptr_field.h>
 
@@ -42,6 +43,7 @@ struct GameDataYR {
   std::unique_ptr<ra2::StateContext> ctx{nullptr};
   cb_map_t callbacks;
   bool callbacks_initialized{false};
+  util::AtomicVariable<bool> game_paused{false};
 };
 
 struct CBYR : public ra2yrcpp::ISCallback {
@@ -109,8 +111,13 @@ struct CBGameCommand final : public MyCB<CBGameCommand> {
   void exec() override {
     // If in single-step mode, release storage lock and wait for game to be
     // unlocked.
+    if (data()->cfg.single_step()) {
+      I->unlock_storage();
+      data()->game_paused.store(true);
+      data()->game_paused.wait(false);
+      I->lock_storage();
+    }
 
-    // Re-acquire storage lock if necessary
     auto items = work.pop(0, 0.0s);
     for (const auto& it : items) {
       it();

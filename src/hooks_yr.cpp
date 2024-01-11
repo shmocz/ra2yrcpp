@@ -231,6 +231,7 @@ struct CBSaveState final : public MyCB<CBSaveState> {
       gbuf->mutable_prerequisite_groups()->CopyFrom(*prerequisite_groups());
     }
 
+    gbuf->set_crc(EventClass::CurrentFrameCRC);
     gbuf->set_current_frame(Unsorted::CurrentFrame);
     gbuf->set_tech_level(Game::TechLevel);
     ra2::parse_HouseClasses(gbuf);

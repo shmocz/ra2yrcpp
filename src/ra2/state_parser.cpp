@@ -552,6 +552,7 @@ void ra2::parse_HouseClass(ra2yrproto::ra2yr::House* dst,
   dst->set_start_credits(src->StartingCredits);
   dst->set_self(reinterpret_cast<std::uintptr_t>(src));
   dst->set_name(src->PlainName);
+  dst->set_faction(src->Type->ID);
   dst->set_type_array_index(src->Type->ArrayIndex);
   dst->set_allied_infiltrated(src->Side0TechInfiltrated);
   dst->set_soviet_infiltrated(src->Side1TechInfiltrated);

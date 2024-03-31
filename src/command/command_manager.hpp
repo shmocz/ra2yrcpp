@@ -39,20 +39,20 @@ enum class ResultCode { NONE = 0, OK, ERROR };
 
 enum class CommandType { DESTROY_QUEUE = 1, CREATE_QUEUE, SHUTDOWN, USER };
 
+struct BaseData {
+  std::string name;
+  u64 queue_id;
+  u64 task_id;
+  u64 queue_size;  // built-int arg
+  CommandType type;
+  BaseData() = delete;
+};
+
 template <typename T>
 class Command {
  public:
   using data_t = T;
   using handler_t = std::function<void(Command<T>*)>;
-
-  struct BaseData {
-    std::string name;
-    u64 queue_id;
-    u64 task_id;
-    u64 queue_size;  // built-int arg
-    CommandType type;
-    BaseData() = delete;
-  };
 
   Command() = delete;
 
@@ -190,19 +190,14 @@ class CommandManager {
   command_ptr_t make_command(std::string name, T&& data, u64 queue_id,
                              handler_t done_callback = nullptr) {
     std::unique_lock<std::mutex> l(command_counter_mut_);
-    typename command_t::BaseData B = {name, queue_id, ++command_counter_, 0U,
-                                      CommandType::USER};
-    handler_t handler = nullptr;
-
-    auto C = std::make_shared<command_t>(B, handlers_.at(name), std::move(data),
-                                         done_callback);
-    return C;
+    BaseData B = {name, queue_id, ++command_counter_, 0U, CommandType::USER};
+    return std::make_shared<command_t>(B, handlers_.at(name), std::move(data),
+                                       done_callback);
   }
 
   command_ptr_t make_async_command(std::string name, T&& data, u64 queue_id) {
     std::unique_lock<std::mutex> l(command_counter_mut_);
-    typename command_t::BaseData B = {name, queue_id, ++command_counter_, 0U,
-                                      CommandType::USER};
+    BaseData B = {name, queue_id, ++command_counter_, 0U, CommandType::USER};
 
     auto C =
         std::make_shared<command_t>(B, handlers_.at(name), std::move(data));
@@ -218,7 +213,7 @@ class CommandManager {
   /// @return the same shared_ptr to Command object
   command_ptr_t make_builtin_command(u64 queue_id, u64 queue_size,
                                      CommandType t) {
-    typename command_t::BaseData B{"", queue_id, 0U, queue_size, t};
+    BaseData B{"", queue_id, 0U, queue_size, t};
     auto C = std::make_shared<command_t>(B, nullptr, T());
     std::unique_lock<std::mutex> l(command_counter_mut_);
     command_counter_++;

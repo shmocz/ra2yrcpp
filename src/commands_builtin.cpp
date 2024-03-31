@@ -87,12 +87,13 @@ std::map<std::string, ra2yrcpp::cmd_t::handler_t> get_commands_nn() {
       }),
       get_cmd<ra2yrproto::commands::AddCallback>([](auto* Q) {
         auto& a = Q->command_data();
+        hook::HookCallback CB{.func = reinterpret_cast<hook::Hook::hook_cb_t>(
+                                  a.callback_address()),
+                              .user_data = Q->I()};
         Q->I()
             ->hooks()
             .at(static_cast<std::uintptr_t>(a.hook_address()))
-            .add_callback(
-                reinterpret_cast<hook::Hook::hook_cb_t>(a.callback_address()),
-                Q->I(), "", 0u);
+            .add_callback(CB);
       }),
       get_cmd<ra2yrproto::commands::CreateHooks>([](auto* Q) {
 // TODO(shmocz): put these to utility function and share code with

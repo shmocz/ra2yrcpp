@@ -39,6 +39,15 @@ struct DetourMain : Xbyak::CodeGenerator {
   explicit DetourMain(Hook* h);
 };
 
+struct HookCallback {
+  std::function<void(Hook*, void*, X86Regs*)> func;
+  void* user_data;
+
+  // How many times the callback has been invoked.
+  unsigned calls{0u};
+  std::string name{""};
+};
+
 ///
 /// Install a hook into memory location. This is implementented as a
 /// detour that executes user supplied callbacks. When the object is destroyed,
@@ -58,17 +67,6 @@ class Hook {
  public:
   typedef void (*hook_cb_t)(Hook* h, void* user_data, X86Regs* state);
 
-  struct HookCallback {
-    std::function<void(Hook*, void*, X86Regs*)> func;
-    void* user_data;
-
-    // How many times the callback has been invoked.
-    unsigned calls{0u};
-    // How many times to invoke the callback before removal. 0 = never.
-    unsigned max_calls{0u};
-    std::string name{""};
-  };
-
   ///
   /// @param src_address Address that will be hooked
   /// @param code_length Number of bytes to copy to detour's location
@@ -81,9 +79,8 @@ class Hook {
        std::vector<thread_id_t> no_suspend = {}, bool manual = false);
   ~Hook();
   void add_callback(HookCallback c);
-  ///
   void add_callback(std::function<void(Hook*, void*, X86Regs*)> func,
-                    void* user_data, std::string name, unsigned max_calls = 0u);
+                    void* user_data, std::string name);
 
   /// Invoke all registered hook functions. This function is thread safe.
   static void __cdecl call(Hook* H, X86Regs state);

@@ -92,7 +92,7 @@ TEST(HookTest, BasicHookingWorks) {
     int* p = reinterpret_cast<int*>(data);
     *p = 0xdeadbeef;
   };
-  Hook::HookCallback cb{my_cb, &cookie};
+  HookCallback cb{my_cb, &cookie};
   Xbyak::CodeGenerator C;
   size_t patch_size = gen_add(&C);
   auto f = C.getCode<int __cdecl (*)(const int, const int)>();
@@ -148,7 +148,7 @@ TEST(HookTest, BasicCallbackMultipleThreads) {
     (void)data;
     state->ecx = 0;
   };
-  Hook::HookCallback cb{cb_f, nullptr};
+  HookCallback cb{cb_f, nullptr};
 
   // spawn threads
   vector<thread> threads;

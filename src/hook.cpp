@@ -132,8 +132,8 @@ void Hook::add_callback(HookCallback c) {
 }
 
 void Hook::add_callback(std::function<void(Hook*, void*, X86Regs*)> func,
-                        void* user_data, std::string name, unsigned max_calls) {
-  add_callback(HookCallback{func, user_data, 0u, max_calls, name});
+                        void* user_data, std::string name) {
+  add_callback(HookCallback{func, user_data, 0U, name});
 }
 
 void Hook::call(Hook* H, X86Regs state) {
@@ -145,16 +145,11 @@ void Hook::call(Hook* H, X86Regs state) {
     auto& c = C.at(ix);
     c.func(H, c.user_data, &state);
     c.calls += 1;
-    // remove callbacks whose max_calls count exceeded
-    if (c.max_calls > 0u && c.calls >= c.max_calls) {
-      C.erase(C.begin() + ix);
-      off += 1u;
-    }
   }
   H->unlock();
 }
 
-std::vector<Hook::HookCallback>& Hook::callbacks() { return callbacks_; }
+std::vector<HookCallback>& Hook::callbacks() { return callbacks_; }
 
 void Hook::lock() { mu_.lock(); }
 

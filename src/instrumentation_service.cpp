@@ -30,7 +30,7 @@ void ISCallback::add_to_hook(hook::Hook* h,
   // TODO(shmocz): avoid using wrapper
   h->add_callback([this](hook::Hook* h, void* user_data,
                          X86Regs* state) { this->call(h, user_data, state); },
-                  nullptr, name(), 0U);
+                  nullptr, name());
 }
 
 std::vector<process::thread_id_t>

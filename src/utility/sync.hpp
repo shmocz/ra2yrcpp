@@ -24,7 +24,7 @@ class AcquireData {
 
   AcquireData(T* data, MutexT* m) : AcquireData(lock_t(*m), data) {}
 
-  AcquireData(T* data, MutexT* m, const duration_t timeout)
+  AcquireData(T* data, MutexT* m, duration_t timeout)
       : AcquireData(lock_t(*m, timeout), data) {}
 
   ~AcquireData() {}
@@ -64,12 +64,12 @@ class AtomicVariable {
  public:
   explicit AtomicVariable(T value) : v_(value) {}
 
-  void wait(const T value, const duration_t timeout = 0.0s) {
-    wait_pred([value](const auto v) { return v == value; }, timeout);
+  void wait(T value, duration_t timeout = 0.0s) {
+    wait_pred([value](auto v) { return v == value; }, timeout);
   }
 
   template <typename PredT>
-  void wait_pred(PredT p, const duration_t timeout = 0.0s) {
+  void wait_pred(PredT p, duration_t timeout = 0.0s) {
     std::unique_lock<MutexT> l(m_);
     if (timeout > 0.0s) {
       cv_.wait_for(l, timeout, [this, p]() { return p(v_); });

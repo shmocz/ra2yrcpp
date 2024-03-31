@@ -10,8 +10,8 @@
 
 static void* g_context = nullptr;
 
-void ra2yrcpp::initialize(const unsigned int max_clients,
-                          const unsigned int port, const bool no_init_hooks) {
+void ra2yrcpp::initialize(unsigned int max_clients, unsigned int port,
+                          bool no_init_hooks) {
   static std::mutex g_lock;
   g_lock.lock();
   auto* h = std::getenv("RA2YRCPP_ALLOWED_HOSTS_REGEX");
@@ -27,7 +27,7 @@ void ra2yrcpp::initialize(const unsigned int max_clients,
 }
 
 // cppcheck-suppress unusedFunction
-void init_iservice(const unsigned int max_clients, unsigned int port,
+void init_iservice(unsigned int max_clients, unsigned int port,
                    unsigned int no_init_hooks) {
   const auto* tcp_port = std::getenv("RA2YRCPP_PORT");
 

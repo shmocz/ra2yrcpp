@@ -16,9 +16,8 @@ constexpr auto RESPONSE_ERROR = ra2yrproto::ResponseCode::ERROR;
 /// @exception yrclient::protocol_error on serialization failure
 vecu8 to_vecu8(const gpb::Message& msg);
 
-ra2yrproto::Response make_response(
-    const gpb::Message&& body,
-    const ra2yrproto::ResponseCode code = RESPONSE_OK);
+ra2yrproto::Response make_response(const gpb::Message&& body,
+                                   ra2yrproto::ResponseCode code = RESPONSE_OK);
 
 ///
 /// Create command message.

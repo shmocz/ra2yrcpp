@@ -10,7 +10,7 @@
 
 using namespace x86;
 
-std::size_t x86::bytes_to_stack(Xbyak::CodeGenerator* c, const vecu8 bytes) {
+std::size_t x86::bytes_to_stack(Xbyak::CodeGenerator* c, vecu8 bytes) {
   using namespace Xbyak::util;
   int off = sizeof(u32);
   std::size_t s = 0u;

@@ -30,12 +30,11 @@ typedef void* HWND;
 
 using namespace windows_utils;
 
-void* windows_utils::load_library(const std::string name) {
+void* windows_utils::load_library(std::string name) {
   return LoadLibrary(name.c_str());
 }
 
-std::uintptr_t windows_utils::get_proc_address(const std::string addr,
-                                               void* module) {
+std::uintptr_t windows_utils::get_proc_address(std::string addr, void* module) {
   if (module == nullptr) {
     module = GetModuleHandle(TEXT("kernel32.dll"));
   }
@@ -44,7 +43,7 @@ std::uintptr_t windows_utils::get_proc_address(const std::string addr,
 }
 
 // TODO(shmocz): could be static
-std::string windows_utils::get_process_name(const int pid) {
+std::string windows_utils::get_process_name(int pid) {
   TCHAR szProcessName[MAX_PATH] = TEXT("<unknown>");
   HANDLE hProcess =
       OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
@@ -67,13 +66,13 @@ void* windows_utils::open_thread(unsigned long access, bool inherit_handle,
   return OpenThread(access, inherit_handle, thread_id);
 }
 
-void* windows_utils::allocate_memory(void* handle, const std::size_t size,
+void* windows_utils::allocate_memory(void* handle, std::size_t size,
                                      unsigned long alloc_type,
                                      unsigned long alloc_protect) {
   return VirtualAllocEx(handle, NULL, size, alloc_type, alloc_protect);
 }
 
-void* windows_utils::allocate_code(void* handle, const std::size_t size) {
+void* windows_utils::allocate_code(void* handle, std::size_t size) {
   return allocate_memory(handle, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 }
 
@@ -144,14 +143,13 @@ void* windows_utils::open_process(unsigned long access, bool inherit,
 }
 
 int windows_utils::read_memory(void* handle, void* dest, const void* src,
-                               const std::size_t size) {
+                               std::size_t size) {
   return ReadProcessMemory(handle, src, dest, size, nullptr);
 }
 
 int windows_utils::close_handle(void* handle) { return CloseHandle(handle); }
 
-static DWORD vprotect(void* address, const std::size_t size,
-                      const DWORD protection) {
+static DWORD vprotect(void* address, std::size_t size, DWORD protection) {
   DWORD prot_old{};
   if (!VirtualProtect(address, size, protection, &prot_old)) {
     throw std::runtime_error("VirtualProtect");
@@ -160,7 +158,7 @@ static DWORD vprotect(void* address, const std::size_t size,
 }
 
 int windows_utils::write_memory(void* handle, void* dest, const void* src,
-                                const std::size_t size) {
+                                std::size_t size) {
   return WriteProcessMemory(handle, dest, src, size, nullptr);
 }
 
@@ -173,7 +171,7 @@ static MEMORY_BASIC_INFORMATION get_mem_info(const void* address) {
 }
 
 int windows_utils::write_memory_local(void* dest, const void* src,
-                                      const std::size_t size) {
+                                      std::size_t size) {
   auto m = get_mem_info(dest);
   DWORD prot_old =
       vprotect(m.BaseAddress, m.RegionSize, PAGE_EXECUTE_READWRITE);
@@ -244,7 +242,7 @@ int ThreadContext::save() {
   return SetThreadContext(handle, reinterpret_cast<CONTEXT*>(data));
 }
 
-int* ThreadContext::get_pgpr(const x86Reg reg) {
+int* ThreadContext::get_pgpr(x86Reg reg) {
   auto* ctx = reinterpret_cast<CONTEXT*>(data);
   acquire_thread_context(this, CONTEXT_FULL);
   switch (reg) {
@@ -271,10 +269,8 @@ struct ExProcess::ProcessContext {
   PROCESS_INFORMATION pi_;
 };
 
-ExProcess::ExProcess(const std::string cmdline, const std::string directory)
-    : cmdline_(cmdline),
-      directory_(directory),
-      ctx(std::make_unique<ProcessContext>()) {
+ExProcess::ExProcess(std::string cmdline, std::string directory)
+    : opt_({cmdline, directory}), ctx(std::make_unique<ProcessContext>()) {
   auto& si_ = ctx->si_;
   auto& pi_ = ctx->pi_;
   std::memset(&si_, 0, sizeof(si_));
@@ -282,16 +278,16 @@ ExProcess::ExProcess(const std::string cmdline, const std::string directory)
   std::memset(&pi_, 0, sizeof(pi_));
   if (!CreateProcess(
           nullptr,  // No module name (use command line)
-          const_cast<char*>(cmdline_.c_str()),  // Command line
+          const_cast<char*>(opt_.cmdline_.c_str()),  // Command line
           nullptr,  // Process handle not inheritable
           nullptr,  // Thread handle not inheritable
           FALSE,    // Set handle inheritance to FALSE
           0,        // No creation flags
           nullptr,  // Use parent's environment block
-          (directory_.empty()
+          (opt_.directory_.empty()
                ? nullptr
-               : directory_.c_str()),  // Use parent's starting directory
-          &si_,                        // Pointer to STARTUPINFO structure
+               : opt_.directory_.c_str()),  // Use parent's starting directory
+          &si_,                             // Pointer to STARTUPINFO structure
           &pi_)  // Pointer to PROCESS_INFORMATION structure
   ) {
     throw std::runtime_error("Failed to create process");
@@ -305,6 +301,8 @@ void ExProcess::join() {
     throw std::runtime_error("WaitForSingleObject");
   }
 }
+
+const ExProcess::Opts& ExProcess::opts() const { return opt_; }
 
 ExProcess::~ExProcess() {
   auto& pi_ = ctx->pi_;

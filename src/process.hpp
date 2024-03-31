@@ -32,8 +32,8 @@ class Thread {
   ~Thread();
   void suspend();
   void resume();
-  void set_gpr(const x86Reg reg, const int value);
-  int* get_pgpr(const x86Reg reg);
+  void set_gpr(x86Reg reg, int value);
+  int* get_pgpr(x86Reg reg);
   void* handle();
   int id();
 
@@ -50,41 +50,41 @@ class Thread {
 };
 
 void save_context(Thread* T);
-std::string proc_basename(const std::string name);
+std::string proc_basename(std::string name);
 unsigned long get_pid(void* handle);
 /// Get process id by name. If not found, return 0.
-unsigned long get_pid(const std::string name);
+unsigned long get_pid(std::string name);
 
 class Process {
  public:
   // Construct from existing process handle
   explicit Process(void* handle);
   // Open process handle to specified pid
-  explicit Process(const u32 pid, const u32 perm = 0u);
+  explicit Process(u32 pid, u32 perm = 0u);
   Process(const Process&) = delete;
   Process& operator=(const Process&) = delete;
   ~Process();
   unsigned long get_pid() const;
   void* handle() const;
   // Write size bytes from src to dest
-  void write_memory(void* dest, const void* src, const std::size_t size,
-                    const bool local = false);
-  void read_memory(void* dest, const void* src, const std::size_t size);
+  void write_memory(void* dest, const void* src, std::size_t size,
+                    bool local = false);
+  void read_memory(void* dest, const void* src, std::size_t size);
   // Allocate memory to process
-  void* allocate_memory(const std::size_t size, unsigned long alloc_type,
+  void* allocate_memory(size_t size, unsigned long alloc_type,
                         unsigned long alloc_protect);
   // Allocate memory to process
-  void* allocate_code(const std::size_t size);
+  void* allocate_code(size_t size);
   void for_each_thread(std::function<void(Thread*, void*)> callback,
                        void* cb_ctx = nullptr) const;
   // Suspend all threads. If main_tid > -1, suspend if thread's id != main_tid
-  void suspend_threads(const thread_id_t tmain_tid = -1,
-                       const duration_t delay = 1.0s) const;
+  void suspend_threads(thread_id_t tmain_tid = -1,
+                       duration_t delay = 1.0s) const;
   // Suspend all threads, except threads in no_suspend
-  void suspend_threads(const std::vector<thread_id_t> no_suspend = {},
-                       const duration_t delay = 1.0s) const;
-  void resume_threads(const thread_id_t main_tid = -1) const;
-  void resume_threads(const std::vector<thread_id_t> no_resume = {}) const;
+  void suspend_threads(std::vector<thread_id_t> no_suspend = {},
+                       duration_t delay = 1.0s) const;
+  void resume_threads(thread_id_t main_tid = -1) const;
+  void resume_threads(std::vector<thread_id_t> no_resume = {}) const;
   std::vector<std::string> list_loaded_modules() const;
 
  private:

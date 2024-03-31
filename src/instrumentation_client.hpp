@@ -48,8 +48,8 @@ class InstrumentationClient {
   ra2yrproto::Response send_command(const gpb::Message& cmd,
                                     ra2yrproto::CommandType type);
   /// @exception std::system_error for internal server error
-  ra2yrproto::PollResults poll_blocking(const duration_t timeout,
-                                        const u64 queue_id = (u64)-1);
+  ra2yrproto::PollResults poll_blocking(duration_t timeout,
+                                        u64 queue_id = (u64)-1);
   ra2yrcpp::connection::ClientConnection* connection();
   /// Establishes connection
   ///

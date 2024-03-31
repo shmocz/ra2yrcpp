@@ -17,7 +17,7 @@ using namespace std::chrono_literals;
 
 template <typename PredT, typename LockT = std::mutex>
 bool wait_until(std::unique_lock<LockT>* lock, std::condition_variable* cv,
-                PredT pred, const duration_t timeout = 0.0s) {
+                PredT pred, duration_t timeout = 0.0s) {
   return (cv->wait_for(*lock, timeout, pred));
 }
 
@@ -28,7 +28,7 @@ class AsyncMap : public async_queue::AsyncContainer {
  public:
   AsyncMap() = default;
 
-  void put(const KeyT key, T item) {
+  void put(KeyT key, T item) {
     std::unique_lock<std::mutex> l(a_.get()->m);
     auto [it, status] = data_.try_emplace(key, item);
     if (!status) {
@@ -38,7 +38,7 @@ class AsyncMap : public async_queue::AsyncContainer {
   }
 
   /// Get item by key. If not found until timeout, throw exception.
-  T get(const KeyT key, const duration_t timeout = 0.0s) {
+  T get(KeyT key, duration_t timeout = 0.0s) {
     auto* a = a_.get();
     std::unique_lock<decltype(a->m)> l(a->m);
     if (timeout > 0.0s) {
@@ -53,7 +53,7 @@ class AsyncMap : public async_queue::AsyncContainer {
     return data_.at(key);
   }
 
-  void erase(const KeyT key) {
+  void erase(KeyT key) {
     auto* a = a_.get();
     std::unique_lock<decltype(a->m)> l(a->m);
     data_.erase(key);

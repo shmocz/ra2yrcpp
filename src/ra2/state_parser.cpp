@@ -327,7 +327,7 @@ void EventParser::parse() {
   }
 }
 
-static void parse_Cell(Cell* C, const int ix, const CellClass& cc) {
+static void parse_Cell(Cell* C, int ix, const CellClass& cc) {
   C->radiation_level = cc.RadLevel;
   C->land_type = static_cast<i32>(cc.LandType);
   C->height = cc.Height;
@@ -363,7 +363,7 @@ std::vector<CellClass*> ra2::get_valid_cells(MapClass* M) {
   return res;
 }
 
-static void parse_cells(Cell* dest, CellClass** src, const std::size_t c,
+static void parse_cells(Cell* dest, CellClass** src, std::size_t c,
                         const LTRBStruct& L) {
   for (std::size_t k = 0; k < c; k++) {
     auto* cc = src[k];
@@ -375,7 +375,7 @@ static void parse_cells(Cell* dest, CellClass** src, const std::size_t c,
 }
 
 static void update_modified_cells(
-    const Cell* current, Cell* previous, const std::size_t c,
+    const Cell* current, Cell* previous, std::size_t c,
     gpb::RepeatedPtrField<ra2yrproto::ra2yr::Cell>* difference) {
   for (std::size_t k = 0; k < c; k++) {
     auto& C = current[k];

@@ -27,9 +27,9 @@ struct ProcAddrs {
 };
 
 ProcAddrs get_procaddrs();
-vecu8 vecu8cstr(const std::string s);
+vecu8 vecu8cstr(std::string s);
 
-void get_procaddr(Xbyak::CodeGenerator* c, void* m, const std::string name,
+void get_procaddr(Xbyak::CodeGenerator* c, void* m, std::string name,
                   const std::uintptr_t p_GetProcAddress);
 
 struct DLLLoader : Xbyak::CodeGenerator {
@@ -43,7 +43,7 @@ struct DLLLoader : Xbyak::CodeGenerator {
     bool no_init_hooks;
   };
 
-  explicit DLLLoader(const DLLLoader::Options o);
+  explicit DLLLoader(DLLLoader::Options o);
 };
 
 ///
@@ -58,11 +58,11 @@ ra2yrcpp::InstrumentationService* make_is(
 ///
 /// Inject ra2yrcpp DLL to target process.
 ///
-void inject_dll(unsigned pid, const std::string path_dll,
+void inject_dll(unsigned pid, std::string path_dll,
                 ra2yrcpp::InstrumentationService::Options o,
                 dll_inject::DLLInjectOptions dll);
 
-void* get_context(const ra2yrcpp::InstrumentationService::Options O);
+void* get_context(ra2yrcpp::InstrumentationService::Options O);
 
 const DLLLoader::Options default_options{
     {0U, 0U},         cfg::DLL_NAME, cfg::INIT_NAME, cfg::MAX_CLIENTS,

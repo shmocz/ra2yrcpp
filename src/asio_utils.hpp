@@ -14,7 +14,7 @@ class IOService {
  public:
   IOService();
   ~IOService();
-  void post(std::function<void()> fn, const bool wait = true);
+  void post(std::function<void()> fn, bool wait = true);
   void* get_service();
 
  private:
@@ -29,7 +29,7 @@ struct AsioSocket {
   explicit AsioSocket(std::shared_ptr<IOService> srv);
   ~AsioSocket();
 
-  void connect(const std::string host, const std::string port);
+  void connect(std::string host, std::string port);
   /// Synchronously write the buffer to the socket
   ///
   /// @return amount of bytes transferred.

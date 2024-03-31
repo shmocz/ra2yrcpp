@@ -80,7 +80,7 @@ class AutoPollClient {
   /// Get the providied client type initialized by start()
   ///
   /// @exception std::out_of_range if the client  doesn't exist.
-  InstrumentationClient* get_client(const ClientType type);
+  InstrumentationClient* get_client(ClientType type);
   u64 get_queue_id(ClientType t) const;
 
  private:

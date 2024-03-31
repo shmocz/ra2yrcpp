@@ -10,7 +10,7 @@ namespace ring_buffer {
 template <typename T>
 class RingBuffer {
  public:
-  explicit RingBuffer(const std::size_t max_size = -1u) : max_size_(max_size) {}
+  explicit RingBuffer(size_t max_size = -1u) : max_size_(max_size) {}
 
   void push(T t) { emplace(std::move(t)); }
 

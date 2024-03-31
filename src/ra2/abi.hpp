@@ -42,7 +42,7 @@ class ABIGameMD {
   bool BuildingTypeClass_CanPlaceHere(std::uintptr_t p_this, CellStruct* cell,
                                       std::uintptr_t house_owner);
 
-  void AddMessage(int id, const std::string message, i32 color, i32 style,
+  void AddMessage(int id, std::string message, i32 color, i32 style,
                   u32 duration_frames, bool single_player);
 
   u32 timeGetTime();

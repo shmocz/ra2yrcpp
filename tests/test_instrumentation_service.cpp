@@ -290,7 +290,7 @@ class CommandTest : public ::testing::Test {
     work = nullptr;
   }
 
-  auto flush(const u64 qid) { return M->flush_results(qid, 5.0s); }
+  auto flush(u64 qid) { return M->flush_results(qid, 5.0s); }
 
   auto create_cmd(u64 qid, std::string n, bool async = false) {
     if (!async) {
@@ -299,11 +299,9 @@ class CommandTest : public ::testing::Test {
     return M->make_async_command(n, cmd_d_t(), qid);
   }
 
-  auto make_cmd(const u64 qid) {
-    return M->enqueue_command(create_cmd(qid, "test"));
-  }
+  auto make_cmd(u64 qid) { return M->enqueue_command(create_cmd(qid, "test")); }
 
-  auto make_async_cmd(const u64 qid) {
+  auto make_async_cmd(u64 qid) {
     return M->enqueue_command(create_cmd(qid, "test_async", true));
   }
 };
@@ -355,7 +353,7 @@ TEST_F(CommandTest, ComplexTest) {
   constexpr std::size_t queue_count = 10;
   constexpr std::size_t dupe_tasks = 20;
 
-  auto main_task = [&](const u64 id) {
+  auto main_task = [&](u64 id) {
     // Create queue
     (void)M->execute_create_queue(id);
     count++;
@@ -383,7 +381,7 @@ TEST_F(CommandTest, ComplexTest) {
     }
   };
 
-  auto task_dupe_queue = [&](const u64 id) {
+  auto task_dupe_queue = [&](u64 id) {
     queues_ready.wait(true);
     (void)M->execute_create_queue(id % queue_count);
   };

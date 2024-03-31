@@ -61,7 +61,7 @@ IOService::~IOService() {
   dprintf("exit main thread");
 }
 
-void IOService::post(std::function<void()> fn, const bool wait) {
+void IOService::post(std::function<void()> fn, bool wait) {
   auto* s = &service_->service_;
   if (wait) {
     post_(s, fn);
@@ -95,7 +95,7 @@ AsioSocket::~AsioSocket() {
   }
 }
 
-void AsioSocket::connect(const std::string host, const std::string port) {
+void AsioSocket::connect(std::string host, std::string port) {
   socket_->connect(
       lib::asio::ip::tcp::endpoint{lib::asio::ip::address_v4::from_string(host),
                                    static_cast<u16>(std::stoi(port))});

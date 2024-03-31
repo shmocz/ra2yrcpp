@@ -284,8 +284,7 @@ struct CBTunnel : public MyCB<D> {
 
   explicit CBTunnel(writer_t out) : out(out) {}
 
-  void write_packet(const u32 source, const u32 dest, const void* buf,
-                    std::size_t len) {
+  void write_packet(u32 source, u32 dest, const void* buf, std::size_t len) {
     // dprintf("source={} dest={}, buf={}, len={}", source, dest, buf, len);
     ra2yrproto::ra2yr::TunnelPacket P;
     P.set_source(source);

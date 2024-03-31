@@ -25,7 +25,7 @@ struct MultiClientTestContext {
 
   ~MultiClientTestContext();
 
-  void create_client(const AutoPollClient::Options o);
+  void create_client(AutoPollClient::Options o);
 };
 }  // namespace tests
 }  // namespace ra2yrcpp

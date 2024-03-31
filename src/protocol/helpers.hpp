@@ -31,7 +31,7 @@ struct MessageBuilder {
   const gpb::Descriptor* desc;
   gpb::Message* m;
   const gpb::Reflection* refl;
-  explicit MessageBuilder(const std::string name);
+  explicit MessageBuilder(std::string name);
 };
 
 struct MessageStream {
@@ -62,7 +62,7 @@ bool read_message(gpb::Message* M, gpb::io::CodedInputStream* os);
 
 /// Dynamically set the field "args" of B's Message by parsing the JSON string
 /// in args. If args is empty, field is not set.
-gpb::Message* create_command_message(MessageBuilder* B, const std::string args);
+gpb::Message* create_command_message(MessageBuilder* B, std::string args);
 
 /// Process stream of serialized protobuf messages of same type.
 ///
@@ -70,7 +70,7 @@ gpb::Message* create_command_message(MessageBuilder* B, const std::string args);
 /// @param M Message type to be read
 /// @param cb Callback to invoke for each processed message. If unspecified,
 /// dumps messages as JSON to stdout
-void dump_messages(const std::string path, const gpb::Message& M,
+void dump_messages(std::string path, const gpb::Message& M,
                    std::function<void(gpb::Message*)> cb = nullptr);
 
 std::string message_type(const gpb::Any& m);
@@ -96,7 +96,7 @@ std::vector<const gpb::FieldDescriptor*> find_set_fields(const gpb::Message& M);
 /// Fills with n copies of given type.
 ///
 template <typename T>
-void fill_repeated(gpb::RepeatedPtrField<T>* dst, const std::size_t n) {
+void fill_repeated(gpb::RepeatedPtrField<T>* dst, std::size_t n) {
   for (std::size_t i = 0U; i < n; i++) {
     dst->Add();
   }
@@ -106,7 +106,7 @@ void fill_repeated(gpb::RepeatedPtrField<T>* dst, const std::size_t n) {
 /// Clears the RepeatedPtField and fills it with n copies of given type.
 ///
 template <typename T>
-void fill_repeated_empty(gpb::RepeatedPtrField<T>* dst, const std::size_t n) {
+void fill_repeated_empty(gpb::RepeatedPtrField<T>* dst, std::size_t n) {
   dst->Clear();
   fill_repeated(dst, n);
 }

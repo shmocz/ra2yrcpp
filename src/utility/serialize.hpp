@@ -19,7 +19,7 @@ auto read_obj(const U* addr) {
 }
 
 template <typename T>
-auto read_obj(const std::uintptr_t addr) {
+auto read_obj(std::uintptr_t addr) {
   return read_obj<T>(reinterpret_cast<void*>(addr));
 }
 
@@ -33,7 +33,7 @@ auto read_obj_le(const U* addr) {
 }
 
 template <typename T>
-auto read_obj_le(const std::uintptr_t addr) {
+auto read_obj_le(std::uintptr_t addr) {
   return read_obj_le<T>(reinterpret_cast<void*>(addr));
 }
 

@@ -16,8 +16,8 @@ InstrumentationClient::InstrumentationClient(
     std::shared_ptr<ra2yrcpp::connection::ClientConnection> conn)
     : conn_(conn) {}
 
-ra2yrproto::PollResults InstrumentationClient::poll_blocking(
-    const duration_t timeout, const u64 queue_id) {
+ra2yrproto::PollResults InstrumentationClient::poll_blocking(duration_t timeout,
+                                                             u64 queue_id) {
   ra2yrproto::PollResults C;
   if (queue_id < (u64)-1) {
     auto* args = C.mutable_args();

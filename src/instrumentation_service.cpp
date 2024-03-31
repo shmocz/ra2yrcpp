@@ -42,7 +42,7 @@ InstrumentationService::get_connection_threads() {
 
 void InstrumentationService::create_hook(const std::string& name,
                                          const std::uintptr_t target,
-                                         const std::size_t code_length) {
+                                         std::size_t code_length) {
   std::unique_lock<std::mutex> lk(mut_hooks_);
   iprintf("name={},target={:#x},size_bytes={}", name, target, code_length);
   if (hooks_.find(target) != hooks_.end()) {
@@ -58,14 +58,14 @@ cmd_manager_t& InstrumentationService::cmd_manager() { return cmd_manager_; }
 
 hooks_t& InstrumentationService::hooks() { return hooks_; }
 
-static ra2yrproto::TextResponse text_response(const std::string message) {
+static ra2yrproto::TextResponse text_response(std::string message) {
   ra2yrproto::TextResponse E;
   E.mutable_message()->assign(message);
   return E;
 }
 
 ra2yrproto::PollResults InstrumentationService::flush_results(
-    const u64 queue_id, const duration_t delay) {
+    u64 queue_id, duration_t delay) {
   auto results = cmd_manager().flush_results(queue_id, delay, 0);
   ra2yrproto::PollResults P;
   auto* PR = P.mutable_result();
@@ -171,7 +171,7 @@ std::string InstrumentationService::on_shutdown() {
   return "";
 }
 
-static vecu8 on_receive_bytes(InstrumentationService* I, const int socket_id,
+static vecu8 on_receive_bytes(InstrumentationService* I, int socket_id,
                               vecu8* bytes) {
   ra2yrproto::Response R;
   bool is_json = false;
@@ -188,14 +188,14 @@ static vecu8 on_receive_bytes(InstrumentationService* I, const int socket_id,
   return to_vecu8(R);
 }
 
-static void on_accept(InstrumentationService* I, const int socket_id) {
+static void on_accept(InstrumentationService* I, int socket_id) {
   // Create result queue
   // TODO(shmocz): can block here
   (void)I->cmd_manager().execute_create_queue(socket_id,
                                               cfg::RESULT_QUEUE_SIZE);
 }
 
-static void on_close(InstrumentationService* I, const int socket_id) {
+static void on_close(InstrumentationService* I, int socket_id) {
   (void)I->cmd_manager().execute_destroy_queue(socket_id);
 }
 
@@ -236,8 +236,7 @@ InstrumentationService::InstrumentationService(
   }
 }
 
-void* InstrumentationService::get_value(const std::string key,
-                                        const bool acquire) {
+void* InstrumentationService::get_value(std::string key, bool acquire) {
   if (acquire) {
     auto [lk, s] = aq_storage();
     return s->at(key).get();

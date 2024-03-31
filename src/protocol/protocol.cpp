@@ -29,8 +29,8 @@ vecu8 ra2yrcpp::to_vecu8(const gpb::Message& msg) {
   return res;
 }
 
-ra2yrproto::Response ra2yrcpp::make_response(
-    const gpb::Message&& body, const ra2yrproto::ResponseCode code) {
+ra2yrproto::Response ra2yrcpp::make_response(const gpb::Message&& body,
+                                             ra2yrproto::ResponseCode code) {
   ra2yrproto::Response r;
   r.set_code(code);
   if (!r.mutable_body()->PackFrom(body)) {

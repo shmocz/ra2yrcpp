@@ -84,9 +84,9 @@ class AsyncQueue : public AsyncContainer {
 
   // Pop items from queue. If count < 1, pop all items. If timeout > 0, block
   // and wait up to that amount for results.
-  std::vector<T> pop(const std::size_t count = 1,
-                     const duration_t timeout = 0.0s,
                      std::function<bool(T&)> predicate = nullptr) {
+  std::vector<T> pop(
+      std::size_t count = 1, duration_t timeout = 0.0s,
     std::unique_lock<std::mutex> l(a_.get()->m);
 #ifdef LOG_TRACE
     dprintf("locked={},asyncdata={},count={},timeout={}", l.owns_lock(),

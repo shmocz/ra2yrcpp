@@ -81,8 +81,8 @@ struct MyCB : public B {
 
 // TODO(shmocz): reduce calls to this
 template <typename T, typename... ArgsT>
-T* ensure_storage_value(ra2yrcpp::InstrumentationService* I,
-                        const std::string key, ArgsT... args) {
+T* ensure_storage_value(ra2yrcpp::InstrumentationService* I, std::string key,
+                        ArgsT... args) {
   if (I->storage().find(key) == I->storage().end()) {
     I->store_value<T>(key, args...);
   }

@@ -31,7 +31,7 @@ using namespace ra2yrcppcli;
 using namespace std::chrono_literals;
 namespace gpb = google::protobuf;
 
-auto get_client(const std::string host, const std::string port) {
+auto get_client(std::string host, std::string port) {
   auto opt = multi_client::default_options;
   opt.host = host;
   opt.port = port;
@@ -68,7 +68,7 @@ void send_and_print(ra2yrproto::Response r) {
   fmt::print("{}\n", ra2yrcpp::protocol::to_json(r));
 }
 
-void easy_setup(const std::string path_dll,
+void easy_setup(std::string path_dll,
                 ra2yrcpp::InstrumentationService::Options iservice,
                 dll_inject::DLLInjectOptions dll) {
   is_context::inject_dll(0u, path_dll, iservice, dll);

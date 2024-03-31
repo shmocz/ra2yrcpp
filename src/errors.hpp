@@ -5,11 +5,11 @@
 namespace ra2yrcpp {
 
 int get_last_error();
-std::string get_error_message(const int error_code);
+std::string get_error_message(int error_code);
 
 class not_implemented : public std::exception {
  public:
-  explicit not_implemented(const std::string message = "");
+  explicit not_implemented(std::string message = "");
   virtual const char* what() const throw();
 
  private:
@@ -18,8 +18,7 @@ class not_implemented : public std::exception {
 
 class ra2yrcpp_exception_base : public std::exception {
  public:
-  explicit ra2yrcpp_exception_base(const std::string prefix,
-                                   const std::string message);
+  explicit ra2yrcpp_exception_base(std::string prefix, std::string message);
   virtual const char* what() const throw();
 
  protected:
@@ -29,13 +28,13 @@ class ra2yrcpp_exception_base : public std::exception {
 
 class general_error : public ra2yrcpp_exception_base {
  public:
-  explicit general_error(const std::string message);
+  explicit general_error(std::string message);
 };
 
 class system_error : public std::exception {
  public:
-  system_error(const std::string message, const int error_code);
-  explicit system_error(const std::string message);
+  system_error(std::string message, int error_code);
+  explicit system_error(std::string message);
   virtual const char* what() const throw();
 
  private:
@@ -44,7 +43,7 @@ class system_error : public std::exception {
 
 class timeout : public std::exception {
  public:
-  explicit timeout(const std::string message = "");
+  explicit timeout(std::string message = "");
   virtual const char* what() const throw();
 
  private:
@@ -53,7 +52,7 @@ class timeout : public std::exception {
 
 class protocol_error : public ra2yrcpp_exception_base {
  public:
-  explicit protocol_error(const std::string message = "");
+  explicit protocol_error(std::string message = "");
 };
 
 }  // namespace ra2yrcpp

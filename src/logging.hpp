@@ -23,8 +23,8 @@ constexpr std::array<const char*, 4> levels = {"ERROR", "DEBUG", "WARNING",
                                                "INFO"};
 
 template <typename... Args>
-inline void print_message(FILE* fp, const Level level, const char* fmt_s,
-                          const char* file, const char* func, const int line,
+inline void print_message(FILE* fp, Level level, const char* fmt_s,
+                          const char* file, const char* func, int line,
                           Args... args) {
   fmt::print(
       fp, "{}: [thread {} TS: {}]: {}:{}:{} {}\n",

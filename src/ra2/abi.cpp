@@ -73,8 +73,8 @@ bool ABIGameMD::DisplayClass_Passes_Proximity_Check(std::uintptr_t p_this,
                                                 house_index, fnd, cell);
 }
 
-void ABIGameMD::AddMessage(int id, const std::string message, i32 color,
-                           i32 style, u32 duration_frames, bool single_player) {
+void ABIGameMD::AddMessage(int id, std::string message, i32 color, i32 style,
+                           u32 duration_frames, bool single_player) {
   static constexpr std::uintptr_t MessageListClass = 0xA8BC60U;
   std::wstring m(message.begin(), message.end());
   ra2::abi::AddMessage::call(this, MessageListClass, nullptr, id, m.c_str(),

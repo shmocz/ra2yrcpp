@@ -32,9 +32,9 @@ struct Detour {
 class Hook;
 
 struct DetourMain : Xbyak::CodeGenerator {
-  DetourMain(const addr_t target, const addr_t hook,
-             const std::size_t code_length, const addr_t call_hook,
-             unsigned int* count_enter, unsigned int* count_exit);
+  DetourMain(addr_t target, addr_t hook, std::size_t code_length,
+             addr_t call_hook, unsigned int* count_enter,
+             unsigned int* count_exit);
 
   explicit DetourMain(Hook* h);
 };
@@ -77,16 +77,13 @@ class Hook {
   /// patching (in addition to current thread id)
   /// TODO: move constructor
   ///
-  Hook(addr_t src_address, const std::size_t code_length,
-       const std::string name = "",
-       const std::vector<thread_id_t> no_suspend = {},
-       const bool manual = false);
+  Hook(addr_t src_address, std::size_t code_length, std::string name = "",
+       std::vector<thread_id_t> no_suspend = {}, bool manual = false);
   ~Hook();
   void add_callback(HookCallback c);
   ///
   void add_callback(std::function<void(Hook*, void*, X86Regs*)> func,
-                    void* user_data, const std::string name,
-                    const unsigned max_calls = 0u);
+                    void* user_data, std::string name, unsigned max_calls = 0u);
 
   /// Invoke all registered hook functions. This function is thread safe.
   static void __cdecl call(Hook* H, X86Regs state);
@@ -96,22 +93,21 @@ class Hook {
   void unlock();
   Detour& detour();
   const std::string& name() const;
-  void patch_code(u8* target_address, const u8* code,
-                  const std::size_t code_length);
+  void patch_code(u8* target_address, const u8* code, std::size_t code_length);
 
   /// Wait until no thread is in target region, then patch code.
   void patch_code_safe(u8* target_address, const u8* code,
-                       const std::size_t code_length);
+                       std::size_t code_length);
   /// Pointer to counter for enters to Hook::call.
   unsigned int* count_enter();
   /// Pointer to counter for exits from Hook::call.
   unsigned int* count_exit();
   /// Check if hook has a callback identified by name
-  void remove_callback(const std::string name);
+  void remove_callback(std::string name);
 
  private:
   Detour d_;
-  const std::string name_;
+  std::string name_;
   std::vector<HookCallback> callbacks_;
   std::mutex mu_;
   DetourMain dm_;

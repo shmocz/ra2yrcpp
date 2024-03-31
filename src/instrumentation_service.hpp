@@ -80,8 +80,8 @@ class InstrumentationService {
   /// @param name
   /// @param target target memory address
   /// @param code_length the amount of bytes to copy into target detour location
-  void create_hook(const std::string& name, const std::uintptr_t target,
-                   const std::size_t code_length);
+  void create_hook(const std::string& name, std::uintptr_t target,
+                   std::size_t code_length);
   cmd_manager_t& cmd_manager();
   hooks_t& hooks();
   util::acquire_t<hooks_t> aq_hooks();
@@ -91,7 +91,7 @@ class InstrumentationService {
   void unlock_storage();
 
   template <typename T, typename... Args>
-  void store_value(const std::string key, Args&&... args) {
+  void store_value(std::string key, Args&&... args) {
     storage_[key] = std::unique_ptr<void, void (*)(void*)>(
         new T(std::forward<Args>(args)...),
         [](auto* d) { delete reinterpret_cast<T*>(d); });
@@ -102,7 +102,7 @@ class InstrumentationService {
   /// @param acquire lock storage accessing it
   /// @return pointer to the storage object
   /// @exception std::out_of_range if value doesn't exist
-  void* get_value(const std::string key, const bool acquire = true);
+  void* get_value(std::string key, bool acquire = true);
   storage_t& storage();
   const InstrumentationService::Options& opts() const;
   static ra2yrcpp::InstrumentationService* create(
@@ -111,13 +111,13 @@ class InstrumentationService {
       std::function<std::string(ra2yrcpp::InstrumentationService*)>
           on_shutdown = nullptr,
       std::function<void(InstrumentationService*)> extra_init = nullptr);
-  ra2yrproto::Response process_request(const int socket_id, vecu8* bytes,
+  ra2yrproto::Response process_request(int socket_id, vecu8* bytes,
                                        bool* is_json);
   std::string on_shutdown();
 
  private:
   ra2yrproto::PollResults flush_results(
-      const u64 queue_id, const duration_t delay = cfg::POLL_RESULTS_TIMEOUT);
+      u64 queue_id, duration_t delay = cfg::POLL_RESULTS_TIMEOUT);
 
   Options opts_;
   std::function<std::string(InstrumentationService*)> on_shutdown_;

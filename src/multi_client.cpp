@@ -131,7 +131,7 @@ void AutoPollClient::poll_thread() {
 
 ResultMap& AutoPollClient::results() { return results_; }
 
-InstrumentationClient* AutoPollClient::get_client(const ClientType type) {
+InstrumentationClient* AutoPollClient::get_client(ClientType type) {
   return is_clients_.at(type).get();
 }
 

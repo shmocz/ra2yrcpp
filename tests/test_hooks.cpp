@@ -23,7 +23,7 @@ struct ExampleProgram : Xbyak::CodeGenerator {
     ret();
   }
 
-  static int expected(const unsigned a, const unsigned b) { return a * b; }
+  static int expected(unsigned a, unsigned b) { return a * b; }
 };
 
 ///
@@ -54,7 +54,7 @@ struct InfiniteLoop : Xbyak::CodeGenerator {
   auto get_code() { return getCode<int __cdecl (*)()>(); }
 };
 
-int __cdecl add_ints(const int a, const int b) { return a + b; }
+int __cdecl add_ints(int a, int b) { return a + b; }
 
 /// Sample function to test hooking on. Returns the number of bytes that need to
 /// be copied to detour

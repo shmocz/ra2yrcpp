@@ -10,7 +10,7 @@ typedef void* HWND;
 
 #include <string>
 
-std::string windows_utils::get_error_message(const int error_code) {
+std::string windows_utils::get_error_message(int error_code) {
   char* buf = nullptr;
   std::size_t size = FormatMessageA(
       FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |

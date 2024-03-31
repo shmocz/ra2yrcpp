@@ -44,7 +44,7 @@ ProcAddrs is_context::get_procaddrs() {
   return A;
 }
 
-vecu8 is_context::vecu8cstr(const std::string s) {
+vecu8 is_context::vecu8cstr(std::string s) {
   vecu8 r(s.begin(), s.end());
   r.push_back('\0');
   return r;
@@ -69,7 +69,7 @@ static Context* make_is_ctx(Context* c,
 
 // TODO(shmocz): rename
 // FIXME: Use Options
-DLLLoader::DLLLoader(const DLLLoader::Options o) {
+DLLLoader::DLLLoader(DLLLoader::Options o) {
   vecu8 v1(o.path_dll.begin(), o.path_dll.end());
   v1.push_back(0x0);
   vecu8 v2(o.name_init.begin(), o.name_init.end());
@@ -113,7 +113,7 @@ DLLLoader::DLLLoader(const DLLLoader::Options o) {
 }
 
 void is_context::get_procaddr(Xbyak::CodeGenerator* c, void* m,
-                              const std::string name,
+                              std::string name,
                               const std::uintptr_t p_GetProcAddress) {
   using namespace Xbyak::util;
   vecu8 n = vecu8cstr(name);
@@ -179,7 +179,7 @@ ra2yrcpp::InstrumentationService* is_context::make_is(
   return I;
 }
 
-void is_context::inject_dll(unsigned pid, const std::string path_dll,
+void is_context::inject_dll(unsigned pid, std::string path_dll,
                             ra2yrcpp::InstrumentationService::Options o,
                             dll_inject::DLLInjectOptions dll) {
   using namespace std::chrono_literals;

@@ -41,7 +41,7 @@ bool ra2yrcpp::protocol::read_message(gpb::Message* M,
   return res;
 }
 
-MessageBuilder::MessageBuilder(const std::string name) {
+MessageBuilder::MessageBuilder(std::string name) {
   pool = gpb::DescriptorPool::generated_pool();
   desc = pool->FindMessageTypeByName(name);
   if (desc == nullptr) {
@@ -105,8 +105,8 @@ bool MessageIstream::read(gpb::Message* M) {
   return false;
 }
 
-gpb::Message* ra2yrcpp::protocol::create_command_message(
-    MessageBuilder* B, const std::string args) {
+gpb::Message* ra2yrcpp::protocol::create_command_message(MessageBuilder* B,
+                                                         std::string args) {
   if (!args.empty()) {
     auto* cmd_args = B->m->GetReflection()->MutableMessage(
         B->m, B->desc->FindFieldByName("args"));
@@ -115,8 +115,7 @@ gpb::Message* ra2yrcpp::protocol::create_command_message(
   return B->m;
 }
 
-void ra2yrcpp::protocol::dump_messages(const std::string path,
-                                       const gpb::Message& M,
+void ra2yrcpp::protocol::dump_messages(std::string path, const gpb::Message& M,
                                        std::function<void(gpb::Message*)> cb) {
   bool ok = true;
   auto ii = std::make_shared<std::ifstream>(

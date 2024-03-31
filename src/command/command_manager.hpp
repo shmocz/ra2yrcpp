@@ -151,12 +151,12 @@ class CommandManager {
     }
   };
 
-  explicit CommandManager(const duration_t results_acquire_timeout =
-                              cfg::COMMAND_RESULTS_ACQUIRE_TIMEOUT)
+  explicit CommandManager(
+      duration_t results_acquire_timeout = cfg::COMMAND_RESULTS_ACQUIRE_TIMEOUT)
       : results_acquire_timeout_(results_acquire_timeout),
         command_counter_(0U) {}
 
-  void create_queue(const u64 id, const std::size_t max_size = -1u) {
+  void create_queue(u64 id, std::size_t max_size = -1u) {
     auto [l, q] = aq_results_queue();
     if (q->find(id) != q->end()) {
       eprintf("existing queue_id={}", id);
@@ -167,7 +167,7 @@ class CommandManager {
                            typename result_q_t::queue_t(max_size)));
   }
 
-  void destroy_queue(const u64 id) {
+  void destroy_queue(u64 id) {
     auto [l, q] = aq_results_queue();
     q->erase(id);
   }
@@ -183,12 +183,11 @@ class CommandManager {
     }
   }
 
-  void add_command(const std::string name, handler_t handler) {
+  void add_command(std::string name, handler_t handler) {
     handlers_[name] = handler;
   }
 
-  command_ptr_t make_command(const std::string name, T&& data,
-                             const u64 queue_id,
+  command_ptr_t make_command(std::string name, T&& data, u64 queue_id,
                              handler_t done_callback = nullptr) {
     std::unique_lock<std::mutex> l(command_counter_mut_);
     typename command_t::BaseData B = {name, queue_id, ++command_counter_, 0U,
@@ -200,8 +199,7 @@ class CommandManager {
     return C;
   }
 
-  command_ptr_t make_async_command(const std::string name, T&& data,
-                                   const u64 queue_id) {
+  command_ptr_t make_async_command(std::string name, T&& data, u64 queue_id) {
     std::unique_lock<std::mutex> l(command_counter_mut_);
     typename command_t::BaseData B = {name, queue_id, ++command_counter_, 0U,
                                       CommandType::USER};
@@ -218,7 +216,7 @@ class CommandManager {
   /// @param queue_size command queue size for CREATE_QUEUE command
   /// @param t the command type
   /// @return the same shared_ptr to Command object
-  command_ptr_t make_builtin_command(const u64 queue_id, const u64 queue_size,
+  command_ptr_t make_builtin_command(u64 queue_id, u64 queue_size,
                                      CommandType t) {
     typename command_t::BaseData B{"", queue_id, 0U, queue_size, t};
     auto C = std::make_shared<command_t>(B, nullptr, T());
@@ -252,8 +250,8 @@ class CommandManager {
   /// @param queue_id
   /// @param queue_size
   /// @return shared_ptr to the Command object
-  command_ptr_t execute_create_queue(const u64 queue_id,
-                                     const std::size_t queue_size = -1) {
+  command_ptr_t execute_create_queue(u64 queue_id,
+                                     std::size_t queue_size = -1) {
     auto cmd = enqueue_command(
         make_builtin_command(queue_id, queue_size, CommandType::CREATE_QUEUE));
     cmd->result_code().wait_pred(
@@ -264,7 +262,7 @@ class CommandManager {
   /// Synchronously execute DESTROY_QUEUE command
   /// @param queue_id
   /// @return shared_ptr to the Command object
-  command_ptr_t execute_destroy_queue(const u64 queue_id) {
+  command_ptr_t execute_destroy_queue(u64 queue_id) {
     auto cmd = enqueue_command(
         make_builtin_command(queue_id, 0U, CommandType::DESTROY_QUEUE));
     cmd->result_code().wait_pred(
@@ -321,9 +319,8 @@ class CommandManager {
 
   std::vector<u64>& pending_commands() { return pending_commands_; }
 
-  std::vector<command_ptr_t> flush_results(const u64 id,
-                                           const duration_t timeout = 0.0s,
-                                           const std::size_t count = 0U) {
+  std::vector<command_ptr_t> flush_results(u64 id, duration_t timeout = 0.0s,
+                                           std::size_t count = 0U) {
     auto [l, rq] = aq_results_queue();
 
     if (rq->find(id) == rq->end()) {

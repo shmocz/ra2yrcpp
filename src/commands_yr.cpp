@@ -30,8 +30,7 @@ using ra2yrcpp::hooks_yr::get_data;
 using ra2yrcpp::hooks_yr::get_gameloop_command;
 
 // TODO(shmocz): don't allow deploying of already deployed object
-static void unit_action(const u32 p_object,
-                        const ra2yrproto::ra2yr::UnitAction a,
+static void unit_action(u32 p_object, ra2yrproto::ra2yr::UnitAction a,
                         ra2::abi::ABIGameMD* abi) {
   using ra2yrproto::ra2yr::UnitAction;
   switch (a) {

@@ -9,7 +9,7 @@ MultiClientTestContext::MultiClientTestContext()
 
 MultiClientTestContext::~MultiClientTestContext() { clients.clear(); }
 
-void MultiClientTestContext::create_client(const AutoPollClient::Options o) {
+void MultiClientTestContext::create_client(AutoPollClient::Options o) {
   clients.push_back(std::make_unique<multi_client::AutoPollClient>(srv, o));
   clients.back()->start();
 }

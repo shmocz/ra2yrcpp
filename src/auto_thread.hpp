@@ -10,6 +10,7 @@
 #include <exception>
 #include <functional>
 #include <thread>
+#include <vector>
 
 namespace utility {
 
@@ -62,22 +63,15 @@ struct worker_util {
   }
 
   void worker() {
+    std::vector<work_item> V;
     try {
-      while (true) {
-        auto V = work.pop(1, cfg::MAX_TIMEOUT);
-        if (V.empty()) {
-          break;
-        }
-        auto w = V.back();
+      while (V = work.pop(1, cfg::MAX_TIMEOUT), !V.empty()) {
+        work_item w = V.back();
         if (w.destroy) {
           break;
         }
         try {
-          if (w.consume_fn == nullptr) {
-            consumer_fn(w.item);
-          } else {
-            w.consume_fn(w.item);
-          }
+          (w.consume_fn == nullptr ? consumer_fn : w.consume_fn)(w.item);
         } catch (const std::exception& e) {
           eprintf("consumer: {}", e.what());
         }

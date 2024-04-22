@@ -45,8 +45,8 @@ class AsyncMap : public async_queue::AsyncContainer {
       if (!wait_until(
               &l, &a->cv, [&] { return (data_.find(key) != data_.end()); },
               timeout)) {
-        throw std::runtime_error("timeout after " +
-                                 std::to_string(timeout.count()) + "ms");
+        throw std::runtime_error(
+            fmt::format("Timeout after {}ms key: {}", timeout.count(), key));
       }
       return data_.at(key);
     }

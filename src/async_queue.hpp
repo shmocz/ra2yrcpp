@@ -84,9 +84,9 @@ class AsyncQueue : public AsyncContainer {
 
   // Pop items from queue. If count < 1, pop all items. If timeout > 0, block
   // and wait up to that amount for results.
-                     std::function<bool(T&)> predicate = nullptr) {
   std::vector<T> pop(
       std::size_t count = 1, duration_t timeout = 0.0s,
+      std::function<bool(T&)> predicate = [](const T&) { return true; }) {
     std::unique_lock<std::mutex> l(a_.get()->m);
 #ifdef LOG_TRACE
     dprintf("locked={},asyncdata={},count={},timeout={}", l.owns_lock(),
@@ -107,11 +107,12 @@ class AsyncQueue : public AsyncContainer {
       // TODO: use random access container to avoid popping and pushing back
       while (num_pop-- > 0) {
         auto& p = q_.front();
-        if (predicate != nullptr && !predicate(p)) {
+        if (!predicate(p)) {
           pred_false.emplace_back(std::move(p));
         } else {
           res.emplace_back(std::move(p));
         }
+        // TODO: ensure that this is FIFO
         q_.pop();
       }
       for (auto& p : pred_false) {

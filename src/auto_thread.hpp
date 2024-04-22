@@ -55,7 +55,6 @@ struct worker_util {
   worker_util(worker_util&& o) = delete;
   worker_util& operator=(worker_util&& o) = delete;
 
-  // FIXME: use push()
   ~worker_util() { work.push(work_item{true, {}, nullptr}); }
 
   void push(T item, std::function<void(T&)> cfn = nullptr) {

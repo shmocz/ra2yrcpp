@@ -67,8 +67,6 @@ static Context* make_is_ctx(Context* c,
   return c;
 }
 
-// TODO(shmocz): rename
-// FIXME: Use Options
 DLLLoader::DLLLoader(DLLLoader::Options o) {
   vecu8 v1(o.path_dll.begin(), o.path_dll.end());
   v1.push_back(0x0);

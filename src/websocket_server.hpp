@@ -56,7 +56,6 @@ class WebsocketServer {
                   ra2yrcpp::asio_utils::IOService* service, Callbacks cb);
   ~WebsocketServer();
 
-  ///
   void start();
   /// Shutdown all active connections and stop accepting new connections.
   void shutdown();

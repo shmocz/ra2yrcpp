@@ -46,10 +46,8 @@ struct DLLLoader : Xbyak::CodeGenerator {
   explicit DLLLoader(DLLLoader::Options o);
 };
 
-///
-/// Create IS instance and add both builtin commands and YR specific commands.
-/// FIXME: make this cross platform
-///
+/// Create InstrumentationService instance and add both builtin commands and YR
+/// specific commands.
 ra2yrcpp::InstrumentationService* make_is(
     ra2yrcpp::InstrumentationService::Options O,
     std::function<std::string(ra2yrcpp::InstrumentationService*)> on_shutdown =

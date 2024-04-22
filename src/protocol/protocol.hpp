@@ -16,6 +16,10 @@ constexpr auto RESPONSE_ERROR = ra2yrproto::ResponseCode::ERROR;
 /// @exception yrclient::protocol_error on serialization failure
 vecu8 to_vecu8(const gpb::Message& msg);
 
+/// Create Response message
+/// @param body
+/// @param code
+/// @exception std::runtime_error if message packing fails
 ra2yrproto::Response make_response(const gpb::Message&& body,
                                    ra2yrproto::ResponseCode code = RESPONSE_OK);
 

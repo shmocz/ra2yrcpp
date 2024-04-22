@@ -69,6 +69,8 @@ class AutoPollClient {
   /// @exception std::runtime_error if attempting to start already started
   /// object or on connection failure
   void start();
+  /// Disconnect both clients, stop poll thread and set internal state to
+  /// State::CLOSED.
   void shutdown();
   ///
   /// Send command message with command client and poll results with poll client

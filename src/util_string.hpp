@@ -5,7 +5,6 @@
 #include <vector>
 
 namespace ra2yrcpp {
-// FIXME: remove?
 inline vecu8 to_bytes(std::string msg) { return vecu8(msg.begin(), msg.end()); }
 
 inline std::string to_string(vecu8 bytes) {

@@ -56,6 +56,7 @@ class InstrumentationService {
  public:
   struct Options {
     WebsocketServer::Options server;
+    /// If true, don't create hooks and their callbacks.
     bool no_init_hooks;
   };
 

@@ -21,13 +21,12 @@ namespace gpb = google::protobuf;
 
 class InstrumentationClient {
  public:
+  /// Initialize client from existing connection handle.
   explicit InstrumentationClient(
       std::shared_ptr<ra2yrcpp::connection::ClientConnection> conn);
 
-  ///
-  /// Send bytes and return number of bytes sent.
+  /// Send bytes.
   /// @exception std::runtime_error on write failure
-  ///
   void send_data(const vecu8& data);
 
   ///
@@ -36,7 +35,7 @@ class InstrumentationClient {
   /// @exception ra2yrcpp::protocol_error on message serialization failure.
   ///
   ra2yrproto::Response send_message(const vecu8& data);
-  /// Convert message to bytes and send it to server.
+  /// Convert message to vecu8 and send it to server.
   ra2yrproto::Response send_message(const gpb::Message& M);
 
   ///
@@ -56,7 +55,7 @@ class InstrumentationClient {
   /// @exception std::runtime_error on connection failure
   void connect();
 
-  /// Disconnects the client
+  /// Disconnects the internal client.
   void disconnect();
 
  private:

@@ -3,9 +3,6 @@
 #include "ra2yrproto/commands_builtin.pb.h"
 #include "ra2yrproto/commands_yr.pb.h"
 
-#include "errors.hpp"
-#include "protocol/helpers.hpp"
-
 #include <fmt/core.h>
 #include <google/protobuf/any.pb.h>
 #include <google/protobuf/descriptor.h>
@@ -15,7 +12,6 @@
 #include <google/protobuf/util/json_util.h>
 
 #include <stdexcept>
-#include <string>
 
 using namespace ra2yrcpp;
 
@@ -23,7 +19,7 @@ vecu8 ra2yrcpp::to_vecu8(const gpb::Message& msg) {
   vecu8 res;
   res.resize(msg.ByteSizeLong());
   if (!msg.SerializeToArray(res.data(), res.size())) {
-    throw ra2yrcpp::protocol_error(
+    throw std::runtime_error(
         fmt::format("failed to serialize message {}", msg.GetTypeName()));
   }
   return res;
@@ -44,7 +40,7 @@ ra2yrproto::Command ra2yrcpp::create_command(const gpb::Message& cmd,
   ra2yrproto::Command C;
   C.set_command_type(type);
   if (!C.mutable_command()->PackFrom(cmd)) {
-    throw ra2yrcpp::protocol_error("packing message failed");
+    throw std::runtime_error("Packing message failed");
   }
   return C;
 }

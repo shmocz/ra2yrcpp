@@ -72,9 +72,9 @@ class AutoPollClient {
   /// Disconnect both clients, stop poll thread and set internal state to
   /// State::CLOSED.
   void shutdown();
-  ///
+
   /// Send command message with command client and poll results with poll client
-  ///
+  /// @exception std::runtime_error On timeout or serialization failure.
   ra2yrproto::Response send_command(const gpb::Message& cmd);
   static ra2yrproto::Response get_item();
 

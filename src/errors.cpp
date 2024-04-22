@@ -28,11 +28,6 @@ const char* ra2yrcpp_exception_base::what() const throw() {
   return message_.c_str();
 }
 
-general_error::general_error(std::string message)
-    : ra2yrcpp_exception_base("General error", message) {
-  message_ = prefix_ + ": " + message_;
-}
-
 std::string ra2yrcpp::get_error_message(int error_code) {
   if (error_code == 0) {
     return std::string();
@@ -45,10 +40,6 @@ std::string ra2yrcpp::get_error_message(int error_code) {
 #error Not Implemented
 #endif
 }
-
-not_implemented::not_implemented(std::string message) : message_(message) {}
-
-const char* not_implemented::what() const throw() { return message_.c_str(); }
 
 system_error::system_error(std::string message, int error_code) {
 #if defined(_WIN32) || defined(__linux__)
@@ -63,10 +54,3 @@ system_error::system_error(std::string message)
     : system_error(message, get_last_error()) {}
 
 const char* system_error::what() const throw() { return message_.c_str(); }
-
-timeout::timeout(std::string message) : message_(message) {}
-
-const char* timeout::what() const throw() { return message_.c_str(); }
-
-protocol_error::protocol_error(std::string message)
-    : ra2yrcpp_exception_base("Protocol error", message) {}

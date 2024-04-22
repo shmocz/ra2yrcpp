@@ -31,9 +31,7 @@ class InstrumentationClient {
 
   ///
   /// Send encoded message to server and read response back.
-  /// @exception std::runtime_error on read/write failure.
-  /// @exception ra2yrcpp::protocol_error on message serialization failure.
-  ///
+  /// @exception std::runtime_error on read/write or serialization failure.
   ra2yrproto::Response send_message(const vecu8& data);
   /// Convert message to vecu8 and send it to server.
   ra2yrproto::Response send_message(const gpb::Message& M);

@@ -13,7 +13,7 @@ constexpr auto RESPONSE_ERROR = ra2yrproto::ResponseCode::ERROR;
 
 /// Serialize message to vecu8
 /// @param msg
-/// @exception yrclient::protocol_error on serialization failure
+/// @exception std::runtime_error on serialization failure
 vecu8 to_vecu8(const gpb::Message& msg);
 
 /// Create Response message
@@ -27,7 +27,7 @@ ra2yrproto::Response make_response(const gpb::Message&& body,
 /// Create command message.
 /// @param cmd message to be set as command field
 /// @param type command type
-/// @exception yrclient::protocol_error if message packing fails
+/// @exception std::runtime_error if message packing fails
 ///
 ra2yrproto::Command create_command(
     const gpb::Message& cmd,

@@ -110,7 +110,7 @@ auto create_callbacks() {
         return (a.second.name() == target);
       });
       if (h == hhooks->end()) {
-        throw ra2yrcpp::general_error(fmt::format("No such hook {}", target));
+        throw std::runtime_error(fmt::format("No such hook {}", target));
       }
 
       const std::string hook_name = k;
@@ -119,7 +119,7 @@ auto create_callbacks() {
       if (std::find_if(tmp_cbs.begin(), tmp_cbs.end(), [&hook_name](auto& a) {
             return a.name == hook_name;
           }) != tmp_cbs.end()) {
-        throw ra2yrcpp::general_error(fmt::format(
+        throw std::runtime_error(fmt::format(
             "Hook {} already has a callback {}", target, hook_name));
       }
 

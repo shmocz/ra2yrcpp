@@ -1,6 +1,5 @@
 #include "hook.hpp"
 
-#include "errors.hpp"
 #include "logging.hpp"
 #include "utility/time.hpp"
 #include "x86.hpp"
@@ -197,7 +196,7 @@ void Hook::remove_callback(std::string name) {
   auto it = std::find_if(callbacks_.begin(), callbacks_.end(),
                          [&name](const auto& j) { return j.name == name; });
   if (it == callbacks_.end()) {
-    throw ra2yrcpp::general_error("remove_callback");
+    throw std::runtime_error(fmt::format("Callback not found: {}", name));
   }
   callbacks_.erase(it);
 }

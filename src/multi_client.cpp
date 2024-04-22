@@ -91,16 +91,11 @@ ra2yrproto::Response AutoPollClient::send_command(const gpb::Message& cmd) {
   auto ack =
       ra2yrcpp::protocol::from_any<ra2yrproto::RunCommandAck>(resp.body());
   // Wait until item found from polled messages
-  try {
-    // TODO(shmocz): signal if poll_thread dies
-    auto r = ra2yrcpp::make_response(
-        results().get(ack.id(), opt_.command_timeout), ra2yrcpp::RESPONSE_OK);
-    results().erase(ack.id());
-    return r;
-  } catch (const std::runtime_error& e) {
-    throw ra2yrcpp::general_error(fmt::format(
-        "timeout after {}ms, key={}", opt_.command_timeout.count(), ack.id()));
-  }
+  // TODO(shmocz): signal if poll_thread dies
+  auto r = ra2yrcpp::make_response(
+      results().get(ack.id(), opt_.command_timeout), ra2yrcpp::RESPONSE_OK);
+  results().erase(ack.id());
+  return r;
 }
 
 void AutoPollClient::poll_thread() {
@@ -120,7 +115,6 @@ void AutoPollClient::poll_thread() {
       for (auto& r : R.result().results()) {
         results_.put(r.command_id(), r);
       }
-    } catch (const ra2yrcpp::timeout& e) {
     } catch (const ra2yrcpp::system_error& e) {
       eprintf("internal error, likely cmd connection exit: {}", e.what());
     } catch (const std::exception& e) {

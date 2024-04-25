@@ -22,10 +22,6 @@ if(RA2YRCPP_DEBUG_LOG)
   add_compile_definitions(DEBUG_LOG)
 endif()
 
-if(NOT RA2YRCPP_PROTOBUF_LIB)
-  set(RA2YRCPP_PROTOBUF_LIB protobuf)
-endif()
-
 # FIXME: needed?
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 

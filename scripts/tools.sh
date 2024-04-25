@@ -90,8 +90,10 @@ function build-cpp() {
     if [ ! -d "$BUILD_DIR" ]; then
         cmake-config "$BUILD_DIR"
     fi
+    set -e
     cmake --build $BUILD_DIR --config $CMAKE_BUILD_TYPE --target $CMAKE_TARGET -j $NPROC
     cmake --build $BUILD_DIR --config $CMAKE_BUILD_TYPE --target install/fast
+    set +e
 }
 
 function build-protobuf() {
@@ -99,7 +101,7 @@ function build-protobuf() {
     mkdir -p "$build_dir"
     CMAKE_TOOLCHAIN_FILE="$(realpath "$CMAKE_TOOLCHAIN_FILE")" \
         cmake \
-        -DCMAKE_INSTALL_PREFIX="$DEST_DIR" \
+        -DCMAKE_INSTALL_PREFIX="$BASE_DIR/pkg" \
         "$CMAKE_EXTRA_ARGS" \
         -G "Unix Makefiles" \
         -Dprotobuf_BUILD_LIBPROTOC=ON \
@@ -111,9 +113,9 @@ function build-protobuf() {
         -Dprotobuf_BUILD_TESTS=OFF \
         -DZLIB_LIB=/usr/i686-w64-mingw32/lib \
         -DZLIB_INCLUDE_DIR=/usr/i686-w64-mingw32/include \
-        -S "3rdparty/protobuf" -B "$BUILD_DIR"
-    cmake --build "$BUILD_DIR" -j $NPROC
-    cmake --build "$BUILD_DIR" --config "$CMAKE_BUILD_TYPE" --target install
+        -S "3rdparty/protobuf" -B "$build_dir"
+    cmake --build "$build_dir" -j $NPROC
+    cmake --build "$build_dir" --config "$CMAKE_BUILD_TYPE" --target install
 }
 
 function check-build() {
@@ -160,6 +162,7 @@ function cpp-check() {
     mkdir -p "$CPPCHECK_BUILD_DIR"
 
     $CPPCHECK -q --platform=win32W \
+        --check-level=exhaustive \
         --cppcheck-build-dir="$CPPCHECK_BUILD_DIR" \
         --enable=warning,style,performance,portability,unusedFunction \
         -I src/ \
@@ -265,4 +268,4 @@ function docker-build() {
     compose-cmd ./scripts/tools.sh build-cpp
 }
 
-$1
+"$@"

@@ -1,6 +1,6 @@
 name: Build ra2yrcpp
 env:
-  CMAKE_TOOLCHAIN_FILE: toolchains/mingw-w64-i686-docker.cmake
+  CMAKE_TOOLCHAIN_FILE: toolchains/mingw-w64-i686.cmake
 runs:
   using: composite
   steps:
@@ -14,4 +14,4 @@ runs:
       uses: actions/upload-artifact@v3
       with:
         name: ra2yrcpp-${{ github.sha }}.zip
-        path: cbuild/mingw-w64-i686-docker-Release/ra2yrcpp.zip
+        path: cbuild/mingw-w64-i686-Release/ra2yrcpp.zip

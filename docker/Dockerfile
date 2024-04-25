@@ -44,7 +44,7 @@ RUN \
 # Grab protobuf sources
 RUN git clone --recurse-submodules --depth 1 --branch v3.21.12 "https://github.com/protocolbuffers/protobuf.git" /app/protobuf
 WORKDIR /app/protobuf
-ADD toolchains/mingw-w64-i686-docker.cmake .
+ADD toolchains/mingw-w64-i686.cmake .
 RUN mkdir -p target/linux64 target/win32 build/linux64 build/win32
 # Build protoc (natively)
 RUN cmake \
@@ -61,7 +61,7 @@ RUN cd build/linux64 && make install && make clean
 
 # Build protobuf library DLL and protoc (win32)
 # TODO: use our makefile
-RUN cmake --toolchain mingw-w64-i686-docker.cmake \
+RUN cmake --toolchain mingw-w64-i686.cmake \
 	-DCMAKE_INSTALL_PREFIX=/usr/i686-w64-mingw32 \
 	-Dprotobuf_BUILD_LIBPROTOC=ON \
 	-Dprotobuf_BUILD_PROTOC_BINARIES=ON \
@@ -79,8 +79,9 @@ RUN cmake --build build/win32 --parallel $(nproc)
 RUN cd build/win32 && make install && make clean
 
 # Build newer cppcheck
-RUN git clone --depth 1 https://github.com/danmar/cppcheck.git /app/cppcheck && \
-	cd /app/cppcheck && mkdir build && cd build && cmake -DUSE_MATCHCOMPILER=ON -DHAVE_RULES=ON .. && cmake --build . --parallel $(nproc) && cmake --build . --target install
+RUN git clone --depth 1 https://github.com/danmar/cppcheck.git --branch 2.14.1 /app/cppcheck && \
+	cd /app/cppcheck && mkdir build && cd build && \
+	cmake -DCMAKE_BUILD_TYPE=Release -DUSE_MATCHCOMPILER=ON -DHAVE_RULES=ON .. && cmake --build . --parallel $(nproc) --config Release && cmake --build . --target install
 
 # Remove GCC and other stuff since they aren't needed anymore
 RUN apt-get remove -y gcc && \

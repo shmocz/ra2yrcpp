@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 env:
-  CMAKE_TOOLCHAIN_FILE: toolchains/mingw-w64-i686-docker.cmake
+  CMAKE_TOOLCHAIN_FILE: toolchains/mingw-w64-i686.cmake
 
 jobs:
   build-docker-image:
@@ -61,6 +61,6 @@ jobs:
           tag_name: latest
           body: Latest ra2yrcpp build.
           files: |
-            cbuild/mingw-w64-i686-docker-Release/ra2yrcpp.zip
+            cbuild/mingw-w64-i686-Release/ra2yrcpp.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

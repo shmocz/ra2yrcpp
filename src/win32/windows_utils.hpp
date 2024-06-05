@@ -67,7 +67,7 @@ void* open_process(unsigned long access, bool inherit, unsigned long pid);
 int read_memory(void* handle, void* dest, const void* src, std::size_t size);
 int close_handle(void* handle);
 int write_memory(void* handle, void* dest, const void* src, std::size_t size);
-int write_memory_local(void* dest, const void* src, std::size_t size);
+void write_memory_local(void* dest, const void* src, std::size_t size);
 unsigned long get_pid(void* handle);
 void for_each_thread(std::function<void(ThreadEntry*)> callback);
 

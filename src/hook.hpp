@@ -11,7 +11,6 @@
 #include <functional>
 #include <mutex>
 #include <string>
-#include <tuple>
 #include <vector>
 
 namespace hook {

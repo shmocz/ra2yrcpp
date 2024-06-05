@@ -170,15 +170,13 @@ static MEMORY_BASIC_INFORMATION get_mem_info(const void* address) {
   return m;
 }
 
-int windows_utils::write_memory_local(void* dest, const void* src,
-                                      std::size_t size) {
+void windows_utils::write_memory_local(void* dest, const void* src,
+                                       std::size_t size) {
   auto m = get_mem_info(dest);
   DWORD prot_old =
       vprotect(m.BaseAddress, m.RegionSize, PAGE_EXECUTE_READWRITE);
   std::memcpy(dest, src, size);
   (void)vprotect(m.BaseAddress, m.RegionSize, prot_old);
-  // FIXME(shmocz): useless
-  return 0;
 }
 
 unsigned long windows_utils::get_pid(void* handle) {

@@ -11,7 +11,7 @@ runs:
         ./scripts/tools.sh docker-release
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ra2yrcpp-${{ github.sha }}.zip
         path: cbuild/mingw-w64-i686-Release/ra2yrcpp.zip

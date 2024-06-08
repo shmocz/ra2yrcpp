@@ -242,7 +242,7 @@ function create-release() {
 }
 
 function compose-cmd() {
-    docker-compose run \
+    docker compose run \
         -u $UID:$UID \
         --rm \
         -e BUILDDIR \

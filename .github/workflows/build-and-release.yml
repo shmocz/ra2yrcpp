@@ -16,27 +16,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - run: mkdir -p ~/image-cache
       - id: image-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/image-cache
           key: image-cache-${{ runner.os }}
       - if: steps.image-cache.outputs.cache-hit != 'true'
         run: |
-          docker-compose build builder
+          docker compose build builder
           docker save -o ~/image-cache/builder.tar shmocz/ra2yrcpp
   build-and-verify:
     runs-on: ubuntu-latest
     needs: build-docker-image
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
       - id: image-cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/image-cache
           key: image-cache-${{ runner.os }}

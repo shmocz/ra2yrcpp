@@ -35,7 +35,7 @@ void x86::restore_regs(Xbyak::CodeGenerator* c) {
 #ifdef XBYAK32
   c->popfd();
   c->popad();
-#elif defined(XBYAK64)
+#else
   c->popfq();
 #endif
 }
@@ -44,7 +44,7 @@ void x86::save_regs(Xbyak::CodeGenerator* c) {
 #ifdef XBYAK32
   c->pushad();
   c->pushfd();
-#elif defined(XBYAK64)
+#else
   c->pushfq();
 #endif
 }

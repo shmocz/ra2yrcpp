@@ -52,6 +52,7 @@ static unsigned long suspend_thread(void* handle) {
 #ifdef _WIN32
   return windows_utils::suspend_thread(handle);
 #elif __linux__
+  (void)handle;
   return 1;
 #else
 #error Not implemented
@@ -158,6 +159,7 @@ unsigned long process::get_pid(void* handle) {
 #ifdef _WIN32
   return windows_utils::get_pid(handle);
 #elif __linux__
+  (void)handle;
   return 1;
 #else
 #error Not implemented
@@ -195,6 +197,7 @@ void Process::write_memory(void* dest, const void* src, std::size_t size,
     }
   }
 #elif __linux__
+  (void)dest;
   return;
 #else
 #error Not implemented
@@ -209,6 +212,7 @@ void Process::read_memory(void* dest, const void* src, std::size_t size) {
         fmt::format("ReadProcessMemory src={},count={}", src, size));
   }
 #elif __linux__
+  (void)dest;
   return;
 #else
 #error Not implemented
@@ -249,6 +253,7 @@ void Process::for_each_thread(std::function<void(Thread*, void*)> callback,
     }
   });
 #elif __linux__
+  (void)cb_ctx;
   return;
 #else
 #error Not implemented

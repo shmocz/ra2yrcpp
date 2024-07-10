@@ -86,6 +86,14 @@ const EventEntry StateContext::add_event(const ra2yrproto::ra2yr::Event& ev,
                     .Location = ra2::coord_to_cell(e.location())};
   } else if (ev.has_sell_cell()) {
     E.Data.SellCell = {.Cell = ra2::coord_to_cell(ev.sell_cell().cell())};
+  } else if (ev.has_sell()) {
+    const auto& tc = ev.sell().whom();
+    E.Data.Sell.Whom.m_ID = tc.m_id();
+    E.Data.Sell.Whom.m_RTTI = tc.m_rtti();
+  } else if (ev.has_deploy()) {
+    const auto& tc = ev.deploy().whom();
+    E.Data.Deploy.Whom.m_ID = tc.m_id();
+    E.Data.Deploy.Whom.m_RTTI = tc.m_rtti();
   }
   if (!EventClass::AddEvent(E, static_cast<int>(ts))) {
     throw std::runtime_error("failed to add event");

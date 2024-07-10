@@ -283,8 +283,19 @@ void EventParser::MegaMission() {
   }
 }
 
+void EventParser::Deploy() {
+  auto* d = T->mutable_deploy();
+  parse_TargetClass(src->Data.Deploy.Whom, d->mutable_whom());
+}
+
+void EventParser::Sell() {
+  const auto& x = src->Data.Sell;
+  auto* d = T->mutable_sell();
+  parse_TargetClass(x.Whom, d->mutable_whom());
+}
+
 void EventParser::Production() {
-  auto& x = src->Data.Production;
+  const auto& x = src->Data.Production;
   auto* d = T->mutable_production();
   d->set_rtti_id(x.RTTI_ID);
   d->set_heap_id(x.Heap_ID);
@@ -292,7 +303,7 @@ void EventParser::Production() {
 }
 
 void EventParser::Place() {
-  auto& x = src->Data.Place;
+  const auto& x = src->Data.Place;
   auto* d = T->mutable_place();
   d->set_rtti_type(static_cast<ra2yrproto::ra2yr::AbstractType>(x.RTTIType));
   d->set_heap_id(x.HeapID);
@@ -310,11 +321,17 @@ void EventParser::parse() {
   T->set_frame(src->Frame);
   T->set_timing(time);
   switch (src->Type) {
+    case EventType::DEPLOY:
+      Deploy();
+      break;
     case EventType::PRODUCE:
       Production();
       break;
     case EventType::PLACE:
       Place();
+      break;
+    case EventType::SELL:
+      Sell();
       break;
     case EventType::MEGAMISSION:
       MegaMission();

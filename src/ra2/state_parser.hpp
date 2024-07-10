@@ -97,9 +97,13 @@ struct EventParser {
 
   void MegaMission();
 
+  void Deploy();
+
   void Production();
 
   void Place();
+
+  void Sell();
 
   void parse();
 };

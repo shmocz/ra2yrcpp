@@ -5,13 +5,13 @@ set -o nounset
 PLAYER_ID="0"
 HOMEDIR="/home/user/project"
 : ${BUILDDIR:="cbuild_docker"}
-TOOLCHAIN="$(echo $CMAKE_TOOLCHAIN_FILE | sed -E 's/.+\/(.+)\.cmake/\1/g')-${CMAKE_BUILD_TYPE}"
+# TOOLCHAIN="$(echo $CMAKE_TOOLCHAIN_FILE | sed -E 's/.+\/(.+)\.cmake/\1/g')-${CMAKE_BUILD_TYPE}"
 : ${TARGET:="localhost:12340"}
 : ${INTEGRATION_TEST_TARGET:="./pyra2yr/test_sell_mcv.py"}
 
 # Executable to be passed to wine and it's args, example:
 # EXE="$HOMEDIR/$BUILDDIR/$TOOLCHAIN/pkg/bin/test_dll_inject.exe --gtest_repeat=-1 --gtest_filter=*IServiceDLL*"
-: ${EXE:="$HOMEDIR/$BUILDDIR/$TOOLCHAIN/pkg/bin/test_dll_inject.exe --gtest_repeat=-1 --gtest_filter=*IServiceDLL*"}
+# : ${EXE:="$HOMEDIR/$BUILDDIR/$TOOLCHAIN/pkg/bin/test_dll_inject.exe --gtest_repeat=-1 --gtest_filter=*IServiceDLL*"}
 GDB_COMMAND='gdb'
 : ${GDB_SCRIPT:="$HOMEDIR/scripts/debug.gdb"}
 
@@ -25,8 +25,8 @@ function dcmd_generic() {
 function dcmd_integration() {
 	: ${user:="root"}
 	: ${it=""}
-	docker exec $it --user "$user" -w "$HOMEDIR"/$BUILDDIR/test_instances/player_${PLAYER_ID} \
-		game-0-$PLAYER_ID bash -c "$1"
+	docker exec $it --user "$user" -w "$HOMEDIR"/test_instances/player_${PLAYER_ID} \
+		game-$PLAYER_ID bash -c "$1"
 }
 
 function gdb_connect() {
@@ -35,7 +35,7 @@ function gdb_connect() {
 
 function debug_integration_test() {
 	# get target PID
-	game_pid="$(dcmd_integration "pgrep -f gamemd-spawn-ra2yrcpp.exe")"
+	game_pid="$(dcmd_integration "pgrep -f 'gamemd-spawn-ra2yrcpp.exe -SPAWN'")"
 	a="$(printf -- '-p %s %s "source "%s""' "$game_pid" "-ex" "$GDB_SCRIPT")"
 
 	# attach (and load symbols)

@@ -48,6 +48,11 @@ class ExProcess {
   std::unique_ptr<ProcessContext> ctx;
 };
 
+struct ImageSection {
+  void* data;
+  size_t length;
+};
+
 void* load_library(std::string name);
 std::uintptr_t get_proc_address(std::string addr, void* module = nullptr);
 std::string get_process_name(int pid);
@@ -70,5 +75,8 @@ int write_memory(void* handle, void* dest, const void* src, std::size_t size);
 void write_memory_local(void* dest, const void* src, std::size_t size);
 unsigned long get_pid(void* handle);
 void for_each_thread(std::function<void(ThreadEntry*)> callback);
-
+// Find DLL by name (e.g. KERNEL32.DLL) that's loaded by current process and
+// return a handle to it. If the DLL is not found, return NULL.
+void* find_dll(std::string name);
+ImageSection find_section(void* handle, std::string name);
 }  // namespace windows_utils

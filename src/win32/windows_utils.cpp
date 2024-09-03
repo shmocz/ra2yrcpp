@@ -311,3 +311,48 @@ ExProcess::~ExProcess() {
   windows_utils::close_handle(pi_.hProcess);
   windows_utils::close_handle(pi_.hThread);
 }
+
+void* windows_utils::find_dll(std::string name) {
+  HANDLE H = GetCurrentProcess();
+  HMODULE modules[1024];
+  DWORD cbNeeded;
+
+  if (EnumProcessModules(H, modules, sizeof(modules), &cbNeeded)) {
+    for (unsigned int i = 0; i < (cbNeeded / sizeof(HMODULE)); i++) {
+      char moduleName[MAX_PATH];
+
+      if (GetModuleBaseNameA(H, modules[i], moduleName,
+                             sizeof(moduleName) / sizeof(char))) {
+        if (name == moduleName) {
+          return modules[i];
+        }
+      }
+    }
+  }
+  return nullptr;
+}
+
+ImageSection windows_utils::find_section(void* handle, std::string name) {
+  char buf[MAX_PATH + 1] = {0};
+  GetModuleFileName(NULL, buf, sizeof buf);
+
+  auto h_dos = (PIMAGE_DOS_HEADER)handle;
+  auto h_nt =
+      (PIMAGE_NT_HEADERS)(reinterpret_cast<char*>(handle) + h_dos->e_lfanew);
+
+  ImageSection S{nullptr, 0};
+
+  for (int i = 0; i < h_nt->FileHeader.NumberOfSections; i++) {
+    PIMAGE_SECTION_HEADER h_section = IMAGE_FIRST_SECTION(h_nt) + i;
+    std::string s_str(reinterpret_cast<char*>(h_section->Name), 8);
+
+    if (name == s_str) {
+      S.data = reinterpret_cast<char*>(handle) + h_section->VirtualAddress;
+      S.length = h_section->Misc.VirtualSize;
+      break;
+    }
+
+    h_section++;
+  }
+  return S;
+}

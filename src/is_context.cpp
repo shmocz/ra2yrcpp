@@ -1,10 +1,5 @@
 #include "is_context.hpp"
 
-#include "protocol/protocol.hpp"
-#include "ra2yrproto/commands_builtin.pb.h"
-#include "ra2yrproto/commands_yr.pb.h"
-#include "ra2yrproto/core.pb.h"
-
 #include "command/is_command.hpp"
 #include "commands_builtin.hpp"
 #include "commands_game.hpp"
@@ -12,12 +7,11 @@
 #include "config.hpp"
 #include "context.hpp"
 #include "dll_inject.hpp"
-#include "hooks_yr.hpp"
+#include "hook.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"
 #include "process.hpp"
 #include "types.h"
-#include "utility/sync.hpp"
 #include "utility/time.hpp"
 #include "win32/windows_utils.hpp"
 #include "x86.hpp"
@@ -35,8 +29,6 @@ using namespace std::chrono_literals;
 using namespace is_context;
 using x86::bytes_to_stack;
 
-namespace gpb = google::protobuf;
-
 ProcAddrs is_context::get_procaddrs() {
   ProcAddrs A;
   A.p_LoadLibrary = windows_utils::get_proc_address("LoadLibraryA");
@@ -50,12 +42,14 @@ vecu8 is_context::vecu8cstr(std::string s) {
   return r;
 }
 
+// TODO: Get rid of the "Context" thingy.
 static Context* make_is_ctx(Context* c,
                             const ra2yrcpp::InstrumentationService::Options O) {
   auto* I = is_context::make_is(O, [c](auto* X) {
     (void)X;
     return c->on_signal();
   });
+
   c->data() = reinterpret_cast<void*>(I);
   c->deleter() = [](Context* ctx) {
     delete reinterpret_cast<decltype(I)>(ctx->data());
@@ -129,15 +123,6 @@ void is_context::get_procaddr(Xbyak::CodeGenerator* c, void* m,
   c->ret();
 }
 
-static void handle_cmd_wait(ra2yrcpp::InstrumentationService* I,
-                            const gpb::Message& cmd) {
-  auto CC = ra2yrcpp::create_command(cmd);
-  util::AtomicVariable<bool> done(false);
-  (void)ra2yrcpp::handle_cmd(I, 0U, &CC, true,
-                             [&done](auto*) { done.store(true); });
-  done.wait(true);
-}
-
 ra2yrcpp::InstrumentationService* is_context::make_is(
     ra2yrcpp::InstrumentationService::Options O,
     std::function<std::string(ra2yrcpp::InstrumentationService*)> on_shutdown) {
@@ -153,24 +138,6 @@ ra2yrcpp::InstrumentationService* is_context::make_is(
       [cmds](auto* t) {
         for (auto& [name, fn] : cmds) {
           t->cmd_manager().add_command(name, fn);
-        }
-
-        if (!t->opts().no_init_hooks) {
-          ra2yrproto::commands::CreateHooks C1;
-
-          C1.set_no_suspend_threads(true);
-          for (const auto& Y : ra2yrcpp::hooks_yr::get_hooks()) {
-            auto* H = C1.add_hooks();
-            H->set_address(Y.address);
-            H->set_name(Y.name);
-            H->set_code_length(Y.size);
-          }
-
-          handle_cmd_wait(t, C1);
-          ra2yrproto::commands::CreateCallbacks C2;
-          handle_cmd_wait(t, C2);
-        } else {
-          iprintf("not creating hooks and callbacks");
         }
       });
 
@@ -219,4 +186,64 @@ void is_context::inject_dll(unsigned pid, std::string path_dll,
 void* is_context::get_context(
     const ra2yrcpp::InstrumentationService::Options O) {
   return make_is_ctx(new is_context::Context(), O);
+}
+
+void RA2YRCPP::create_hook(hook::HookEntry h, hook::hook_fn f) {
+  iprintf("name={},target={:#x},size_bytes={}", h.name, h.address, h.size);
+  if (hooks_.find(h.address) != hooks_.end()) {
+    throw std::runtime_error(
+        fmt::format("Can't overwrite existing hook (name={} address={})",
+                    h.name, reinterpret_cast<void*>(h.address)));
+  }
+  hooks_.try_emplace(h.address, h, f);
+}
+
+void RA2YRCPP::create_all_hooks(char* hooks_section, std::size_t section_size,
+                                void* dll_handle) {
+  // For each hook entry
+  const char* hooks_end = hooks_section + section_size;
+  for (char* p = hooks_section; p < hooks_end; p += sizeof(hook::HookEntry)) {
+    auto* H = reinterpret_cast<hook::HookEntry*>(p);
+    // Get corresponding function
+    // std::string fn_name = "_" + std::string(H->hookName);
+    std::string fn_name = std::string(H->name);
+    auto* proc_address = reinterpret_cast<hook::hook_fn>(
+        windows_utils::get_proc_address(fn_name, dll_handle));
+    if (proc_address == nullptr) {
+      throw std::runtime_error(
+          fmt::format("couldn't find hook function: {}", fn_name));
+    }
+    // Patch target code
+    create_hook(*H, proc_address);
+  }
+}
+
+void RA2YRCPP::create_all_hooks() {
+  auto P = process::get_current_process();
+  void* dll = windows_utils::find_dll(cfg::DLL_NAME);
+  if (dll == nullptr) {
+    throw std::runtime_error("ra2yrcpp main DLL not loaded");
+  }
+
+  // Get syringe section
+  auto section = windows_utils::find_section(dll, ".syhks00");
+  if (section.data == nullptr) {
+    throw std::runtime_error(".syhks00 section not found from DLL");
+  }
+
+  create_all_hooks(reinterpret_cast<char*>(section.data), section.length, dll);
+}
+
+RA2YRCPP* RA2YRCPP::get() {
+  static RA2YRCPP* I = nullptr;
+  if (I == nullptr) {
+    I = new RA2YRCPP();
+  }
+  return I;
+}
+
+void RA2YRCPP::start_service() {
+  if (service_ == nullptr) {
+    service_ = is_context::make_is(o);
+  }
 }

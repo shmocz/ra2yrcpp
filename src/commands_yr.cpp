@@ -5,7 +5,6 @@
 
 #include "command/is_command.hpp"
 #include "config.hpp"
-#include "errors.hpp"
 #include "hooks_yr.hpp"
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
@@ -25,8 +24,6 @@ using ra2yrcpp::command::get_async_cmd;
 using ra2yrcpp::command::get_cmd;
 using ra2yrcpp::command::message_result;
 
-using ra2yrcpp::hooks_yr::ensure_storage_value;
-using ra2yrcpp::hooks_yr::get_data;
 using ra2yrcpp::hooks_yr::get_gameloop_command;
 
 // TODO(shmocz): don't allow deploying of already deployed object
@@ -96,66 +93,32 @@ auto unit_command() {
   });
 }
 
-auto create_callbacks() {
-  return get_cmd<ra2yrproto::commands::CreateCallbacks>([](auto* Q) {
-    auto [lk_s, s] = Q->I()->aq_storage();
-    // Create main game data structure
-    // TODO(shmocz): initialize elsewhere
-    ra2yrcpp::hooks_yr::init_callbacks(get_data(Q->I()));
-    auto cbs = ra2yrcpp::hooks_yr::get_callbacks(Q->I());
-    auto [lk, hhooks] = Q->I()->aq_hooks();
-    for (auto& [k, v] : *cbs) {
-      auto target = v->target();
-      auto h = std::find_if(hhooks->begin(), hhooks->end(), [&](auto& a) {
-        return (a.second.name() == target);
-      });
-      if (h == hhooks->end()) {
-        throw std::runtime_error(fmt::format("No such hook {}", target));
-      }
-
-      const std::string hook_name = k;
-      auto& tmp_cbs = h->second.callbacks();
-      // TODO(shmocz): throw standard exception
-      if (std::find_if(tmp_cbs.begin(), tmp_cbs.end(), [&hook_name](auto& a) {
-            return a.name == hook_name;
-          }) != tmp_cbs.end()) {
-        throw std::runtime_error(fmt::format(
-            "Hook {} already has a callback {}", target, hook_name));
-      }
-
-      iprintf("add callback, target={} cb={}", target, hook_name);
-      auto cb = v.get();
-      cb->add_to_hook(&h->second, Q->I());
-    }
-  });
-}
-
 auto get_game_state() {
   return get_cmd<ra2yrproto::commands::GetGameState>([](auto* Q) {
-    Q->I()->lock_storage();
-    auto* D = get_data(Q->I());
+    auto& M = ra2yrcpp::hooks_yr::MainData::get();
+    M.lock();
+    auto* D = M.data();
     // Unpause game if single-step mode.
     if (D->cfg.single_step() && D->game_paused.get()) {
-      Q->I()->unlock_storage();
+      M.unlock();
       D->game_paused.wait(true);
-      Q->I()->lock_storage();
+      M.lock();
     }
 
     Q->command_data().mutable_state()->CopyFrom(D->sv.game_state());
     if (D->cfg.single_step()) {
       D->game_paused.store(false);
     }
-    Q->I()->unlock_storage();
+    M.unlock();
   });
 }
 
 auto inspect_configuration() {
   return get_cmd<ra2yrproto::commands::InspectConfiguration>([](auto* Q) {
-    auto [mut, s] = Q->I()->aq_storage();
+    auto [mut, M] = ra2yrcpp::hooks_yr::MainData::acquire();
     auto& res = Q->command_data();
-    auto* cfg = &ra2yrcpp::hooks_yr::get_data(Q->I())->cfg;
-    cfg->MergeFrom(Q->command_data().config());
-    res.mutable_config()->CopyFrom(*cfg);
+    M->update_configuration(res.config());
+    res.mutable_config()->CopyFrom(M->data()->cfg);
   });
 }
 
@@ -294,7 +257,7 @@ static void convert_map_data(ra2yrproto::ra2yr::MapDataSoA* dst,
 /// Read a protobuf message from storage determined by command argument type.
 auto read_value() {
   return get_cmd<ra2yrproto::commands::ReadValue>([](auto* Q) {
-    auto [mut, s] = Q->I()->aq_storage();
+    auto [mut, M] = ra2yrcpp::hooks_yr::MainData::acquire();
     auto& A = Q->command_data();
     // find the first field that's been set
     auto sf = ra2yrcpp::protocol::find_set_fields(A.data());
@@ -306,10 +269,10 @@ auto read_value() {
 
     if (fld->name() == "map_data_soa") {
       convert_map_data(D->mutable_map_data_soa(),
-                       get_data(Q->I())->sv.mutable_map_data());
+                       M->data()->sv.mutable_map_data());
     } else {
       // TODO(shmocz): use oneof
-      ra2yrcpp::protocol::copy_field(D, &get_data(Q->I())->sv, fld);
+      ra2yrcpp::protocol::copy_field(D, &M->data()->sv, fld);
     }
   });
 }
@@ -321,7 +284,6 @@ commands_yr::get_commands() {
   return {
       cmd::click_event(),            //
       cmd::unit_command(),           //
-      cmd::create_callbacks(),       //
       cmd::get_game_state(),         //
       cmd::inspect_configuration(),  //
       cmd::mission_clicked(),        //

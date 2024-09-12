@@ -18,11 +18,6 @@ Xbyak::CodeGenerator* ABIGameMD::find_codegen(u32 address) {
 
 codegen_store& ABIGameMD::code_generators() { return code_generators_; }
 
-util::acquire_t<codegen_store, std::recursive_mutex>
-ABIGameMD::acquire_code_generators() {
-  return util::acquire(&code_generators_, &mut_code_generators_);
-}
-
 bool ABIGameMD::SelectObject(u32 address) {
   return ra2::abi::SelectObject::call(this, address);
 }

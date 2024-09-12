@@ -5,7 +5,6 @@
 
 #include "async_queue.hpp"
 #include "command/is_command.hpp"
-#include "instrumentation_service.hpp"
 #include "ra2/abi.hpp"
 #include "ra2/state_context.hpp"
 #include "types.h"
@@ -13,12 +12,12 @@
 
 #include <google/protobuf/repeated_ptr_field.h>
 
-#include <chrono>
+#include <cstddef>
+
 #include <functional>
 #include <map>
 #include <memory>
-#include <string>
-#include <vector>
+#include <mutex>
 
 namespace util_command {
 template <typename T>
@@ -27,13 +26,23 @@ struct ISCommand;
 
 namespace ra2yrcpp::hooks_yr {
 
-namespace {
-using namespace std::chrono_literals;
-}
-
 using gpb::RepeatedPtrField;
-using cb_map_t = std::map<std::string, std::unique_ptr<ra2yrcpp::ISCallback>>;
 
+// General purpose data container to hold resources that need to be freed at
+// game exit.
+class ServiceData {
+ public:
+  ServiceData() = default;
+  virtual ~ServiceData() = default;
+};
+
+enum class ServiceDataId : u32 {
+  GAME_COMMAND = 0U,
+  RECORD_TRAFFIC = 1U,
+  STATE_SAVE = 2U
+};
+
+// Should this be a singleton?
 struct GameDataYR {
   GameDataYR();
 
@@ -41,105 +50,77 @@ struct GameDataYR {
   ra2yrproto::ra2yr::StorageValue sv;
   ra2yrproto::commands::Configuration cfg;
   std::unique_ptr<ra2::StateContext> ctx{nullptr};
-  cb_map_t callbacks;
-  bool callbacks_initialized{false};
   util::AtomicVariable<bool> game_paused{false};
 };
 
-struct CBYR : public ra2yrcpp::ISCallback {
+/// Singleton
+class MainData {
+ public:
+  void initialize_service_datas();
+  void deinitialize_service_datas();
+  GameDataYR* data();
+  static MainData& get();
+  static util::acquire_t<MainData, std::recursive_mutex> acquire();
+  static void lock();
+  static void unlock();
+  std::map<ServiceDataId, std::unique_ptr<ServiceData>>& service_datas();
+  void update_configuration(const ra2yrproto::commands::Configuration& C);
+
+ private:
+  static MainData* instance_;
+  static std::recursive_mutex lock_;
+  std::unique_ptr<GameDataYR> data_;
+  std::map<ServiceDataId, std::unique_ptr<ServiceData>> service_datas_;
+  MainData();
+  ~MainData();
+};
+
+class GameDataInterface : public ServiceData {
+ public:
   using tc_t = RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>;
-
-  GameDataYR* data_{nullptr};
-
-  CBYR();
   ra2::abi::ABIGameMD* abi();
   ra2yrproto::commands::Configuration* configuration();
-  void do_call() override;
-  virtual void exec() = 0;
   ra2yrproto::ra2yr::GameState* game_state();
-  auto* prerequisite_groups();
+  ra2yrproto::ra2yr::PrerequisiteGroups* prerequisite_groups();
   tc_t* type_classes();
   ra2::StateContext* get_state_context();
   GameDataYR* data();
+  /// Update the underlying configuration. Record/traffic paths are determined
+  /// at initialization and will be ignored.
+
+ private:
+  // NB. cyclic dependency
+  GameDataYR* data_{nullptr};
 };
 
-ra2yrcpp::hooks_yr::GameDataYR* get_data(ra2yrcpp::InstrumentationService* I);
-
-/// Get all currently active callback objects.
-cb_map_t* get_callbacks(ra2yrcpp::InstrumentationService* I);
-
-template <typename D, typename B = CBYR>
-struct MyCB : public B {
-  std::string name() override { return D::key_name; }
-
-  std::string target() override { return D::key_target; }
-
-  static D* get(ra2yrcpp::InstrumentationService* I) {
-    return reinterpret_cast<D*>(get_data(I)->callbacks.at(D::key_name).get());
-  }
-};
-
-// TODO(shmocz): reduce calls to this
-template <typename T, typename... ArgsT>
-T* ensure_storage_value(ra2yrcpp::InstrumentationService* I, std::string key,
-                        ArgsT... args) {
-  if (I->storage().find(key) == I->storage().end()) {
-    I->store_value<T>(key, args...);
-  }
-  return static_cast<T*>(I->storage().at(key).get());
-}
-
-void init_callbacks(ra2yrcpp::hooks_yr::GameDataYR* D);
-
-struct work_item {
-  CBYR* cb;
-  command::iservice_cmd* cmd;
-  std::function<void(work_item*)> fn;
-};
-
-struct CBGameCommand final : public MyCB<CBGameCommand> {
-  static constexpr char key_name[] = "cb_game_command";
-  static constexpr char key_target[] = "on_frame_update";
+class GameCommandData : public GameDataInterface {
+ public:
   using work_t = std::function<void()>;
+  static constexpr auto id = ServiceDataId::GAME_COMMAND;
 
+  GameCommandData();
+  void put_work(work_t fn);
+  void consume_work();
+
+  // Get global instance
+  static GameCommandData* get();
+  static std::unique_ptr<GameCommandData> create();
+
+ private:
   async_queue::AsyncQueue<work_t> work;
-
-  CBGameCommand() = default;
-
-  void put_work(work_t fn) { work.push(fn); }
-
-  void exec() override {
-    // If in single-step mode, release storage lock and wait for game to be
-    // unlocked.
-    if (data()->cfg.single_step()) {
-      I->unlock_storage();
-      data()->game_paused.store(true);
-      data()->game_paused.wait(false);
-      I->lock_storage();
-    }
-
-    auto items = work.pop(0, 0.0s);
-    for (const auto& it : items) {
-      it();
-    }
-  }
 };
 
 template <typename T>
-void get_gameloop_command(ra2yrcpp::command::ISCommand<T>* Q,
-                          std::function<void(CBGameCommand*)> fn) {
-  auto* cb = ra2yrcpp::hooks_yr::CBGameCommand::get(Q->I());
+void get_gameloop_command(const ra2yrcpp::command::ISCommand<T>* Q,
+                          std::function<void(GameCommandData*)> fn) {
+  auto* ctx = GameCommandData::get();
   auto* cmd = Q->c;
-  cmd->set_async_handler([cb, fn](auto*) { fn(cb); });
-  cb->put_work([cmd]() { cmd->run_async_handler(); });
+  cmd->set_async_handler([ctx, fn](auto*) { fn(ctx); });
+  ctx->put_work([cmd]() { cmd->run_async_handler(); });
 }
 
-struct YRHook {
-  u32 address;
-  u32 size;
-  const char* name;
-};
-
-std::vector<YRHook> get_hooks();
+void create_all_hooks();
+void create_all_hooks(char* hooks_section, std::size_t section_size,
+                      void* dll_handle);
 
 };  // namespace ra2yrcpp::hooks_yr

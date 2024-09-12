@@ -19,29 +19,8 @@
 
 using ra2yrcpp::command::get_cmd;
 
-/// Adds two unsigned integers, and returns result in EAX
-struct TestProgram : Xbyak::CodeGenerator {
-  TestProgram() {
-    mov(eax, ptr[esp + 1 * 0x4]);
-    add(eax, ptr[esp + 2 * 0x4]);
-    entry_size = getSize();
-    ret();
-  }
-
-  auto get_code() { return getCode<i32 __cdecl (*)(const i32, const i32)>(); }
-
-  std::size_t entry_size;
-};
-
-static void test_cb(hook::Hook*, void* data, X86Regs*) {
-  auto I = static_cast<ra2yrcpp::InstrumentationService*>(data);
-  std::string s("0xbeefdead");
-  I->store_value<vecu8>("test_key", s.begin(), s.end());
-}
-
-// TODO(shmocz): ditch the old hook/cb test functions to use the common
-// functions
-std::map<std::string, ra2yrcpp::cmd_t::handler_t> get_commands_nn() {
+std::map<std::string, ra2yrcpp::cmd_t::handler_t>
+ra2yrcpp::commands_builtin::get_commands() {
   return {
       get_cmd<ra2yrproto::commands::StoreValue>([](auto* Q) {
         // NB: ensure correct radix
@@ -75,55 +54,5 @@ std::map<std::string, ra2yrcpp::cmd_t::handler_t> get_commands_nn() {
         c.set_value(ra2yrcpp::to_string(
             *reinterpret_cast<vecu8*>(Q->I()->get_value(c.key(), false))));
       }),
-      get_cmd<ra2yrproto::commands::HookableCommand>([](auto* Q) {
-        static TestProgram t;
-        auto t_addr = t.get_code();
-        t_addr(3, 3);
-
-        auto& res = Q->command_data();
-        res.set_address_test_function(reinterpret_cast<u64>(t_addr));
-        res.set_address_test_callback(reinterpret_cast<u64>(&test_cb));
-        res.set_code_size(t.entry_size);
-      }),
-      get_cmd<ra2yrproto::commands::AddCallback>([](auto* Q) {
-        auto& a = Q->command_data();
-        hook::HookCallback CB{.func = reinterpret_cast<hook::Hook::hook_cb_t>(
-                                  a.callback_address()),
-                              .user_data = Q->I()};
-        Q->I()
-            ->hooks()
-            .at(static_cast<std::uintptr_t>(a.hook_address()))
-            .add_callback(CB);
-      }),
-      get_cmd<ra2yrproto::commands::CreateHooks>([](auto* Q) {
-// TODO(shmocz): put these to utility function and share code with
-// Hook code.
-#ifdef _WIN32
-        auto P = process::get_current_process();
-        std::vector<process::thread_id_t> ns(Q->I()->get_connection_threads());
-
-        auto& a = Q->command_data();
-
-        // suspend threads?
-        if (!a.no_suspend_threads()) {
-          ns.push_back(process::get_current_tid());
-          P.suspend_threads(ns);
-        }
-
-        // create hooks
-        for (auto& h : a.hooks()) {
-          Q->I()->create_hook(h.name(),
-                              static_cast<std::uintptr_t>(h.address()),
-                              h.code_length());
-        }
-        if (!a.no_suspend_threads()) {
-          P.resume_threads(ns);
-        }
-#endif
-      })};
-}
-
-std::map<std::string, ra2yrcpp::command::iservice_cmd::handler_t>
-ra2yrcpp::commands_builtin::get_commands() {
-  return get_commands_nn();
+  };
 }

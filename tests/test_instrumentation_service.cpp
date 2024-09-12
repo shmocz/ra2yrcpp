@@ -92,42 +92,6 @@ class IServiceTest : public InstrumentationServiceTest {
   void init() override {}
 };
 
-TEST_F(IServiceTest, HookingGetSetWorks) {
-#ifdef RA2YRCPP_64
-  GTEST_SKIP();
-#endif
-  // store initial flag value
-  std::string key = "test_key";
-  std::string flag1 = "0xdeadbeef";
-  std::string flag2 = "0xbeefdead";
-  auto value_eq = [&](std::string v) {
-    auto r = cs->run(GetValue::create({key, ""}));
-    ASSERT_EQ(r.value(), v);
-  };
-
-  auto h = HookableCommand::create({});
-  (void)cs->run(StoreValue::create({key, flag1}));
-  auto res0 = cs->run(h);
-  ASSERT_NE(res0.address_test_function(), 0);
-  value_eq(flag1);
-  {
-    ra2yrproto::HookEntry E;
-    E.set_address(res0.address_test_function());
-    E.set_name("test_hook");
-    E.set_code_length(res0.code_size());
-    std::vector<ra2yrproto::HookEntry> V;
-    V.push_back(E);
-    auto res_ih_a = cs->run(CreateHooks::create({true, V}));
-    value_eq(flag1);
-  }
-  // install callback, which modifies the value (TODO: jit the callback)
-  auto ac = AddCallback::create(
-      {res0.address_test_function(), res0.address_test_callback()});
-  (void)cs->run(ac);
-  (void)cs->run(h);
-  value_eq(flag2);
-}
-
 class NewCommandsTest : public InstrumentationServiceTest {
  protected:
   void init() override {

@@ -5,6 +5,7 @@
 #include "asio_utils.hpp"
 #include "command/command_manager.hpp"
 #include "config.hpp"
+#include "hook.hpp"
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
 #include "util_string.hpp"
@@ -20,43 +21,7 @@
 
 using namespace ra2yrcpp;
 
-ISCallback::ISCallback() : I(nullptr) {}
-
-ISCallback::~ISCallback() {}
-
-void ISCallback::add_to_hook(hook::Hook* h,
-                             ra2yrcpp::InstrumentationService* I) {
-  this->I = I;
-  // TODO(shmocz): avoid using wrapper
-  h->add_callback([this](hook::Hook* h, void* user_data,
-                         X86Regs* state) { this->call(h, user_data, state); },
-                  nullptr, name());
-}
-
-std::vector<process::thread_id_t>
-InstrumentationService::get_connection_threads() {
-  std::vector<process::thread_id_t> res;
-  res.push_back(io_service_tid_.get());
-  return res;
-}
-
-void InstrumentationService::create_hook(const std::string& name,
-                                         const std::uintptr_t target,
-                                         std::size_t code_length) {
-  std::unique_lock<std::mutex> lk(mut_hooks_);
-  iprintf("name={},target={:#x},size_bytes={}", name, target, code_length);
-  if (hooks_.find(target) != hooks_.end()) {
-    throw std::runtime_error(
-        fmt::format("Can't overwrite existing hook (name={} address={})", name,
-                    reinterpret_cast<void*>(target)));
-  }
-  auto tids = get_connection_threads();
-  hooks_.try_emplace(target, target, code_length, name, tids, true);
-}
-
 cmd_manager_t& InstrumentationService::cmd_manager() { return cmd_manager_; }
-
-hooks_t& InstrumentationService::hooks() { return hooks_; }
 
 static ra2yrproto::TextResponse text_response(std::string message) {
   ra2yrproto::TextResponse E;
@@ -243,16 +208,6 @@ void* InstrumentationService::get_value(std::string key, bool acquire) {
   }
   return storage_.at(key).get();
 }
-
-storage_t& InstrumentationService::storage() { return storage_; }
-
-util::acquire_t<hooks_t> InstrumentationService::aq_hooks() {
-  return util::acquire(&hooks_, &mut_hooks_);
-}
-
-void InstrumentationService::lock_storage() { mut_storage_.lock(); }
-
-void InstrumentationService::unlock_storage() { mut_storage_.unlock(); }
 
 util::acquire_t<storage_t, std::recursive_mutex>
 InstrumentationService::aq_storage() {

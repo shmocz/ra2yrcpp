@@ -5,14 +5,12 @@
 #include "utility/array_iterator.hpp"
 #include "utility/function_traits.hpp"
 #include "utility/serialize.hpp"
-#include "utility/sync.hpp"
 
 #include <xbyak/xbyak.h>
 
 #include <cstddef>
 #include <cstdint>
 
-#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -78,9 +76,6 @@ class ABIGameMD {
   Xbyak::CodeGenerator* find_codegen(u32 address);
 
   codegen_store& code_generators();
-
-  util::acquire_t<codegen_store, std::recursive_mutex>
-  acquire_code_generators();
 
   template <typename T, typename... Args>
   auto call(Args... args) {

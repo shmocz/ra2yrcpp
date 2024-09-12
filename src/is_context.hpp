@@ -5,9 +5,11 @@
 
 #include <xbyak/xbyak.h>
 
+#include <cstddef>
 #include <cstdint>
 
 #include <functional>
+#include <map>
 #include <string>
 
 namespace dll_inject {
@@ -61,6 +63,20 @@ void inject_dll(unsigned pid, std::string path_dll,
                 dll_inject::DLLInjectOptions dll);
 
 void* get_context(ra2yrcpp::InstrumentationService::Options O);
+
+// Global ra2yrcpp instance
+struct RA2YRCPP {
+  ra2yrcpp::InstrumentationService::Options o;
+  ra2yrcpp::InstrumentationService* service_;
+  std::map<std::uintptr_t, hook::Hook> hooks_;
+  void create_all_hooks();
+  void create_all_hooks(char* hooks_section, std::size_t section_size,
+                        void* dll_handle);
+  void create_hook(hook::HookEntry h, hook::hook_fn f);
+  void start_service();
+  // Get global instance
+  static RA2YRCPP* get();
+};
 
 const DLLLoader::Options default_options{
     {0U, 0U},         cfg::DLL_NAME, cfg::INIT_NAME, cfg::MAX_CLIENTS,

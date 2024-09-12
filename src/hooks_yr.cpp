@@ -7,13 +7,14 @@
 #include "config.hpp"
 #include "hook.hpp"
 #include "instrumentation_service.hpp"
+#include "is_context.hpp"
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
 #include "ra2/abi.hpp"
 #include "ra2/state_context.hpp"
 #include "ra2/state_parser.hpp"
 #include "ra2/yrpp_export.hpp"
-#include "utility/serialize.hpp"
+#include "types.h"
 
 #include <fmt/core.h>
 #include <google/protobuf/repeated_ptr_field.h>
@@ -23,15 +24,21 @@
 #include <cstring>
 
 #include <algorithm>
-#include <array>
+#include <chrono>
 #include <cstdlib>
-#include <exception>
 #include <iostream>
-#include <iterator>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
+
+#ifdef _MSC_VER
+#pragma section(".syhks00", read, write)
+#endif
+
+using hook::HookEntry;
 
 using namespace ra2yrcpp::hooks_yr;
 using namespace std::chrono_literals;
@@ -44,139 +51,86 @@ static auto default_configuration() {
   return C;
 }
 
-GameDataYR::GameDataYR() : cfg(default_configuration()) {
+static auto load_configuration() {
+  auto C = default_configuration();
+  auto ts = std::to_string(static_cast<std::uint64_t>(
+      std::chrono::high_resolution_clock::now().time_since_epoch().count()));
+  char* p = nullptr;
+  std::string record_path, traffic_path;
+  if ((p = std::getenv("RA2YRCPP_RECORD_PATH")) != nullptr) {
+    record_path = p;
+    if (record_path.empty()) {
+      record_path = fmt::format("record.{}.pb.gz", ts);
+    }
+  }
+  if ((p = std::getenv("RA2YRCPP_RECORD_TRAFFIC")) != nullptr) {
+    traffic_path = p;
+    if (traffic_path.empty()) {
+      traffic_path = fmt::format("traffic.{}.pb.gz", ts);
+    }
+  }
+  C.set_record_filename(record_path);
+  C.set_traffic_filename(traffic_path);
+  return C;
+}
+
+GameDataYR::GameDataYR() : cfg(load_configuration()) {
   ctx = std::make_unique<ra2::StateContext>(&abi, &sv);
 }
 
-cb_map_t* ra2yrcpp::hooks_yr::get_callbacks(
-    ra2yrcpp::InstrumentationService* I) {
-  return &get_data(I)->callbacks;
-}
+ra2::abi::ABIGameMD* GameDataInterface::abi() { return &data()->abi; }
 
-CBYR::CBYR() {}
-
-ra2::abi::ABIGameMD* CBYR::abi() { return &data()->abi; }
-
-void CBYR::do_call() {
-  I->lock_storage();
-  auto [mut_cc, cc] = abi()->acquire_code_generators();
-  try {
-    exec();
-  } catch (const std::exception& e) {
-    eprintf("{}: {}", name(), e.what());
-  }
-  I->unlock_storage();
-}
-
-ra2yrproto::ra2yr::GameState* CBYR::game_state() {
+ra2yrproto::ra2yr::GameState* GameDataInterface::game_state() {
   return data()->sv.mutable_game_state();
 }
 
-CBYR::tc_t* CBYR::type_classes() {
+GameDataInterface::tc_t* GameDataInterface::type_classes() {
   return data()->sv.mutable_initial_game_state()->mutable_object_types();
 }
 
-ra2::StateContext* CBYR::get_state_context() { return data()->ctx.get(); }
-
-ra2yrcpp::hooks_yr::GameDataYR* CBYR::data() {
-  return data_ != nullptr ? data_ : get_data(I);
+ra2::StateContext* GameDataInterface::get_state_context() {
+  return data()->ctx.get();
 }
 
-auto* CBYR::prerequisite_groups() {
+ra2yrcpp::hooks_yr::GameDataYR* GameDataInterface::data() {
+  if (data_ == nullptr) {
+    data_ = MainData::get().data();
+  }
+  return data_;
+}
+
+void MainData::update_configuration(
+    const ra2yrproto::commands::Configuration& C) {
+  auto* cfg = &data()->cfg;
+  if (C.parse_map_data_interval() > 0U) {
+    cfg->set_parse_map_data_interval(C.parse_map_data_interval());
+  }
+  cfg->set_single_step(C.single_step());
+}
+
+ra2yrproto::ra2yr::PrerequisiteGroups*
+GameDataInterface::prerequisite_groups() {
   return data()->sv.mutable_initial_game_state()->mutable_prerequisite_groups();
 }
 
-ra2yrproto::commands::Configuration* CBYR::configuration() {
+ra2yrproto::commands::Configuration* GameDataInterface::configuration() {
   return &data()->cfg;
 }
 
-// TODO(shmocz): do the callback initialization later
-struct CBExitGameLoop final
-    : public MyCB<CBExitGameLoop, ra2yrcpp::ISCallback> {
-  static constexpr char key_target[] = "on_gameloop_exit";
-  static constexpr char key_name[] = "gameloop_exit";
+template <typename T>
+static T* get_service_data() {
+  return reinterpret_cast<T*>(MainData::get().service_datas().at(T::id).get());
+}
 
-  CBExitGameLoop() = default;
-  CBExitGameLoop(const CBExitGameLoop& o) = delete;
-  CBExitGameLoop& operator=(const CBExitGameLoop& o) = delete;
-  CBExitGameLoop(CBExitGameLoop&& o) = delete;
-  CBExitGameLoop& operator=(CBExitGameLoop&& o) = delete;
-  ~CBExitGameLoop() override = default;
-
-  void do_call() override {
-    // Delete all callbacks except ourselves
-    // NB. the corresponding HookCallback must be removed from Hook object
-    // (shared_ptr would be handy here)
-    auto [mut, s] = I->aq_storage();
-    get_data(I)->sv.mutable_game_state()->set_stage(
-        ra2yrproto::ra2yr::STAGE_EXIT_GAME);
-
-    auto [lk, hhooks] = I->aq_hooks();
-    auto* callbacks = get_callbacks(I);
-    // Loop through all callbacks
-    std::vector<std::string> keys;
-    std::transform(callbacks->begin(), callbacks->end(),
-                   std::back_inserter(keys),
-                   [](const auto& v) { return v.first; });
-
-    for (const auto& k : keys) {
-      if (k == name()) {
-        continue;
-      }
-      // Get corresponding hook
-      auto h = std::find_if(hhooks->begin(), hhooks->end(), [&](auto& a) {
-        return (a.second.name() == callbacks->at(k)->target());
-      });
-      // Remove callback's reference from Hook
-      if (h == hhooks->end()) {
-        eprintf("no hook found for callback {}", k);
-      } else {
-        h->second.remove_callback(k);
-        // Delete callback object
-        callbacks->erase(k);
-      }
-    }
-
-    // Flush output in case the process is not terminated gracefully.
-    std::cerr << std::flush;
-    std::cout << std::flush;
-  }
-};
-
-struct CBUpdateLoadProgress final : public MyCB<CBUpdateLoadProgress> {
-  static constexpr char key_name[] = "cb_progress_update";
-  static constexpr char key_target[] = "on_progress_update";
-
-  CBUpdateLoadProgress() = default;
-
-  void exec() override {
-    auto* B = ProgressScreenClass::Instance().PlayerProgresses;
-
-    auto* sv = &data()->sv;
-    auto* local_state = sv->mutable_load_state();
-    if (local_state->load_progresses().empty()) {
-      for (auto i = 0U; i < (sizeof(*B) / sizeof(B)); i++) {
-        local_state->add_load_progresses(0.0);
-      }
-    }
-    for (int i = 0; i < local_state->load_progresses().size(); i++) {
-      local_state->set_load_progresses(i, B[i]);
-    }
-    sv->mutable_game_state()->set_stage(
-        ra2yrproto::ra2yr::LoadStage::STAGE_LOADING);
-  }
-};
-
-struct CBSaveState final : public MyCB<CBSaveState> {
+struct StateSave : public GameDataInterface {
   ra2yrcpp::protocol::MessageOstream out;
   utility::worker_util<std::shared_ptr<ra2yrproto::ra2yr::GameState>> work;
   ra2yrproto::ra2yr::GameState* initial_state;
   std::vector<ra2::Cell> cells;
 
-  static constexpr char key_name[] = "save_state";
-  static constexpr char key_target[] = "on_frame_update";
+  static constexpr auto id = ServiceDataId::STATE_SAVE;
 
-  explicit CBSaveState(std::shared_ptr<std::ostream> record_stream)
+  explicit StateSave(std::shared_ptr<std::ostream> record_stream)
       : out(record_stream, true),
         work([this](const auto& w) { this->serialize_state(*w.get()); }, 10U),
         initial_state(nullptr) {}
@@ -258,18 +212,28 @@ struct CBSaveState final : public MyCB<CBSaveState> {
     return std::make_shared<ra2yrproto::ra2yr::GameState>(*gbuf);
   }
 
-  void exec() override {
-    // enables event debug logs
-    // *reinterpret_cast<char*>(0xa8ed74) = 1;
+  static std::unique_ptr<StateSave> create(std::string record_path) {
+    std::shared_ptr<std::ofstream> record_out = nullptr;
+    if (!record_path.empty()) {
+      iprintf("record state to {}", record_path);
+      record_out = std::make_shared<std::ofstream>(
+          record_path, std::ios_base::out | std::ios_base::binary);
+    }
+    return std::make_unique<StateSave>(record_out);
+  }
+
+  void execute() {
     auto st = state_to_protobuf(type_classes()->empty());
     work.push(st);
   }
+
+  static StateSave* get() { return get_service_data<StateSave>(); }
 };
 
-template <typename D>
-struct CBTunnel : public MyCB<D> {
- public:
+struct SaveTrafficData : ServiceData {
+  static constexpr ServiceDataId id = ServiceDataId::RECORD_TRAFFIC;
   using writer_t = std::shared_ptr<ra2yrcpp::protocol::MessageOstream>;
+  writer_t out;
 
   struct packet_buffer {
     void* data;
@@ -280,9 +244,17 @@ struct CBTunnel : public MyCB<D> {
     u32 destination;
   };
 
-  writer_t out;
+  explicit SaveTrafficData(writer_t out) : out(out) {}
 
-  explicit CBTunnel(writer_t out) : out(out) {}
+  packet_buffer recv_buffer(const X86Regs* cpu_state) {
+    return {reinterpret_cast<void*>(cpu_state->ebp + 0x3f074),
+            static_cast<i32>(cpu_state->esi), 1U, 0U};
+  }
+
+  packet_buffer send_buffer(const X86Regs* cpu_state) {
+    return {reinterpret_cast<void*>(cpu_state->ecx),
+            static_cast<i32>(cpu_state->eax), 0U, 1U};
+  }
 
   void write_packet(u32 source, u32 dest, const void* buf, std::size_t len) {
     // dprintf("source={} dest={}, buf={}, len={}", source, dest, buf, len);
@@ -291,117 +263,168 @@ struct CBTunnel : public MyCB<D> {
     P.set_destination(dest);
     P.mutable_data()->assign(static_cast<const char*>(buf), len);
     if (!out->write(P)) {
-      throw std::runtime_error(
-          fmt::format("{} write_packet failed", D::key_name));
+      throw std::runtime_error("write_packet failed");
     }
   }
 
-  virtual packet_buffer buffer() = 0;
-
-  void exec() override {
-    auto b = buffer();
-    if (b.size > 0) {
+  void write_packet(packet_buffer b) {
+    if (out != nullptr && b.size > 0) {
       write_packet(b.source, b.destination, b.data, b.size);
     }
   }
-};
 
-// TODO(shmocz): pass smart ptr by reference?
-struct CBTunnelRecvFrom final : public CBTunnel<CBTunnelRecvFrom> {
-  static constexpr char key_target[] = "cb_tunnel_recvfrom";
-  static constexpr char key_name[] = "tunnel_recvfrom";
+  static std::unique_ptr<SaveTrafficData> create(std::string traffic_out) {
+    writer_t out = nullptr;
+    if (!traffic_out.empty()) {
+      out = std::make_shared<ra2yrcpp::protocol::MessageOstream>(
+          std::make_shared<std::ofstream>(
+              traffic_out, std::ios_base::out | std::ios_base::binary),
+          true);
+      iprintf("record traffic to {}", traffic_out);
+    }
 
-  explicit CBTunnelRecvFrom(writer_t out) : CBTunnel(std::move(out)) {}
-
-  packet_buffer buffer() override {
-    return {reinterpret_cast<void*>(cpu_state->ebp + 0x3f074),
-            static_cast<i32>(cpu_state->esi), 1U, 0U};
+    return std::make_unique<SaveTrafficData>(out);
   }
+
+  static SaveTrafficData* get() { return get_service_data<SaveTrafficData>(); }
 };
 
-struct CBTunnelSendTo final : public CBTunnel<CBTunnelSendTo> {
-  static constexpr char key_target[] = "cb_tunnel_sendto";
-  static constexpr char key_name[] = "tunnel_sendto";
+void MainData::initialize_service_datas() {
+  auto& C = data_->cfg;
+  service_datas_.try_emplace(ServiceDataId::STATE_SAVE,
+                             StateSave::create(C.record_filename()));
+  service_datas_.try_emplace(ServiceDataId::GAME_COMMAND,
+                             GameCommandData::create());
+  service_datas_.try_emplace(ServiceDataId::RECORD_TRAFFIC,
+                             SaveTrafficData::create(C.traffic_filename()));
+}
 
-  explicit CBTunnelSendTo(writer_t out) : CBTunnel(std::move(out)) {}
+void MainData::deinitialize_service_datas() { service_datas_.clear(); }
 
-  packet_buffer buffer() override {
-    return {reinterpret_cast<void*>(cpu_state->ecx),
-            static_cast<i32>(cpu_state->eax), 0U, 1U};
+GameCommandData::GameCommandData() = default;
+
+void GameCommandData::put_work(work_t fn) { work.push(fn); }
+
+void GameCommandData::consume_work() {
+  auto items = work.pop(0, 0.0s);
+  for (const auto& it : items) {
+    it();
   }
-};
+}
 
-struct CBDebugPrint final : public MyCB<CBDebugPrint> {
-  static constexpr char key_target[] = "cb_debug_print";
-  static constexpr char key_name[] = "debug_print";
+GameCommandData* GameCommandData::get() {
+  return get_service_data<GameCommandData>();
+}
 
-  CBDebugPrint() = default;
+std::unique_ptr<GameCommandData> GameCommandData::create() {
+  return std::make_unique<GameCommandData>();
+}
 
-  // TODO(shmocz): store debug messages in record file
-  void exec() override {
-    if (configuration()->debug_log()) {
-      char buf[1024];
-      std::memset(buf, 'F', sizeof(buf));
-      abi()->sprintf(reinterpret_cast<char**>(&buf), cpu_state->esp + 0x4);
-      fmt::print(stderr, "({}) {}", serialize::read_obj<void*>(cpu_state->esp),
-                 buf);
+MainData* MainData::instance_ = nullptr;
+std::recursive_mutex MainData::lock_;
+
+MainData::MainData() : data_(std::make_unique<GameDataYR>()) {}
+
+MainData& MainData::get() {
+  if (instance_ == nullptr) {
+    instance_ = new MainData();
+  }
+  return *instance_;
+}
+
+GameDataYR* MainData::data() { return data_.get(); }
+
+void MainData::lock() { lock_.lock(); }
+
+void MainData::unlock() { lock_.unlock(); }
+
+std::map<ServiceDataId, std::unique_ptr<ServiceData>>&
+MainData::service_datas() {
+  return service_datas_;
+}
+
+util::acquire_t<MainData, std::recursive_mutex> MainData::acquire() {
+  return util::acquire(&get(), &lock_);
+}
+
+DEFINE_HOOK(0x7b3d6f, TunnelSendTo, 0x6) {
+  auto [mut, M] = MainData::acquire();
+
+  auto* C = SaveTrafficData::get();
+  C->write_packet(C->send_buffer(reinterpret_cast<X86Regs*>(R)));
+  return 0U;
+}
+
+DEFINE_HOOK(0x7b3f15, TunnelRecvFrom, 0x6) {
+  auto [mut, M] = MainData::acquire();
+
+  auto* C = SaveTrafficData::get();
+  C->write_packet(C->recv_buffer(reinterpret_cast<X86Regs*>(R)));
+  return 0U;
+}
+
+DEFINE_HOOK(0x643c62, UpdateLoadProgress, 0x6) {
+  (void)R;
+  auto [mut, M] = MainData::acquire();
+
+  auto* B = ProgressScreenClass::Instance().PlayerProgresses;
+
+  auto* data = M->data();
+  auto* sv = &data->sv;
+  auto* local_state = sv->mutable_load_state();
+  if (local_state->load_progresses().empty()) {
+    for (auto i = 0U; i < (sizeof(*B) / sizeof(B)); i++) {
+      local_state->add_load_progresses(0.0);
     }
   }
+  for (int i = 0; i < local_state->load_progresses().size(); i++) {
+    local_state->set_load_progresses(i, B[i]);
+  }
+  sv->mutable_game_state()->set_stage(
+      ra2yrproto::ra2yr::LoadStage::STAGE_LOADING);
+  return 0U;
+}
+
+DEFINE_HOOK(0x72dfb0, ExitGameLoop, 0x6) {
+  (void)R;
+  auto [mut, M] = MainData::acquire();
+
+  GameCommandData::get()->game_state()->set_stage(
+      ra2yrproto::ra2yr::STAGE_EXIT_GAME);
+  M->deinitialize_service_datas();
+
+  // Flush output in case the process is not terminated gracefully.
+  std::cerr << std::flush;
+  std::cout << std::flush;
+  return 0U;
+}
+
+DEFINE_HOOK(0x55de4f, GameLoopBegin, 0x7) {
+  (void)R;
+  auto [mut, M] = MainData::acquire();
+
+  // Save state
+  StateSave::get()->execute();
+
+  // If in single-step mode, release storage lock and wait for game to be
+  // unlocked.
+  auto* D = M->data();
+  if (D->cfg.single_step()) {
+    M->unlock();
+    D->game_paused.store(true);
+    D->game_paused.wait(false);
+    M->lock();
+  }
+
+  GameCommandData::get()->consume_work();
+
+  return 0U;
 };
 
-ra2yrcpp::hooks_yr::GameDataYR* ra2yrcpp::hooks_yr::get_data(
-    ra2yrcpp::InstrumentationService* I) {
-  return ensure_storage_value<ra2yrcpp::hooks_yr::GameDataYR>(I, "game_data");
-}
-
-// TODO(shmocz): ensure thread safety
-void ra2yrcpp::hooks_yr::init_callbacks(ra2yrcpp::hooks_yr::GameDataYR* D) {
-  if (D->callbacks_initialized) {
-    return;
-  }
-  auto t = std::to_string(static_cast<std::uint64_t>(
-      std::chrono::high_resolution_clock::now().time_since_epoch().count()));
-  auto f = [D](std::unique_ptr<ra2yrcpp::ISCallback> c) {
-    D->callbacks.try_emplace(c->name(), std::move(c));
-  };
-
-  if (std::getenv("RA2YRCPP_RECORD_TRAFFIC") != nullptr) {
-    const std::string traffic_out = fmt::format("traffic.{}.pb.gz", t);
-    iprintf("record traffic to {}", traffic_out);
-
-    auto out = std::make_shared<ra2yrcpp::protocol::MessageOstream>(
-        std::make_shared<std::ofstream>(
-            traffic_out, std::ios_base::out | std::ios_base::binary),
-        true);
-    f(std::make_unique<CBTunnelRecvFrom>(out));
-    f(std::make_unique<CBTunnelSendTo>(out));
-  }
-  f(std::make_unique<CBExitGameLoop>());
-  f(std::make_unique<CBGameCommand>());
-
-  std::shared_ptr<std::ofstream> record_out = nullptr;
-
-  if (std::getenv("RA2YRCPP_RECORD_PATH") != nullptr) {
-    const std::string record_path = std::getenv("RA2YRCPP_RECORD_PATH");
-    D->cfg.set_record_filename(record_path);
-    iprintf("record state to {}", record_path);
-    record_out = std::make_shared<std::ofstream>(
-        record_path, std::ios_base::out | std::ios_base::binary);
-  }
-  f(std::make_unique<CBSaveState>(record_out));
-  f(std::make_unique<CBUpdateLoadProgress>());
-  f(std::make_unique<CBDebugPrint>());
-}
-
-constexpr std::array<YRHook, 6> gg_hooks = {{
-    {0x55de4f, 7U, CBGameCommand::key_target},         //
-    {0x72dfb0, 6U, CBExitGameLoop::key_target},        //
-    {0x7b3d6f, 6U, CBTunnelSendTo::key_target},        //
-    {0x7b3f15, 6U, CBTunnelRecvFrom::key_target},      //
-    {0x643c62, 6U, CBUpdateLoadProgress::key_target},  //
-    {0x4068e0, 6U, CBDebugPrint::key_target},
-}};
-
-std::vector<YRHook> ra2yrcpp::hooks_yr::get_hooks() {
-  return std::vector<YRHook>(gg_hooks.begin(), gg_hooks.end());
+DEFINE_HOOK(0x7cd84d, ExeRun, 0x9) {
+  (void)R;
+  auto [mut, M] = MainData::acquire();
+  M->initialize_service_datas();
+  is_context::RA2YRCPP::get()->start_service();
+  return 0U;
 }

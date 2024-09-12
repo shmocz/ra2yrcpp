@@ -10,6 +10,7 @@
 
 static void* g_context = nullptr;
 
+// TODO: Create placeholder class to get all env vars.
 void ra2yrcpp::initialize(unsigned int max_clients, unsigned int port,
                           bool no_init_hooks) {
   static std::mutex g_lock;
@@ -20,7 +21,13 @@ void ra2yrcpp::initialize(unsigned int max_clients, unsigned int port,
         {cfg::SERVER_ADDRESS, port, max_clients,
          (h != nullptr ? h : cfg::ALLOWED_HOSTS_REGEX)},
         no_init_hooks};
-    g_context = is_context::get_context(O);
+    if (!O.no_init_hooks) {
+      auto* I = is_context::RA2YRCPP::get();
+      I->o = O;
+      I->create_all_hooks();
+    } else {
+      g_context = is_context::get_context(O);
+    }
   }
 
   g_lock.unlock();

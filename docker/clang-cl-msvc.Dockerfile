@@ -1,4 +1,4 @@
-FROM ubuntu:23.04 as msvc-wine
+FROM ubuntu:24.04 as msvc-wine
 
 RUN apt-get update && \
     apt-get install -y wine64-development python3 msitools python3-simplejson git \

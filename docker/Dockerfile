@@ -1,4 +1,4 @@
-FROM ubuntu:23.04 as mingw
+FROM ubuntu:24.04 as mingw
 
 RUN dpkg --add-architecture i386
 RUN \

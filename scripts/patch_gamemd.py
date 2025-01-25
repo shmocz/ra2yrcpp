@@ -288,8 +288,8 @@ def prun(args, **kwargs):
 
 def cmd_gamemd_patch():
     return [
-        "python3",
-        "./scripts/patch_gamemd.py",
+        sys.executable,
+        os.path.abspath(__file__),
         "-s",
         ".p_text:0x00004d66:0x00b7a000:0x0047e000",
         "-s",

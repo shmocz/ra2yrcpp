@@ -61,7 +61,7 @@ For convenience, a Docker image is provided for both MinGW and clang-cl toolchai
 Build the images:
 
 ```bash
-docker-compose build builder
+docker compose build builder
 ```
 
 Build the library with docker:
@@ -81,8 +81,8 @@ If you built the main docker image then protobuf has already been built and you 
 
 ```bash
 mkdir -p opt/usr
-docker-compose cp -L builder:/usr/i686-w64-mingw32 opt/usr
-docker-compose cp -L builder:/usr/bin/protoc opt/bin
+docker compose cp -L builder:/usr/i686-w64-mingw32 opt/usr
+docker compose cp -L builder:/usr/bin/protoc opt/bin
 ```
 
 #### Build

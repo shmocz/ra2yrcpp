@@ -17,7 +17,7 @@ GDB_COMMAND='gdb'
 
 function dcmd_generic() {
 	: ${user:="root"}
-	docker-compose -f docker-compose.yml exec --user "$user" \
+	docker compose -f docker-compose.yml exec --user "$user" \
 		-w "$HOMEDIR"/build_docker \
 		$BUILDER bash -c "$1"
 }
@@ -71,9 +71,9 @@ function debug_testcase() {
 	fi
 	export UID=$(id -u)
 	export GID=$(id -g)
-	docker-compose down --remove-orphans -t 1
+	docker compose down --remove-orphans -t 1
 
-	COMMAND="$WINE_CMD $EXE" docker-compose up $CARGS vnc "$BUILDER"
+	COMMAND="$WINE_CMD $EXE" docker compose up $CARGS vnc "$BUILDER"
 	if [[ "$CARGS" == "-d" ]]; then
 		sleep 2
 		P='x86_64-w64-mingw32-gdb -ex "set solib-search-path "'"$HOMEDIR/$BUILDDIR/$TOOLCHAIN"'/pkg/bin"" -ex "target extended-remote '"$TARGET"'" --args '"$EXE"
@@ -84,8 +84,8 @@ function debug_testcase() {
 function docker_run() {
 	export UID=$(id -u)
 	export GID=$(id -g)
-	docker-compose down --remove-orphans -t 1
-	docker-compose run --rm -it $BUILDER $EXE
+	docker compose down --remove-orphans -t 1
+	docker compose run --rm -it $BUILDER $EXE
 }
 
 # x86_64-w64-mingw32-gdb myprogram.exe
@@ -99,4 +99,4 @@ $DEBUG_FN
 # gdb_connect
 # dcmd_gen "$@"
 
-# COMMAND="sh -c 'BUILDDIR=$(BUILDDIR) make BUILDDIR=$(BUILDDIR) DEST_DIR=$(DEST_DIR) TESTS=$$f test'" docker-compose up --abort-on-container-exit vnc builder; done
+# COMMAND="sh -c 'BUILDDIR=$(BUILDDIR) make BUILDDIR=$(BUILDDIR) DEST_DIR=$(DEST_DIR) TESTS=$$f test'" docker compose up --abort-on-container-exit vnc builder; done

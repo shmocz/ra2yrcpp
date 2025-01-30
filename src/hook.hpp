@@ -43,13 +43,13 @@ class Hook {
 }  // namespace hook
 
 #ifdef _MSC_VER
-#define HOOK_SECTION_ENTRY(hook, funcname, size) \
-  __declspec(allocate(".syhks00"))               \
-      HookEntry _hk_##hook##funcname = {hook, size, #funcname}
+#define HOOK_SECTION_ENTRY(hook, funcname, size)                      \
+  __declspec(allocate(".syhks00")) HookEntry _hk_##hook##funcname = { \
+      hook, size, #funcname}
 #else
-#define HOOK_SECTION_ENTRY(hook, funcname, size) \
-  HookEntry __attribute__((section(".syhks00"))) \
-  _hk_##hook##funcname = {hook, size, #funcname}
+#define HOOK_SECTION_ENTRY(hook, funcname, size)                          \
+  HookEntry __attribute__((section(".syhks00"))) _hk_##hook##funcname = { \
+      hook, size, #funcname}
 #endif
 
 // NB. Syringe headers specify the HOOK_SECTION_ENTRY inside SyringeData::Hooks

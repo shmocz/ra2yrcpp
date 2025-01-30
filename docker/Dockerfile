@@ -5,7 +5,6 @@ RUN \
 	apt-get update -y && apt-get install --no-install-recommends -y \
 	bash \
 	ca-certificates \
-	clang-format \
 	clang-tidy \
 	cmake \
 	g++-mingw-w64-i686-posix \
@@ -25,6 +24,7 @@ RUN \
 	wine32
 
 RUN pip install -U --break-system-packages \
+	clang-format==19.1.6 \
 	cmake-format==0.6.13 \
 	cpplint==1.6.1 \
 	iced-x86

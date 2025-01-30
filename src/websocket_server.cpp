@@ -100,7 +100,7 @@ WebsocketServer::WebsocketServer(WebsocketServer::Options o,
 
   s.set_close_handler([&](connection_hdl h) {
     try {
-      const auto socket_id = s.get_socket_id(h);
+      const unsigned int socket_id = s.get_socket_id(h);
       cb_.close(socket_id);
       (void)ws_conns.erase(socket_id);
       iprintf("closed conn {}", socket_id);
@@ -130,7 +130,7 @@ WebsocketServer::WebsocketServer(WebsocketServer::Options o,
   // HTTP handler for use with CURL etc.
   s.set_http_handler([&](connection_hdl h) {
     auto con = s.get_con_from_hdl(h);
-    const auto id = s.get_socket_id(h);
+    const unsigned int id = s.get_socket_id(h);
     if (ws_conns.find(id) != ws_conns.end()) {
       eprintf("duplicate connection {}", id);
       return;

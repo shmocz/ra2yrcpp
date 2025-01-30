@@ -101,8 +101,9 @@ struct UnitOrderCtx {
     using r2p::UnitAction;
     if (requires_source_object() &&
         is_illegal_mission(src_object_->current_mission())) {
-      throw std::runtime_error(fmt::format("Object has illegal mission: {}",
-                                           src_object_->current_mission()));
+      throw std::runtime_error(
+          fmt::format("Object has illegal mission: {}",
+                      static_cast<int>(src_object_->current_mission())));
     }
     switch (uo().action()) {
       case UnitAction::UNIT_ACTION_DEPLOY:

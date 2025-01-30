@@ -46,10 +46,7 @@ void ClientWebsocketConnection::connect() {
 
   c_->clear_access_channels(websocketpp::log::alevel::frame_payload |
                             websocketpp::log::alevel::frame_header);
-  c_->set_fail_handler([this, c_](auto h) {
-    ws_error ec_;
-    wrprintf("fail handler={}",
-             c_->get_con_from_hdl(h, ec_)->get_socket().native_handle());
+  c_->set_fail_handler([this, c_](auto) {
     stop();
     state_.store(State::CLOSED);
   });

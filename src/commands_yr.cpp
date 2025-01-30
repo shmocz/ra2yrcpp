@@ -78,8 +78,8 @@ auto unit_command() {
     get_gameloop_command(Q, [args](auto* cb) {
       if (args.action() != ra2yrproto::ra2yr::UnitAction::UNIT_ACTION_SELECT &&
           !ra2::is_local(cb->game_state()->houses())) {
-        throw std::runtime_error(
-            fmt::format("invalid local action: {}", args.action()));
+        throw std::runtime_error(fmt::format("invalid local action: {}",
+                                             static_cast<int>(args.action())));
       }
 
       for (auto k : args.object_addresses()) {

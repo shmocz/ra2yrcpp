@@ -1,11 +1,13 @@
 #pragma once
+#include <algorithm>
 #include <map>
 
 namespace ra2yrcpp {
 /// Returns true if @value is in @container. Otherwise false.
 template <typename T, typename V>
 inline bool contains(const T& container, const V& value) {
-  return find(container.begin(), container.end(), value) != container.end();
+  return std::find(container.begin(), container.end(), value) !=
+         container.end();
 }
 
 /// Returns true if key @value is in the map @m. Otherwise false.

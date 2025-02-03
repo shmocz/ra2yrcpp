@@ -117,7 +117,9 @@ auto inspect_configuration() {
   return get_cmd<ra2yrproto::commands::InspectConfiguration>([](auto* Q) {
     auto [mut, M] = ra2yrcpp::hooks_yr::MainData::acquire();
     auto& res = Q->command_data();
-    M->update_configuration(res.config());
+    if (res.update()) {
+      M->update_configuration(res.config());
+    }
     res.mutable_config()->CopyFrom(M->data()->cfg);
   });
 }

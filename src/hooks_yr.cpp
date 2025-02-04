@@ -350,16 +350,24 @@ util::acquire_t<MainData, std::recursive_mutex> MainData::acquire() {
 DEFINE_HOOK(0x7b3d6f, TunnelSendTo, 0x6) {
   auto [mut, M] = MainData::acquire();
 
-  auto* C = SaveTrafficData::get();
-  C->write_packet(C->send_buffer(reinterpret_cast<X86Regs*>(R)));
+  try {
+    auto* C = SaveTrafficData::get();
+    C->write_packet(C->send_buffer(reinterpret_cast<X86Regs*>(R)));
+  } catch (const std::out_of_range& e) {
+    eprintf("ServiceData doesn't exist");
+  }
   return 0U;
 }
 
 DEFINE_HOOK(0x7b3f15, TunnelRecvFrom, 0x6) {
   auto [mut, M] = MainData::acquire();
 
-  auto* C = SaveTrafficData::get();
-  C->write_packet(C->recv_buffer(reinterpret_cast<X86Regs*>(R)));
+  try {
+    auto* C = SaveTrafficData::get();
+    C->write_packet(C->recv_buffer(reinterpret_cast<X86Regs*>(R)));
+  } catch (const std::out_of_range& e) {
+    eprintf("ServiceData doesn't exist");
+  }
   return 0U;
 }
 
@@ -391,6 +399,7 @@ DEFINE_HOOK(0x72dfb0, ExitGameLoop, 0x6) {
 
   GameCommandData::get()->game_state()->set_stage(
       ra2yrproto::ra2yr::STAGE_EXIT_GAME);
+  // FIXME: Do this later, as tunnel hooks are still reached.
   M->deinitialize_service_datas();
 
   // Flush output in case the process is not terminated gracefully.

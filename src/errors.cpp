@@ -1,5 +1,7 @@
 #include "errors.hpp"
 
+#include <string>
+
 #ifdef _WIN32
 #include "win32/win_message.hpp"
 #elif __linux__

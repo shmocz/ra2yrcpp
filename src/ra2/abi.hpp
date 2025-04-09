@@ -35,8 +35,6 @@ class ABIGameMD {
 
   bool ClickEvent(u32 address, u8 event);
 
-  void sprintf(char** buf, std::uintptr_t args_start);
-
   bool BuildingTypeClass_CanPlaceHere(std::uintptr_t p_this, CellStruct* cell,
                                       std::uintptr_t house_owner);
 

@@ -16,9 +16,4 @@ inline bool contains(const std::map<K, V>& m, const V& value) {
   return m.find(value) != m.end();
 }
 
-template <typename C, typename T, typename U>
-auto band(const T& t, const U& u) {
-  return ((C)t) & ((C)u);
-}
-
 }  // namespace ra2yrcpp

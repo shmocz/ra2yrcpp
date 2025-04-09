@@ -22,7 +22,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/image-cache
-          key: image-cache-${{ runner.os }}
+          key: image-cache-${{ runner.os }}-${{ hashFiles('./docker/Dockerfile') }}
       - if: steps.image-cache.outputs.cache-hit != 'true'
         run: |
           docker compose build builder

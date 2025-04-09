@@ -3,6 +3,8 @@
 #include "multi_client.hpp"
 #include "protocol/helpers.hpp"
 
+#include <string>
+
 ra2yrproto::Response ra2yrcppcli::send_command(multi_client::AutoPollClient* A,
                                                std::string name,
                                                std::string args) {

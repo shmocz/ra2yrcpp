@@ -13,6 +13,7 @@
 
 #include <array>
 #include <exception>
+#include <memory>
 #include <stdexcept>
 #include <utility>
 

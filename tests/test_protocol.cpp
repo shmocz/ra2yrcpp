@@ -13,6 +13,7 @@
 #include <fstream>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace fs = std::filesystem;

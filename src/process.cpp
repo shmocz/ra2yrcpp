@@ -9,6 +9,10 @@
 
 #include <cstddef>
 
+#include <memory>
+#include <string>
+#include <vector>
+
 using namespace process;
 
 #ifdef _WIN32

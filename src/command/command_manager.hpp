@@ -91,6 +91,7 @@ class Command {
 
   std::atomic_bool& discard_result() { return discard_result_; }
 
+  // cppcheck-suppress unusedFunction
   handler_t& handler() { return handler_; }
 
   std::string& error_message() { return error_message_; }
@@ -265,6 +266,7 @@ class CommandManager {
     return cmd;
   }
 
+  // cppcheck-suppress unusedFunction
   /// Executes a Command of type USER, and puts result to appropriate result
   /// queue.
   ///

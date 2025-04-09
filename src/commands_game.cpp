@@ -16,7 +16,9 @@
 
 #include <cstdint>
 
+#include <map>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 using namespace ra2yrcpp::commands_game;

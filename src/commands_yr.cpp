@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <map>
 #include <stdexcept>
+#include <string>
 
 using ra2yrcpp::command::get_async_cmd;
 using ra2yrcpp::command::get_cmd;

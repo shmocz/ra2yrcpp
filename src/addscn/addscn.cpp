@@ -3,6 +3,7 @@
 
 #include <memoryapi.h>
 
+#include <algorithm>
 #include <exception>
 #include <iostream>
 #include <memory>

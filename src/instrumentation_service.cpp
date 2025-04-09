@@ -14,8 +14,10 @@
 #include <google/protobuf/any.pb.h>
 
 #include <exception>
+#include <map>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <tuple>
 #include <utility>
 

@@ -1,11 +1,12 @@
 FROM ubuntu:24.04 as mingw
+ARG CPPCHECK_VERSION=2.17.1
+ARG CPPLINT_VERSION=2.0.2
 
 RUN dpkg --add-architecture i386
 RUN \
 	apt-get update -y && apt-get install --no-install-recommends -y \
 	bash \
 	ca-certificates \
-	clang-tidy \
 	cmake \
 	g++-mingw-w64-i686-posix \
 	git \
@@ -25,21 +26,20 @@ RUN \
 
 RUN pip install -U --break-system-packages \
 	clang-format==19.1.6 \
-	cmake-format==0.6.13 \
-	cpplint==1.6.1 \
+	cmakelang==0.6.13 \
+	cpplint==${CPPLINT_VERSION} \
 	iced-x86
 # Fix some library paths
 RUN ln -s /usr/lib/gcc/i686-w64-mingw32/*-posix/libgcc_s_dw2-1.dll \
 	/usr/lib/gcc/i686-w64-mingw32/*-posix/libstdc++-6.dll \
 	/usr/i686-w64-mingw32/lib
 
-# FIXME: rm atp stuff
 # Create user and necessary folders
 RUN useradd -m user && mkdir -p /home/user/project /home/user/.wine && chmod -R 0777 /home/user
 
 RUN \
 	apt-get install -y \
-	gcc
+	g++
 
 # Grab protobuf sources
 RUN git clone --recurse-submodules --depth 1 --branch v3.21.12 "https://github.com/protocolbuffers/protobuf.git" /app/protobuf
@@ -79,11 +79,12 @@ RUN cmake --build build/win32 --parallel $(nproc)
 RUN cd build/win32 && make install && make clean
 
 # Build newer cppcheck
-RUN git clone --depth 1 https://github.com/danmar/cppcheck.git --branch 2.14.1 /app/cppcheck && \
+RUN git clone --depth 1 https://github.com/danmar/cppcheck.git --branch ${CPPCHECK_VERSION} /app/cppcheck && \
 	cd /app/cppcheck && mkdir build && cd build && \
 	cmake -DCMAKE_BUILD_TYPE=Release -DUSE_MATCHCOMPILER=ON -DHAVE_RULES=ON .. && cmake --build . --parallel $(nproc) --config Release && cmake --build . --target install
 
-# Remove GCC and other stuff since they aren't needed anymore
-RUN apt-get remove -y gcc && \
+# Remove temporary packages and clean cache
+RUN apt-get remove -y g++ && \
 	apt-get clean -y && \
+	apt-get autoremove -y && \
 	rm -rf /var/lib/apt/lists/*

@@ -8,6 +8,7 @@
 
 #include <fmt/core.h>
 
+#include <memory>
 #include <stdexcept>
 
 using namespace instrumentation_client;

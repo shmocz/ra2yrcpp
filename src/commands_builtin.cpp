@@ -14,6 +14,8 @@
 
 #include <cstddef>
 
+#include <map>
+#include <string>
 #include <utility>
 #include <vector>
 

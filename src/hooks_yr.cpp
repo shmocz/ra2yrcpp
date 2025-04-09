@@ -27,6 +27,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <stdexcept>

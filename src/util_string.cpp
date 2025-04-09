@@ -1,6 +1,8 @@
 #include "util_string.hpp"
 
 #include <regex>
+#include <string>
+#include <vector>
 
 std::vector<std::string> ra2yrcpp::split_string(const std::string& str,
                                                 std::string delim) {

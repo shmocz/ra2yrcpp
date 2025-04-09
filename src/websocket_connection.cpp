@@ -13,6 +13,7 @@
 #include <chrono>
 #include <exception>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 using namespace ra2yrcpp::connection;

@@ -27,7 +27,7 @@ function lint() {
     cpplint \
         --recursive \
         --exclude=src/utility/scope_guard.hpp \
-        --filter=-build/include_order,-build/include_subdir,-build/c++11,-legal/copyright,-build/namespaces,-readability/todo,-runtime/int,-runtime/string,-runtime/printf \
+        --filter=-build/include_order,-build/include_subdir,-build/c++11,-legal/copyright,-build/namespaces,-readability/todo,-runtime/int,-runtime/string,-runtime/printf,-whitespace/indent_namespace,-build/c++17:tests/test_protocol.cpp \
         src/ tests/
 }
 

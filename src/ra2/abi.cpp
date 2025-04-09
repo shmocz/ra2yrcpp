@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include <stdexcept>
+#include <string>
 
 using namespace ra2::abi;
 
@@ -32,17 +33,6 @@ void ABIGameMD::DeployObject(u32 address) {
 
 bool ABIGameMD::ClickEvent(u32 address, u8 event) {
   return ra2::abi::ClickEvent::call(this, address, event);
-}
-
-void ABIGameMD::sprintf(char** buf, std::uintptr_t args_start) {
-  char fake_stack[128];
-  auto val = reinterpret_cast<std::uintptr_t>(buf);
-  std::memset(&fake_stack[0], 0, sizeof(fake_stack));
-  std::memcpy(&fake_stack[0], &val, 4U);
-  // copy rest of the args (WARNING: out of bounds read)
-  std::memcpy(&fake_stack[4], reinterpret_cast<char*>(args_start),
-              sizeof(fake_stack) - 4U);
-  ra2::abi::sprintf::call(this, &fake_stack[0], sizeof(fake_stack));
 }
 
 u32 ABIGameMD::timeGetTime() {

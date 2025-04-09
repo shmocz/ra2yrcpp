@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <array>
 #include <stdexcept>
+#include <vector>
 
 using namespace ra2;
 

@@ -1,6 +1,7 @@
 #include "context.hpp"
 
 #include <mutex>
+#include <string>
 
 using namespace context;
 

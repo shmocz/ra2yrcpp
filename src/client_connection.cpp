@@ -1,5 +1,7 @@
 #include "client_connection.hpp"
 
+#include <string>
+
 using namespace ra2yrcpp::connection;
 
 ClientConnection::ClientConnection(std::string host, std::string port)

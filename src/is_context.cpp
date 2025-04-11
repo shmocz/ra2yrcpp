@@ -5,7 +5,6 @@
 #include "commands_game.hpp"
 #include "commands_yr.hpp"
 #include "constants.hpp"
-#include "context.hpp"
 #include "dll_inject.hpp"
 #include "hook.hpp"
 #include "instrumentation_service.hpp"
@@ -22,6 +21,7 @@
 #include <algorithm>
 #include <chrono>
 #include <map>
+#include <memory>
 #include <stdexcept>
 #include <string>
 
@@ -41,25 +41,6 @@ vecu8 is_context::vecu8cstr(std::string s) {
   vecu8 r(s.begin(), s.end());
   r.push_back('\0');
   return r;
-}
-
-// TODO: Get rid of the "Context" thingy.
-static Context* make_is_ctx(Context* c,
-                            const ra2yrcpp::InstrumentationService::Options O) {
-  auto* I = is_context::make_is(O, [c](auto* X) {
-    (void)X;
-    return c->on_signal();
-  });
-
-  c->data() = reinterpret_cast<void*>(I);
-  c->deleter() = [](Context* ctx) {
-    delete reinterpret_cast<decltype(I)>(ctx->data());
-  };
-  c->set_on_signal([](Context* ctx) {
-    auto* II = reinterpret_cast<decltype(I)>(ctx->data());
-    return II->on_shutdown();
-  });
-  return c;
 }
 
 DLLLoader::DLLLoader(DLLLoader::Options o) {
@@ -182,69 +163,4 @@ void is_context::inject_dll(unsigned pid, std::string path_dll,
   auto p = L.getCode<u8*>();
   vecu8 sc(p, p + L.getSize());
   dll_inject::suspend_inject_resume(P.handle(), sc, dll);
-}
-
-void* is_context::get_context(
-    const ra2yrcpp::InstrumentationService::Options O) {
-  return make_is_ctx(new is_context::Context(), O);
-}
-
-void RA2YRCPP::create_hook(hook::HookEntry h, hook::hook_fn f) {
-  iprintf("name={},target={:#x},size_bytes={}", h.name, h.address, h.size);
-  if (hooks_.find(h.address) != hooks_.end()) {
-    throw std::runtime_error(
-        fmt::format("Can't overwrite existing hook (name={} address={})",
-                    h.name, reinterpret_cast<void*>(h.address)));
-  }
-  hooks_.try_emplace(h.address, h, f);
-}
-
-void RA2YRCPP::create_all_hooks(char* hooks_section, std::size_t section_size,
-                                void* dll_handle) {
-  // For each hook entry
-  const char* hooks_end = hooks_section + section_size;
-  for (char* p = hooks_section; p < hooks_end; p += sizeof(hook::HookEntry)) {
-    auto* H = reinterpret_cast<hook::HookEntry*>(p);
-    // Get corresponding function
-    // std::string fn_name = "_" + std::string(H->hookName);
-    std::string fn_name = std::string(H->name);
-    auto* proc_address = reinterpret_cast<hook::hook_fn>(
-        windows_utils::get_proc_address(fn_name, dll_handle));
-    if (proc_address == nullptr) {
-      throw std::runtime_error(
-          fmt::format("couldn't find hook function: {}", fn_name));
-    }
-    // Patch target code
-    create_hook(*H, proc_address);
-  }
-}
-
-void RA2YRCPP::create_all_hooks() {
-  auto P = process::get_current_process();
-  void* dll = windows_utils::find_dll(cfg::DLL_NAME);
-  if (dll == nullptr) {
-    throw std::runtime_error("ra2yrcpp main DLL not loaded");
-  }
-
-  // Get syringe section
-  auto section = windows_utils::find_section(dll, ".syhks00");
-  if (section.data == nullptr) {
-    throw std::runtime_error(".syhks00 section not found from DLL");
-  }
-
-  create_all_hooks(reinterpret_cast<char*>(section.data), section.length, dll);
-}
-
-RA2YRCPP* RA2YRCPP::get() {
-  static RA2YRCPP* I = nullptr;
-  if (I == nullptr) {
-    I = new RA2YRCPP();
-  }
-  return I;
-}
-
-void RA2YRCPP::start_service() {
-  if (service_ == nullptr) {
-    service_ = is_context::make_is(o);
-  }
 }

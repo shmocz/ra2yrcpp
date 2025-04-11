@@ -2,32 +2,27 @@
 
 #include "constants.hpp"
 #include "instrumentation_service.hpp"
-#include "is_context.hpp"
+#include "logging.hpp"
+#include "ra2yrcpp.hpp"
 
+#include <cstdio>
 #include <cstdlib>
+
 #include <mutex>
 #include <string>
 
-static void* g_context = nullptr;
-
-// TODO: Create placeholder class to get all env vars.
 void ra2yrcpp::initialize(unsigned int max_clients, unsigned int port,
                           bool no_init_hooks) {
+  (void)max_clients;
+  (void)port;
   static std::mutex g_lock;
   g_lock.lock();
-  auto* h = std::getenv("RA2YRCPP_ALLOWED_HOSTS_REGEX");
-  if (g_context == nullptr) {
-    ra2yrcpp::InstrumentationService::Options O{
-        {cfg::SERVER_ADDRESS, port, max_clients,
-         (h != nullptr ? h : cfg::ALLOWED_HOSTS_REGEX)},
-        no_init_hooks};
-    if (!O.no_init_hooks) {
-      auto* I = is_context::RA2YRCPP::get();
-      I->o = O;
-      I->create_all_hooks();
-    } else {
-      g_context = is_context::get_context(O);
-    }
+  auto* I = ra2yrcpp::Main::get();
+  if (no_init_hooks) {
+    I->load_configuration(nullptr);
+    I->start_service();
+  } else {
+    I->create_all_hooks();
   }
 
   g_lock.unlock();
@@ -36,9 +31,17 @@ void ra2yrcpp::initialize(unsigned int max_clients, unsigned int port,
 // cppcheck-suppress unusedFunction
 void init_iservice(unsigned int max_clients, unsigned int port,
                    unsigned int no_init_hooks) {
-  const auto* tcp_port = std::getenv("RA2YRCPP_PORT");
+  ra2yrcpp::initialize(max_clients, port, no_init_hooks > 0U);
+}
 
-  ra2yrcpp::initialize(max_clients,
-                       (tcp_port != nullptr) ? std::stol(tcp_port) : port,
-                       no_init_hooks > 0U);
+// cppcheck-suppress unusedFunction
+int __stdcall DllMain(HANDLE hInstance, DWORD dwReason, LPVOID v) {
+  (void)hInstance;
+  (void)v;
+  if (dwReason == DLL_PROCESS_ATTACH) {
+    (void)ra2yrcpp::logging::set_output_handle(cfg::LOG_FILE_NAME);
+  } else if (dwReason == DLL_PROCESS_DETACH) {
+    ra2yrcpp::logging::close_output_handle();
+  }
+  return 1;
 }

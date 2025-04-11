@@ -1,10 +1,10 @@
 #pragma once
 
-#include "ra2yrproto/commands_yr.pb.h"
 #include "ra2yrproto/ra2yr.pb.h"
 
 #include "async_queue.hpp"
 #include "command/is_command.hpp"
+#include "config.hpp"
 #include "ra2/abi.hpp"
 #include "ra2/state_context.hpp"
 #include "types.h"
@@ -48,7 +48,6 @@ struct GameDataYR {
 
   ra2::abi::ABIGameMD abi;
   ra2yrproto::ra2yr::StorageValue sv;
-  ra2yrproto::commands::Configuration cfg;
   std::unique_ptr<ra2::StateContext> ctx{nullptr};
   util::AtomicVariable<bool> game_paused{false};
 };
@@ -64,10 +63,11 @@ class MainData {
   static void lock();
   static void unlock();
   std::map<ServiceDataId, std::unique_ptr<ServiceData>>& service_datas();
-  void update_configuration(const ra2yrproto::commands::Configuration& C);
+  void update_config(const ra2yrcpp::config::Config& cfg);
 
  private:
   static MainData* instance_;
+  // TODO: Explain rationale behind recursive mutex
   static std::recursive_mutex lock_;
   std::unique_ptr<GameDataYR> data_;
   std::map<ServiceDataId, std::unique_ptr<ServiceData>> service_datas_;
@@ -79,14 +79,11 @@ class GameDataInterface : public ServiceData {
  public:
   using tc_t = RepeatedPtrField<ra2yrproto::ra2yr::ObjectTypeClass>;
   ra2::abi::ABIGameMD* abi();
-  ra2yrproto::commands::Configuration* configuration();
   ra2yrproto::ra2yr::GameState* game_state();
   ra2yrproto::ra2yr::PrerequisiteGroups* prerequisite_groups();
   tc_t* type_classes();
   ra2::StateContext* get_state_context();
   GameDataYR* data();
-  /// Update the underlying configuration. Record/traffic paths are determined
-  /// at initialization and will be ignored.
 
  private:
   // NB. cyclic dependency

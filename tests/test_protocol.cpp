@@ -1,8 +1,11 @@
+#include "ra2yrproto/commands_yr.pb.h"
 #include "ra2yrproto/ra2yr.pb.h"
 
+#include "config.hpp"
 #include "gtest/gtest.h"
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
+#include "util_string.hpp"
 
 #include <google/protobuf/util/message_differencer.h>
 

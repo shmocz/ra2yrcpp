@@ -44,8 +44,6 @@ class InstrumentationService {
  public:
   struct Options {
     WebsocketServer::Options server;
-    /// If true, don't create hooks and their callbacks.
-    bool no_init_hooks;
   };
 
   /// @param opt options
@@ -106,7 +104,6 @@ class InstrumentationService {
 
 const InstrumentationService::Options default_options{
     {cfg::SERVER_ADDRESS, cfg::SERVER_PORT, cfg::MAX_CLIENTS,
-     cfg::ALLOWED_HOSTS_REGEX},
-    true};
+     cfg::ALLOWED_HOSTS_REGEX}};
 
 }  // namespace ra2yrcpp

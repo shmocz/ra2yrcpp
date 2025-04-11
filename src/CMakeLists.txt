@@ -17,10 +17,12 @@ add_library(
   command/command_manager.cpp
   command/is_command.cpp
   commands_builtin.cpp
+  config.cpp
   errors.cpp
   hook.cpp
   instrumentation_client.cpp
   instrumentation_service.cpp
+  logging.cpp
   multi_client.cpp
   process.cpp
   utility/sync.cpp
@@ -49,7 +51,6 @@ if(RA2YRCPP_BUILD_MAIN_DLL)
     yrclient STATIC
     commands_game.cpp
     commands_yr.cpp
-    context.cpp
     dll_inject.cpp
     hooks_yr.cpp
     is_context.cpp
@@ -59,6 +60,7 @@ if(RA2YRCPP_BUILD_MAIN_DLL)
     ra2/state_context.cpp
     ra2/state_parser.cpp
     ra2/yrpp_export.cpp
+    ra2yrcpp.cpp
     ra2yrcppcli/ra2yrcppcli.cpp)
 
   target_link_libraries(

@@ -22,6 +22,19 @@ enum class Level : int { ERROR = 0, DEBUG = 1, WARNING = 2, INFO = 3 };
 constexpr std::array<const char*, 4> levels = {"ERROR", "DEBUG", "WARNING",
                                                "INFO"};
 
+/// Open output log handle if no previous handle is active.
+/// @param path Output log path. If nullptr, set up a null handle.
+/// @return True if log file was opened succesfully.
+bool set_output_handle(const char* path);
+
+/// Get output log handle
+/// @return Output file handle. If no handle has been configured, or previous handle has been closed
+/// returns stderr.
+FILE* get_output_handle();
+
+/// Flush and close a previously opened output handle.
+void close_output_handle();
+
 template <typename... Args>
 inline void print_message(FILE* fp, Level level, const char* fmt_s,
                           const char* file, const char* func, int line,
@@ -36,14 +49,24 @@ inline void print_message(FILE* fp, Level level, const char* fmt_s,
 }
 
 template <typename... Args>
+inline void print_error(Level level, const char* fmt_s, const char* file,
+                        const char* func, int line, Args... args) {
+  auto* fp = get_output_handle();
+  if (fp == nullptr) {
+    return;
+  }
+  print_message(fp, level, fmt_s, file, func, line, args...);
+}
+
+template <typename... Args>
 inline void debug(const char* s, const char* file, const char* func,
                   const int line, Args... args) {
-  print_message(stderr, Level::DEBUG, s, file, func, line, args...);
+  print_error(Level::DEBUG, s, file, func, line, args...);
 }
 
 template <typename... Args>
 inline void eerror(Args... args) {
-  print_message(stderr, Level::ERROR, args...);
+  print_error(Level::ERROR, args...);
 }
 
 }  // namespace logging
@@ -66,16 +89,14 @@ inline void eerror(Args... args) {
     ra2yrcpp::logging::eerror(fmt, LOCATION_INFO() VA_ARGS(__VA_ARGS__)); \
   } while (0)
 
-#define wrprintf(fmt, ...)                                                   \
-  do {                                                                       \
-    ra2yrcpp::logging::print_message(stderr,                                 \
-                                     ra2yrcpp::logging::Level::WARNING, fmt, \
-                                     LOCATION_INFO() VA_ARGS(__VA_ARGS__));  \
+#define wrprintf(fmt, ...)                                                 \
+  do {                                                                     \
+    ra2yrcpp::logging::print_error(ra2yrcpp::logging::Level::WARNING, fmt, \
+                                   LOCATION_INFO() VA_ARGS(__VA_ARGS__));  \
   } while (0)
 
-#define iprintf(fmt, ...)                                                    \
-  do {                                                                       \
-    ra2yrcpp::logging::print_message(stderr, ra2yrcpp::logging::Level::INFO, \
-                                     fmt,                                    \
-                                     LOCATION_INFO() VA_ARGS(__VA_ARGS__));  \
+#define iprintf(fmt, ...)                                                 \
+  do {                                                                    \
+    ra2yrcpp::logging::print_error(ra2yrcpp::logging::Level::INFO, fmt,   \
+                                   LOCATION_INFO() VA_ARGS(__VA_ARGS__)); \
   } while (0)

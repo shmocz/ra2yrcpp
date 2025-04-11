@@ -6,12 +6,14 @@
 #include "command/is_command.hpp"
 #include "constants.hpp"
 #include "hooks_yr.hpp"
+#include "is_context.hpp"
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
 #include "ra2/abi.hpp"
 #include "ra2/common.hpp"
 #include "ra2/state_parser.hpp"
 #include "ra2/yrpp_export.hpp"
+#include "ra2yrcpp.hpp"
 #include "types.h"
 
 #include <fmt/core.h>
@@ -99,15 +101,16 @@ auto get_game_state() {
     auto& M = ra2yrcpp::hooks_yr::MainData::get();
     M.lock();
     auto* D = M.data();
+    bool single_step = ra2yrcpp::Main::get()->config().c().single_step;
     // Unpause game if single-step mode.
-    if (D->cfg.single_step() && D->game_paused.get()) {
+    if (single_step && D->game_paused.get()) {
       M.unlock();
       D->game_paused.wait(true);
       M.lock();
     }
 
     Q->command_data().mutable_state()->CopyFrom(D->sv.game_state());
-    if (D->cfg.single_step()) {
+    if (single_step) {
       D->game_paused.store(false);
     }
     M.unlock();
@@ -119,9 +122,11 @@ auto inspect_configuration() {
     auto [mut, M] = ra2yrcpp::hooks_yr::MainData::acquire();
     auto& res = Q->command_data();
     if (res.update()) {
-      M->update_configuration(res.config());
+      M->update_config(
+          ra2yrcpp::config::Config(ra2yrcpp::protocol::to_json(res.config())));
     }
-    res.mutable_config()->CopyFrom(M->data()->cfg);
+    (void)ra2yrcpp::protocol::from_json(
+        ra2yrcpp::Main::get()->config().to_json(), res.mutable_config());
   });
 }
 

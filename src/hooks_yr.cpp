@@ -7,25 +7,28 @@
 #include "constants.hpp"
 #include "hook.hpp"
 #include "instrumentation_service.hpp"
-#include "is_context.hpp"
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
 #include "ra2/abi.hpp"
 #include "ra2/state_context.hpp"
 #include "ra2/state_parser.hpp"
 #include "ra2/yrpp_export.hpp"
+#include "ra2yrcpp.hpp"
 #include "types.h"
+#ifndef NDEBUG
+#include "win32/windows_debug.hpp"
+#endif
 
 #include <fmt/core.h>
 #include <google/protobuf/repeated_ptr_field.h>
 
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 #include <algorithm>
 #include <chrono>
-#include <cstdlib>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -44,38 +47,7 @@ using hook::HookEntry;
 using namespace ra2yrcpp::hooks_yr;
 using namespace std::chrono_literals;
 
-static auto default_configuration() {
-  ra2yrproto::commands::Configuration C;
-  C.set_debug_log(true);
-  C.set_parse_map_data_interval(1U);
-  C.set_single_step(false);
-  return C;
-}
-
-static auto load_configuration() {
-  auto C = default_configuration();
-  auto ts = std::to_string(static_cast<std::uint64_t>(
-      std::chrono::high_resolution_clock::now().time_since_epoch().count()));
-  char* p = nullptr;
-  std::string record_path, traffic_path;
-  if ((p = std::getenv("RA2YRCPP_RECORD_PATH")) != nullptr) {
-    record_path = p;
-    if (record_path.empty()) {
-      record_path = fmt::format("record.{}.pb.gz", ts);
-    }
-  }
-  if ((p = std::getenv("RA2YRCPP_RECORD_TRAFFIC")) != nullptr) {
-    traffic_path = p;
-    if (traffic_path.empty()) {
-      traffic_path = fmt::format("traffic.{}.pb.gz", ts);
-    }
-  }
-  C.set_record_filename(record_path);
-  C.set_traffic_filename(traffic_path);
-  return C;
-}
-
-GameDataYR::GameDataYR() : cfg(load_configuration()) {
+GameDataYR::GameDataYR() {
   ctx = std::make_unique<ra2::StateContext>(&abi, &sv);
 }
 
@@ -100,22 +72,19 @@ ra2yrcpp::hooks_yr::GameDataYR* GameDataInterface::data() {
   return data_;
 }
 
-void MainData::update_configuration(
-    const ra2yrproto::commands::Configuration& C) {
-  auto* cfg = &data()->cfg;
-  if (C.parse_map_data_interval() > 0U) {
-    cfg->set_parse_map_data_interval(C.parse_map_data_interval());
+void MainData::update_config(const ra2yrcpp::config::Config& C) {
+  auto& cfg = ra2yrcpp::Main::get()->config();
+  // TODO: Figure out other way to indicate "disabled" state. Currently client can only
+  // disable map data parsing by setting this to a high value.
+  if (C.c().parse_map_data_interval > 0U) {
+    cfg.set_parse_map_data_interval(C.c().parse_map_data_interval);
   }
-  cfg->set_single_step(C.single_step());
+  cfg.set_single_step(C.c().single_step);
 }
 
 ra2yrproto::ra2yr::PrerequisiteGroups*
 GameDataInterface::prerequisite_groups() {
   return data()->sv.mutable_initial_game_state()->mutable_prerequisite_groups();
-}
-
-ra2yrproto::commands::Configuration* GameDataInterface::configuration() {
-  return &data()->cfg;
 }
 
 template <typename T>
@@ -194,7 +163,8 @@ struct StateSave : public GameDataInterface {
 
     // Parse cells
     if (!cells.empty() &&
-        (gbuf->current_frame() % configuration()->parse_map_data_interval() ==
+        (gbuf->current_frame() %
+             ra2yrcpp::Main::get()->config().c().parse_map_data_interval ==
          0U)) {
       gbuf->clear_cells_difference();
       ra2::parse_map(&cells, MapClass::Instance.get(),
@@ -291,13 +261,13 @@ struct SaveTrafficData : ServiceData {
 };
 
 void MainData::initialize_service_datas() {
-  auto& C = data_->cfg;
+  const auto& C = ra2yrcpp::Main::get()->config().c();
   service_datas_.try_emplace(ServiceDataId::STATE_SAVE,
-                             StateSave::create(C.record_filename()));
+                             StateSave::create(C.record_filename));
   service_datas_.try_emplace(ServiceDataId::GAME_COMMAND,
                              GameCommandData::create());
   service_datas_.try_emplace(ServiceDataId::RECORD_TRAFFIC,
-                             SaveTrafficData::create(C.traffic_filename()));
+                             SaveTrafficData::create(C.traffic_filename));
 }
 
 void MainData::deinitialize_service_datas() { service_datas_.clear(); }
@@ -403,9 +373,6 @@ DEFINE_HOOK(0x72dfb0, ExitGameLoop, 0x6) {
   // FIXME: Do this later, as tunnel hooks are still reached.
   M->deinitialize_service_datas();
 
-  // Flush output in case the process is not terminated gracefully.
-  std::cerr << std::flush;
-  std::cout << std::flush;
   return 0U;
 }
 
@@ -419,7 +386,9 @@ DEFINE_HOOK(0x55de4f, GameLoopBegin, 0x7) {
   // If in single-step mode, release storage lock and wait for game to be
   // unlocked.
   auto* D = M->data();
-  if (D->cfg.single_step()) {
+
+  // FIXME: Using cfg this way isnt thread safe
+  if (ra2yrcpp::Main::get()->config().c().single_step) {
     M->unlock();
     D->game_paused.store(true);
     D->game_paused.wait(false);
@@ -434,7 +403,12 @@ DEFINE_HOOK(0x55de4f, GameLoopBegin, 0x7) {
 DEFINE_HOOK(0x7cd84d, ExeRun, 0x9) {
   (void)R;
   auto [mut, M] = MainData::acquire();
+  ra2yrcpp::Main::get()->load_configuration(cfg::CONFIG_FILE_NAME);
   M->initialize_service_datas();
-  is_context::RA2YRCPP::get()->start_service();
+  ra2yrcpp::Main::get()->start_service();
+
+#ifndef NDEBUG
+  (void)windows_utils::debugger_detach();
+#endif
   return 0U;
 }

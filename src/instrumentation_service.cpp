@@ -61,7 +61,7 @@ ra2yrproto::PollResults InstrumentationService::flush_results(
   return P;
 }
 
-std::tuple<command_hdl_t, ra2yrproto::RunCommandAck> ra2yrcpp::handle_cmd(
+static std::tuple<command_hdl_t, ra2yrproto::RunCommandAck> handle_cmd(
     InstrumentationService* I, int queue_id, ra2yrproto::Command* cmd,
     bool discard_result, cmd_t::handler_t done_callback) {
   // TODO: reduce amount of copies we make
@@ -99,7 +99,7 @@ ra2yrproto::Response InstrumentationService::process_request(
   // execute parsed command & write result
   switch (cmd.command_type()) {
     case ra2yrproto::CLIENT_COMMAND: {
-      auto [cptr, ack] = handle_cmd(this, socket_id, &cmd);
+      auto [cptr, ack] = handle_cmd(this, socket_id, &cmd, false, nullptr);
       if (cmd.blocking()) {
         const u64 queue_id = (u64)socket_id;
         const auto timeout = cfg::POLL_BLOCKING_TIMEOUT;

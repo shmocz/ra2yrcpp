@@ -104,10 +104,6 @@ class InstrumentationService {
   std::unique_ptr<WebsocketServer> ws_server_;
 };
 
-std::tuple<command_hdl_t, ra2yrproto::RunCommandAck> handle_cmd(
-    InstrumentationService* I, int queue_id, ra2yrproto::Command* cmd,
-    bool discard_result = false, cmd_t::handler_t done_callback = nullptr);
-
 const InstrumentationService::Options default_options{
     {cfg::SERVER_ADDRESS, cfg::SERVER_PORT, cfg::MAX_CLIENTS,
      cfg::ALLOWED_HOSTS_REGEX},

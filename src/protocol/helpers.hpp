@@ -76,7 +76,7 @@ void dump_messages(std::string path, const gpb::Message& M,
 std::string message_type(const gpb::Any& m);
 std::string message_type(const gpb::Message& m);
 
-bool from_json(const vecu8& bytes, gpb::Message* m);
+[[nodiscard]] bool from_json(const vecu8& bytes, gpb::Message* m);
 std::string to_json(const gpb::Message& m);
 
 template <typename T>

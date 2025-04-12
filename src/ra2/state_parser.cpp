@@ -2,7 +2,7 @@
 
 #include "ra2yrproto/ra2yr.pb.h"
 
-#include "config.hpp"
+#include "constants.hpp"
 #include "logging.hpp"
 #include "protocol/helpers.hpp"
 #include "ra2/abi.hpp"

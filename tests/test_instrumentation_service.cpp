@@ -8,7 +8,7 @@
 #include "command/command_manager.hpp"
 #include "command/is_command.hpp"
 #include "commands_builtin.hpp"
-#include "config.hpp"
+#include "constants.hpp"
 #include "instrumentation_client.hpp"
 #include "instrumentation_service.hpp"
 #include "logging.hpp"

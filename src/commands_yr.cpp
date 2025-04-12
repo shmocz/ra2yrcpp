@@ -4,7 +4,7 @@
 #include "ra2yrproto/ra2yr.pb.h"
 
 #include "command/is_command.hpp"
-#include "config.hpp"
+#include "constants.hpp"
 #include "hooks_yr.hpp"
 #include "logging.hpp"
 #include "protocol/helpers.hpp"

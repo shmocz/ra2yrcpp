@@ -3,7 +3,7 @@
 #include "asio_utils.hpp"
 #include "client_connection.hpp"
 #include "client_utils.hpp"
-#include "config.hpp"
+#include "constants.hpp"
 #include "dll_inject.hpp"
 #include "instrumentation_client.hpp"
 #include "is_context.hpp"

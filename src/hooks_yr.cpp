@@ -4,7 +4,7 @@
 #include "ra2yrproto/ra2yr.pb.h"
 
 #include "auto_thread.hpp"
-#include "config.hpp"
+#include "constants.hpp"
 #include "hook.hpp"
 #include "instrumentation_service.hpp"
 #include "is_context.hpp"

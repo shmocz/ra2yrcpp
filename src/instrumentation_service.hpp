@@ -3,7 +3,7 @@
 
 #include "command/command_manager.hpp"
 #include "command/is_command.hpp"
-#include "config.hpp"
+#include "constants.hpp"
 #include "hook.hpp"
 #include "process.hpp"
 #include "types.h"

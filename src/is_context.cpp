@@ -4,7 +4,7 @@
 #include "commands_builtin.hpp"
 #include "commands_game.hpp"
 #include "commands_yr.hpp"
-#include "config.hpp"
+#include "constants.hpp"
 #include "context.hpp"
 #include "dll_inject.hpp"
 #include "hook.hpp"

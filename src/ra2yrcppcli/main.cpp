@@ -2,7 +2,7 @@
 #include "ra2yrproto/ra2yr.pb.h"
 
 #include "asio_utils.hpp"
-#include "config.hpp"
+#include "constants.hpp"
 #include "dll_inject.hpp"
 #include "instrumentation_service.hpp"
 #include "is_context.hpp"

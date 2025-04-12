@@ -1,6 +1,6 @@
 #include "yrclient_dll.hpp"
 
-#include "config.hpp"
+#include "constants.hpp"
 #include "instrumentation_service.hpp"
 #include "is_context.hpp"
 

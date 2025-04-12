@@ -145,7 +145,10 @@ std::string ra2yrcpp::protocol::message_type(const gpb::Message& m) {
 }
 
 bool ra2yrcpp::protocol::from_json(const vecu8& bytes, gpb::Message* m) {
-  auto s = ra2yrcpp::to_string(bytes);
+  return from_json(ra2yrcpp::to_string(bytes), m);
+}
+
+bool ra2yrcpp::protocol::from_json(const std::string& s, gpb::Message* m) {
   if (gpb::util::JsonStringToMessage(s, m).ok()) {
     return true;
   }

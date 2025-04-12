@@ -119,8 +119,4 @@ void get_gameloop_command(const ra2yrcpp::command::ISCommand<T>* Q,
   ctx->put_work([cmd]() { cmd->run_async_handler(); });
 }
 
-void create_all_hooks();
-void create_all_hooks(char* hooks_section, std::size_t section_size,
-                      void* dll_handle);
-
 };  // namespace ra2yrcpp::hooks_yr

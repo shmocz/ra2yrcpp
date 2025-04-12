@@ -78,7 +78,8 @@ WebsocketServer::WebsocketServer(WebsocketServer::Options o,
     auto remote = con->get_raw_socket().remote_endpoint().address().to_string();
     if (!std::regex_search(remote, match,
                            std::regex(opts.allowed_hosts_regex))) {
-      iprintf("reject connection from {}", remote);
+      iprintf("address {} doesn't match pattern \"{}\", rejecting.", remote,
+              opts.allowed_hosts_regex);
       return;
     }
 

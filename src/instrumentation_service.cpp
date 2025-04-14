@@ -124,7 +124,7 @@ ra2yrproto::Response InstrumentationService::process_request(
       return ra2yrcpp::make_response(flush_results(queue_id, timeout));
     }
     case ra2yrproto::SHUTDOWN:
-      return make_response(text_response(on_shutdown_(this)));
+      return make_response(text_response(on_shutdown()));
     default:
       throw std::runtime_error("unknown command: " +
                                std::to_string(cmd.command_type()));

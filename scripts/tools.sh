@@ -121,7 +121,7 @@ function build-protobuf() {
 function check-build() {
     [ ! -f "$1" ] && exit 1
 
-    e="$(grep -P 'warning' "$1" | grep -Pv '(Wunknown-pragmas|Wcomment|#pragma\s+warning|proto|xbyak\.h)')"
+    e="$(grep -P 'warning' "$1" | grep -Pv '(Wunknown-pragmas|Wcomment|#pragma\s+warning|\.proto|xbyak\.h)')"
 
     [ -n "$e" ] && {
         echo "build check failed:"

@@ -12,7 +12,7 @@ namespace hook {
 
 #pragma pack(push, 16)
 
-struct HookEntry {
+struct alignas(16) HookEntry {
   u32 address;
   u32 size;
   const char* name;

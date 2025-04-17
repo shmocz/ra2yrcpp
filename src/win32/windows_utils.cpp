@@ -1,6 +1,5 @@
 #include "win32/windows_utils.hpp"
 
-#include "logging.hpp"
 #include "types.h"
 #include "utility/scope_guard.hpp"
 
@@ -305,7 +304,7 @@ ExProcess::~ExProcess() {
   auto& pi_ = ctx->pi_;
   (void)TerminateProcess(pi_.hProcess, 0);
   if (!(WaitForSingleObject(pi_.hProcess, 5000) == WAIT_OBJECT_0)) {
-    eprintf("error with WaitForSingleProcess");
+    // eprintf("error with WaitForSingleProcess");
   }
   windows_utils::close_handle(pi_.hProcess);
   windows_utils::close_handle(pi_.hThread);

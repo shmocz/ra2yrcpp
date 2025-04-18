@@ -78,7 +78,7 @@ void ClientWebsocketConnection::connect() {
     return state == State::OPEN || state == State::CLOSED;
   });
   if (state().get() != State::OPEN) {
-    throw std::runtime_error("failed to open connection, state={}" +
+    throw std::runtime_error("failed to open connection, state=" +
                              std::to_string(static_cast<int>(state().get())));
   }
 }

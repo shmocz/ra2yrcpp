@@ -6,6 +6,7 @@ Language: Cpp
 # Force pointers to the type for C++.
 DerivePointerAlignment: false
 PointerAlignment: Left
+ReflowComments: false
 SeparateDefinitionBlocks: Always
 IncludeBlocks: Regroup
 IncludeCategories:
@@ -15,11 +16,13 @@ IncludeCategories:
     Priority: 2
   - Regex: "^<(fmt|google|xbyak|argparse|asio|websocketpp|gtest)/.+"
     Priority: 3
-  - Regex: "<c(stdio|stdint|string|stddef)>"
+  - Regex: "<c(stdio|stdlib|stdint|string|stddef)>"
     Priority: 4
+  - Regex: "windows.h"
+    Priority: 5
   - Regex: "<(errhandling|handle|libloader|memory|processthreads|ps|synch)api.h>"
-    Priority: 5
-  - Regex: "<(direct|malloc|minwindef|tlhelp32|winbase).h>"
-    Priority: 5
-  - Regex: "<.+>"
     Priority: 6
+  - Regex: "<(direct|dbghelp|malloc|minwindef|tlhelp32|winbase|winternl).h>"
+    Priority: 6
+  - Regex: "<.+>"
+    Priority: 7

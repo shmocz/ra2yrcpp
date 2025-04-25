@@ -4,6 +4,36 @@ Library for interacting with Red Alert 2 Yuri's Revenge game process with protob
 
 ## Usage
 
+Download the [latest release](https://github.com/shmocz/ra2yrcpp/releases/download/latest/ra2yrcpp.zip), copy `libra2yrcpp.dll` to same folder as `gamemd.exe` or `gamemd-spawn.exe`. Create configuration file named `ra2yrcpp.json` in that same folder, for example:
+
+```json
+{
+  "port": 14521,
+  "allowedHostsRegex": "0.0.0.0|127.0.0.1|172..+",
+  "logFilename": "ra2yrcpp.log"
+}
+```
+
+### Method 1: Syringe + yrpp-spawner
+
+If you are using beta version of CnCNet client, the relevant files are already in the game data folder.
+Otherwise get `Syringe.exe`, `CnCNet-Spawner.dll` and `cncnet.fnt` (see Troubleshooting section) [here](https://github.com/CnCNet/cncnet-yr-client-package/blob/feature/migration-to-dll-spawner%2Bares%2Bphobos/package)
+
+> [!NOTE]
+> Syringe expects one space character after the executable name, hence the backtick.
+
+Run the game:
+
+```bash
+Syringe.exe gamemd.exe\  -SPAWN -CD -LOG
+```
+
+### Method 2: Syringe + legacy spawner
+
+(TODO. In theory Syringe should also work with `gamemd-spawn.exe` without patching)
+
+### Method 3: Legacy spawner
+
 Get sources from [here](https://github.com/shmocz/ra2yrcpp/archive/refs/tags/latest.zip), or use git (use `--depth 1` if you want just the latest commit):
 
 ```
@@ -23,14 +53,7 @@ python ./scripts/patch_gamemd.py \
 > **Warning**
 > You cannot use the modified spawner in any online games played over CnCNet. Not only is this against their ToS, but the ra2yrcpp-specific spawner is incompatible with the standard version.
 
-Copy `ra2yrcpp/libra2yrcpp.dll` and `ra2yrcpp/gamemd-spawn-ra2yrcpp.exe` to the CnCNet installation folder. If you wish to launch the game via official CnCNet client, then overwrite the original `gamemd-spawn.exe` with the patched spawner. When the game is started, the DLL will be loaded with WebSocket server bound to port 14521.
-
-The following environment variables control the behaviour of the service:
-
-- `RA2YRCPP_ALLOWED_HOSTS_REGEX`: Regex matching the hosts allowed to connect (default: "0.0.0.0|127.0.0.1")
-- `RA2YRCPP_PORT`: The server port (default: 14521)
-- `RA2YRCPP_RECORD_PATH`: Path to state record file (disabled by default)
-- `RA2YRCPP_RECORD_TRAFFIC`: Path to traffic record file (disabled by default)
+Copy `ra2yrcpp/libra2yrcpp.dll` and `ra2yrcpp/gamemd-spawn-ra2yrcpp.exe` to the CnCNet installation folder. If you wish to launch the game via official CnCNet client, then overwrite the original `gamemd-spawn.exe` with the patched spawner.
 
 ## Building
 
@@ -168,17 +191,25 @@ Exact list of libraries may vary across systems and protobuf versions.
 > **Warning**
 > The uncompressed recording can be very large. Consider downsampling or transforming it into less verbose format for further processing.
 
-A callback is created to save game state at the beginning of each frame. To output these to a file, set the environment variable `RA2YRCPP_RECORD_PATH=<name>.pb.gz`. The states are stored as compressed consecutive serialized protobuf messages. After exiting the game, the recording can be dumped as lines of JSON strings with the tool `ra2yrcppcli.exe`.
+A callback is created to save game state at the beginning of each frame. To output these to a file, set the `recordFilename` setting, e.g. `"recordFilename": "record.pb.gz"`. The states are stored as compressed consecutive serialized protobuf messages. After exiting the game, the recording can be dumped as lines of JSON strings with the tool `ra2yrcppcli.exe`.
 
 ## Troubleshooting
 
 ### The game doesn't start
 
-This can happen if ra2yrcpp cannot load zlib DLL. Ensure that `zlib1.dll` is placed in the same folder as `gamemd-spawn.exe`.
+This can happen if ra2yrcpp cannot load zlib DLL. Ensure that `zlib1.dll` is placed in the same folder as `libra2yrcpp.dll`.
 
-### The game freezes shortly after loading
+### The game freezes shortly after loading with legacy spawner
 
 Anti-cheat mechanism tends to cause this. Use the non-hardened version of the spawner available [here](https://github.com/CnCNet/yr-patches/releases/tag/latest).
+
+### Cannot attach debugger when using Syringe
+
+This happens if debugging on Windows or with `winedbg` on Linux (regular `gdb` should work fine). Compile ra2yrcpp with `Debug` build variant, which causes it to detach from active debugger at initialization.
+
+### Missing fonts when using Syringe
+
+Make sure [cncnet.fnt](https://github.com/CnCNet/cncnet-yr-client-package/blob/feature/migration-to-dll-spawner%2Bares%2Bphobos/package/cncnet.fnt) is in game data folder.
 
 ## Credits
 

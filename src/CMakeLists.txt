@@ -33,8 +33,10 @@ if(NOT PROTO_LIB)
 endif()
 target_link_libraries(ra2yrcpp_core PUBLIC fmt::fmt "${PROTO_LIB}" protocol)
 if(WIN32)
-  add_library(windows_utils STATIC win32/win_message.cpp
-                                   win32/windows_utils.cpp)
+  add_library(
+    windows_utils STATIC win32/win_message.cpp win32/windows_debug.cpp
+                         win32/windows_utils.cpp)
+
   target_link_libraries(ra2yrcpp_core PUBLIC windows_utils ${LIB_WSOCK32}
                                              ${LIB_WS2_32})
 endif()

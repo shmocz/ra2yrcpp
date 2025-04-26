@@ -32,11 +32,11 @@
 !3rdparty/websocketpp
 !3rdparty/xbyak
 !CMakeLists.txt
+!CPPLINT.cfg
 !Doxyfile
 !LICENSE.md
 !Makefile
 !README.md
 !docker-compose*.yml
-!integration.env
 # Additional ignores
 *__pycache__*

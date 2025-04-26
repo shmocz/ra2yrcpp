@@ -192,9 +192,8 @@ void windows_utils::for_each_thread(
   }
   THREADENTRY32 te;
   te.dwSize = sizeof(te);
-  utility::scope_guard guard = [&hSnapshot]() {
-    windows_utils::close_handle(hSnapshot);
-  };
+  utility::scope_guard guard(
+      [&hSnapshot]() { windows_utils::close_handle(hSnapshot); });
 
   if (Thread32First(hSnapshot, &te)) {
     do {

@@ -1,6 +1,8 @@
 // Based on this: https://github.com/hMihaiDavid/addscn
 #include <cstring>
 
+#include <windows.h>
+
 #include <memoryapi.h>
 
 #include <algorithm>
@@ -8,7 +10,6 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <windows.h>
 #include <winnt.h>
 
 static inline unsigned alignup(unsigned x, unsigned a) {

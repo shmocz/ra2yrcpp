@@ -8,7 +8,11 @@
 #include <cstdint>
 #include <cstring>
 
-typedef void* HWND;
+// TODO: Fix the Windows header
+// typedef void* HWND;
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+// TODO: Fix the Windows header
 
 #include <direct.h>
 #include <handleapi.h>
@@ -22,11 +26,51 @@ typedef void* HWND;
 #include <tlhelp32.h>
 #include <winbase.h>
 
+#include <fcntl.h>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+namespace ra2yrcpp::logging {
+
+static std::once_flag stderr_initialized;
+
+void initialize_stderr() {
+  std::call_once(stderr_initialized, []() {
+    // Ignore the result here, like what we do in gamemd-spawn.exe
+    AllocConsole();
+
+    // Check if the stderr is as expected
+    /*
+     * When `stdin`, `stdout`, and `stderr` aren't associated with a stream (for
+     * example, in a Windows application without a console window), the file
+     * descriptor values for these streams are returned from `_fileno` as the
+     * special value -2. ...
+     * https://learn.microsoft.com/cpp/c-runtime-library/reference/get-osfhandle
+     */
+    if (fileno(stderr) == -2) {
+      // Code copied from:
+      // https://github.com/ocaml/ocaml/issues/9252#issuecomment-576383814
+      // https://web.archive.org/web/20230601042758/https://social.msdn.microsoft.com/Forums/windows/en-US/286059e8-9163-4679-9663-efc63c5d9c53/allocconsole-backspace-and-newline-characters-incorrectly-printed-after-quotsystemquot-call?forum=vcgeneral#68a73761-7a40-4d4c-a15e-90902a1244ee-isAnswer
+      auto fd_stderr = _open_osfhandle((intptr_t)GetStdHandle(STD_ERROR_HANDLE),
+                                       _O_WRONLY | _O_BINARY);
+
+      if (fd_stderr) {
+        dup2(fd_stderr, 2);
+        close(fd_stderr);
+        SetStdHandle(STD_ERROR_HANDLE, (HANDLE)_get_osfhandle(2));
+      }
+
+      *stderr = *(fdopen(2, "wb"));
+      setvbuf(stderr, NULL, _IONBF, 0);
+    }
+  });
+}
+
+}  // namespace ra2yrcpp::logging
 
 using namespace windows_utils;
 

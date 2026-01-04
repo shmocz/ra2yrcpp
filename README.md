@@ -199,9 +199,12 @@ A callback is created to save game state at the beginning of each frame. To outp
 
 This can happen if ra2yrcpp cannot load zlib DLL. Ensure that `zlib1.dll` is placed in the same folder as `libra2yrcpp.dll`.
 
-### The game freezes shortly after loading with legacy spawner
+### The game freezes shortly after loading
 
-Anti-cheat mechanism tends to cause this. Use the non-hardened version of the spawner available [here](https://github.com/CnCNet/yr-patches/releases/tag/latest).
+Anti-cheat mechanism tends to cause this. Use the non-hardened version of the spawner:
+
+- The [yrpp-spawner](https://github.com/CnCNet/yrpp-spawner/releases) (not the "CnCNetYR" version)
+- The [legacy spawner](https://github.com/CnCNet/yr-patches/releases/tag/latest).
 
 ### Cannot attach debugger when using Syringe
 

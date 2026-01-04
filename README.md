@@ -16,8 +16,7 @@ Download the [latest release](https://github.com/shmocz/ra2yrcpp/releases/downlo
 
 ### Method 1: Syringe + yrpp-spawner
 
-If you are using beta version of CnCNet client, the relevant files are already in the game data folder.
-Otherwise get `Syringe.exe`, `CnCNet-Spawner.dll` and `cncnet.fnt` (see Troubleshooting section) [here](https://github.com/CnCNet/cncnet-yr-client-package/blob/feature/migration-to-dll-spawner%2Bares%2Bphobos/package)
+This is the recommended way to use existing game files from [CnCNet YR client package](https://github.com/CnCNet/cncnet-yr-client-package).
 
 > [!NOTE]
 > Syringe expects one space character after the executable name, hence the backtick.
@@ -199,17 +198,16 @@ A callback is created to save game state at the beginning of each frame. To outp
 
 This can happen if ra2yrcpp cannot load zlib DLL. Ensure that `zlib1.dll` is placed in the same folder as `libra2yrcpp.dll`.
 
-### The game freezes shortly after loading with legacy spawner
+### The game freezes shortly after loading
 
-Anti-cheat mechanism tends to cause this. Use the non-hardened version of the spawner available [here](https://github.com/CnCNet/yr-patches/releases/tag/latest).
+Anti-cheat mechanism tends to cause this. Use the non-hardened version of the spawner:
+
+- The [yrpp-spawner](https://github.com/CnCNet/yrpp-spawner/releases) (not the "CnCNetYR" version)
+- The [legacy spawner](https://github.com/CnCNet/yr-patches/releases/tag/latest).
 
 ### Cannot attach debugger when using Syringe
 
 This happens if debugging on Windows or with `winedbg` on Linux (regular `gdb` should work fine). Compile ra2yrcpp with `Debug` build variant, which causes it to detach from active debugger at initialization.
-
-### Missing fonts when using Syringe
-
-Make sure [cncnet.fnt](https://github.com/CnCNet/cncnet-yr-client-package/blob/feature/migration-to-dll-spawner%2Bares%2Bphobos/package/cncnet.fnt) is in game data folder.
 
 ## Credits
 

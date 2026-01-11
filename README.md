@@ -103,7 +103,7 @@ If you built the main docker image then protobuf has already been built and you 
 
 ```bash
 mkdir -p opt/usr
-docker compose cp -L builder:/usr/i686-w64-mingw32 opt/usr
+docker compose exec builder tar -C /usr -c --dereference i686-w64-mingw32 | tar -C opt/usr -x
 docker compose cp -L builder:/usr/bin/protoc opt/bin
 ```
 

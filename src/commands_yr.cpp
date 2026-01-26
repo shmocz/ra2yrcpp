@@ -110,7 +110,10 @@ auto get_game_state() {
     }
 
     Q->command_data().mutable_state()->CopyFrom(D->sv.game_state());
-    if (single_step) {
+    // Always unpause the game regardless of the value of `single_step`.
+    // This ensures the game resumes when `get_game_state()` is called
+    // after disabling single-step mode.
+    if (D->game_paused.get()) {
       D->game_paused.store(false);
     }
     M.unlock();

@@ -39,6 +39,10 @@ template <typename... Args>
 inline void print_message(FILE* fp, Level level, const char* fmt_s,
                           const char* file, const char* func, int line,
                           Args... args) {
+  // TODO: Better coding
+  void initialize_stderr();
+  initialize_stderr();
+  // TODO: Better coding
   fmt::print(
       fp, "{}: [thread {} TS: {}]: {}:{}:{} {}\n",
       levels[static_cast<int>(level)],
